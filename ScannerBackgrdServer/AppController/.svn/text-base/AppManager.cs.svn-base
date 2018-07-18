@@ -1,0 +1,315 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using ScannerBackgrdServer.ApController;
+using ScannerBackgrdServer.Common;
+using static ScannerBackgrdServer.Common.MsgStruct;
+
+namespace ScannerBackgrdServer.AppController
+{
+    class AppManager:DeviceManager
+    {
+        /// <summary>
+        /// 接收到Main模块的数据委托
+        /// </summary>
+        /// <param name="MainMsg">消息内容</param>
+        public delegate void OnReceiveMainData(InterModuleMsgStruct MainMsg);
+
+        /// <summary>  
+        /// 接收到Main模块的数据事件  
+        /// </summary>  
+        public static event OnReceiveMainData ReceiveMainData;
+
+        public AppManager()
+        {
+            Thread t = new Thread(new ThreadStart(CheckAppStatus));
+            t.Start();
+            t.IsBackground = true;
+        }
+
+        /// <summary>
+        /// 检测App在线状态
+        /// </summary>
+        private void CheckAppStatus()
+        {
+            while (true)
+            {
+                List<AsyncUserToken> toKenList = MyDeviceList.GetConnList();
+                List<AsyncUserToken> RemovList = new List<AsyncUserToken>();
+
+                foreach (AsyncUserToken x in toKenList)
+                {
+                    TimeSpan timeSpan = DateTime.Now - x.EndMsgTime;
+                    //if (timeSpan.TotalSeconds > new ModuleConfig().AppOnLineTime) //大于180秒认为设备下线
+                    if (timeSpan.TotalSeconds > DataController.AppOnLineTime) //大于180秒认为设备下线
+                    {
+                        OnOutputLog(LogInfoType.INFO, "App(" + x.IPAddress + ":" + x.Port.ToString() + ")下线了！！！");
+                        RemovList.Add(x);
+
+                    }
+                }
+                //删除已下线的AP
+                foreach (AsyncUserToken x in RemovList)
+                {
+                    if (MyDeviceList.remov(x))
+                    {
+                        //Send2main_OnOffLine("OffLine", x);
+                    }
+                }
+                //OnOutputLog(LogInfoType.DEBG, "当前在线App数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
+
+                Thread.Sleep(3000);
+            }
+        }
+
+        private bool GetFlag(byte[] buff, ref int startIndex, ref int endIndex)
+        {
+            const byte sFlag = (int)'{';
+            const byte eFlag = (int)'}';
+
+            startIndex = -1;
+            endIndex = -1;
+
+            int sFlagNum = 0;
+            for (int i = 0; i < buff.Length; i++)
+            {
+                if (buff[i].Equals(sFlag))
+                {
+                    if (sFlagNum == 0) startIndex = i;
+                    sFlagNum++;
+                }
+                if (buff[i].Equals(eFlag))
+                {
+                    if (sFlagNum > 0)
+                        sFlagNum--;
+                    if (sFlagNum == 0)
+                    {
+                        endIndex = i + 1; //1为sFlag的长度
+                        break;
+                    }
+                }
+            }
+
+            if (endIndex != -1 && startIndex != -1)
+                return true;
+
+            return false;
+        }
+
+        protected string GetDeviceMsg_JSON(AsyncUserToken token, string buff)
+        {
+            return this.GetDeviceMsg_JSON(token, System.Text.Encoding.ASCII.GetBytes(buff));
+        }
+        protected string GetDeviceMsg_JSON(AsyncUserToken token, byte[] buff)
+        {
+            int startIndex = -1;
+            int endIndex = -1;
+
+            byte[] allMsgByte = MyDeviceList.GetMsgBuff_Byte(token);
+            GetFlag(allMsgByte, ref startIndex, ref endIndex);
+
+            if (endIndex != -1)
+            {
+                //if (endIndex == -1)
+                //{
+                //    OnOutputLog(LogInfoType.WARN, "未找到Xml消息结束标志！");
+                //    return string.Empty;
+                //}
+
+                if (startIndex == -1)
+                {
+                    OnOutputLog(LogInfoType.WARN, "未找到Xml消息起始标志！");
+                    MyDeviceList.DelMsgBuff(token, 0, endIndex);
+                    return string.Empty;
+                }
+        
+                if (startIndex >= endIndex)
+                {
+                    OnOutputLog(LogInfoType.WARN, "Xml消息起始标志错误！");
+                    MyDeviceList.DelMsgBuff(token, 0, startIndex);
+                    return string.Empty;
+                }
+
+                string msgStr = System.Text.Encoding.Default.GetString(allMsgByte).Substring(startIndex, endIndex - startIndex);
+                MyDeviceList.DelMsgBuff(token, 0, endIndex);
+
+                OnOutputLog(LogInfoType.INFO, "\n\n收到消息：————————————————————");
+                OnOutputLog(LogInfoType.INFO, msgStr);
+                OnOutputLog(LogInfoType.INFO, "————————————————————\n\n");
+                return msgStr;
+            }
+
+            return string.Empty;
+        }
+
+        #region 与MainController模块收发消息初始化
+        /*
+         *  声明用于发送信息给MainController的代理
+         */
+        private MessageDelegate sendMsg_2_MainController = new MessageDelegate(FrmMainController.MessageDelegate_For_AppController);
+
+        protected void OnSendMsg2Main(AsyncUserToken token, Ap_Info_Struct ApInfo, Msg_Body_Struct TypeKeyValue)
+        {
+            MessageType mt = MessageType.MSG_JSON;
+            MessageBody mb = new MessageBody();
+
+            InterModuleMsgStruct msg = new InterModuleMsgStruct();
+
+            msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            //msg.msgType = msgType.ToString();
+
+            msg.AppInfo.User = token.user;
+            msg.AppInfo.Group = token.group;
+            msg.AppInfo.Domain = token.domain;
+            msg.AppInfo.Ip = token.IPAddress.ToString();
+            msg.AppInfo.Port = token.Port;
+            msg.AppInfo.Type = DeviceType;
+
+            msg.ApInfo = ApInfo;
+
+            msg.Body = TypeKeyValue;
+            mb.bJson = JsonConvert.SerializeObject(msg);
+
+            sendMsg_2_MainController(mt, mb);
+
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块成功！"));
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson));
+        }
+
+        protected void OnSendMsg2Main(byte[] buff)
+        {
+            MessageType mt;
+            MessageBody mb = new MessageBody(); ;
+
+            mt = MessageType.MSG_JSON;
+            mb.bJson = System.Text.Encoding.Default.GetString(buff);
+
+            sendMsg_2_MainController(mt,mb);
+
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块成功！"));
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson));
+        }
+     
+        
+        public static void MessageDelegate_For_MainController(MessageType mt, MessageBody mb)
+        {
+            string outStr = string.Format("接收到MainController消息。消息内容:\n{0}\n", mb.bJson);
+            FrmMainController.add_log_info(LogInfoType.EROR, outStr);
+            Logger.Trace(LogInfoType.EROR, outStr);
+
+            Thread t = new Thread(new ParameterizedThreadStart(ReceiveMainMsg));
+            t.Start(mb.bJson);
+            t.IsBackground = true;
+        }
+
+        protected static void ReceiveMainMsg(object o)
+        {
+            string str = (string)o;
+
+            //解析收到的消息
+            InterModuleMsgStruct MainMsg = null;
+            try
+            {
+                MainMsg = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
+            }
+            catch (Exception)
+            {
+                FrmMainController.add_log_info(LogInfoType.EROR, "解析收到的Main模块消息出错！");
+                Logger.Trace(LogInfoType.EROR, "解析收到的Main模块消息出错！");
+                return;
+            }
+
+            if (ReceiveMainData != null && MainMsg != null)
+                ReceiveMainData(MainMsg);
+        }
+
+        #endregion
+
+        /// <summary>
+        /// 重写设备更改事件
+        /// </summary>
+        /// <param name="num">num大于0表示设备上线，否则设备下线</param>
+        /// <param name="token">设备信息</param>
+        public override void OnDeviceNumberChange(int num, AsyncUserToken token)
+        {
+            if (num > 0)
+            {
+                MyDeviceList.add(token);
+                //在收到心跳消息时上报
+                //send2main_OnOffLine("OnLine",token);
+            }
+            else  //AP下线，删除设备列表中的AP信息
+            {
+                MyDeviceList.remov(token);
+            }
+        }
+
+        /// <summary>
+        /// 发送消息到App
+        /// </summary>
+        /// <param name="appInfo">Ap信息</param>
+        /// <param name="stdeviceServerMsgStructr">消息内容</param>
+        protected void SendMsg2App(App_Info_Struct appInfo, DeviceServerMsgStruct deviceServerMsgStruct)
+        {
+            if ((string.IsNullOrEmpty(appInfo.Ip)) || (appInfo.Ip == MsgStruct.NullDevice))
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("目的设备为Null，不向App发送信息！"));
+                return;
+            }
+
+            string strJosn = JsonConvert.SerializeObject(deviceServerMsgStruct);
+            byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
+            
+            if (appInfo.Ip == MsgStruct.AllDevice)
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("目的设备为All，向所有App发送信息！"));
+                List<AsyncUserToken>  toKenList = MyDeviceList.GetConnList();
+                if (toKenList != null)
+                { foreach(AsyncUserToken token in toKenList)
+                    {
+                        MySocket.SendMessage(token, buff);
+                    }
+                }
+            }
+            else
+            {
+                AsyncUserToken token = MyDeviceList.FindByIpPort(appInfo.Ip, appInfo.Port);
+                if (token == null)
+                {
+                    OnOutputLog(LogInfoType.WARN, string.Format("设备列表中未找到该设备[{0}:{1}]信息！", appInfo.Ip, appInfo.Port));
+                    return;
+                }
+                MySocket.SendMessage(token, buff);
+            }
+            return;
+        }
+
+        /// <summary>
+        /// 发送消息到App
+        /// </summary>
+        /// <param name="token">App信息</param>
+        /// <param name="TypeKeyValue">消息内容</param>
+        protected void SendMsg2App(AsyncUserToken token, Msg_Body_Struct TypeKeyValue)
+        {
+            if (token == null)
+            {
+                OnOutputLog(LogInfoType.WARN, string.Format("目的设备信息为NULL！"));
+                return;
+            }
+            DeviceServerMsgStruct msgStruct = new DeviceServerMsgStruct();
+            msgStruct.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+            msgStruct.ApInfo.Ip = MsgStruct.NullDevice;
+
+            msgStruct.Body = TypeKeyValue;
+            string strJosn = JsonConvert.SerializeObject(msgStruct);
+            byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
+            MySocket.SendMessage(token, buff);
+        }
+    }
+}

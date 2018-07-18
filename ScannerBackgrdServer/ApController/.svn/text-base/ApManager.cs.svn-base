@@ -1,0 +1,330 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using ScannerBackgrdServer.Common;
+using static ScannerBackgrdServer.Common.MsgStruct;
+using static ScannerBackgrdServer.Common.Xml_codec;
+
+namespace ScannerBackgrdServer.ApController
+{
+    
+    class ApManager : DeviceManager
+    {
+        static UInt16 msgId = 0;
+        public ApManager()
+        {
+            Thread t = new Thread(new ThreadStart(CheckApStatus));
+            t.Start();
+            t.IsBackground = true;
+        }
+
+        /// <summary>
+        /// 检测Ap在线状态
+        /// </summary>
+        private void CheckApStatus()
+        {
+            while (true)
+            {
+                List<AsyncUserToken> toKenList = MyDeviceList.GetConnList();
+                List<AsyncUserToken> RemovList = new List<AsyncUserToken>();
+
+                foreach (AsyncUserToken x in toKenList)
+                {
+                    TimeSpan timeSpan = DateTime.Now - x.EndMsgTime;
+                    //if (timeSpan.TotalSeconds > new ModuleConfig().ApOnLineTime) //大于180秒认为设备下线
+                    if (timeSpan.TotalSeconds > DataController.ApOnLineTime) //大于180秒认为设备下线
+                    {
+                        OnOutputLog(LogInfoType.INFO, "Ap(" + x.IPAddress + ":" + x.Port.ToString() + ")下线了！！！");
+                        RemovList.Add(x);
+
+                    }
+                }
+                //删除已下线的AP
+                foreach (AsyncUserToken x in RemovList)
+                {
+                    if (MyDeviceList.remov(x))
+                    {
+                        Send2main_OnOffLine("OffLine", x);
+                    }
+                }
+                //OnOutputLog(LogInfoType.DEBG, "当前在线Ap数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
+                
+                Thread.Sleep(3000);
+            }
+        }
+
+        /// <summary>
+        /// 接收到Main模块的数据委托
+        /// </summary>
+        /// <param name="MainMsg">消息内容</param>
+        public delegate void OnReceiveMainData(InterModuleMsgStruct MainMsg);
+        /// <summary>  
+        /// 接收到Main模块的数据事件  
+        /// </summary>  
+        public static event OnReceiveMainData ReceiveMainData;
+
+        /// <summary>
+        /// 防止粘包，检查XML消息的起始标志
+        /// </summary>
+        /// <param name="token">设备信息</param>
+        /// <param name="buff">设备消息</param>
+        /// <returns></returns>
+        protected string GetDeviceMsg_XML(AsyncUserToken token, byte[] buff)
+        {
+            const string startFlag = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+            const string endFlag = "</message_content>";
+
+            //if (!MyDeviceList.AddMsgBuff(token, buff))
+            //{
+            //    string str = string.Format("设备列表中未找到该设备[{0}:{1}]信息！",
+            //        token.IPAddress.ToString(), token.Port.ToString());
+            //    OnOutputLog(LogInfoType.WARN, str);
+            //    return string.Empty;
+            //}
+
+            string allMsgStr = MyDeviceList.GetMsgBuff_Str(token);
+            int endIndex = allMsgStr.IndexOf(endFlag);
+            if (endIndex >= 0)
+            {
+                endIndex = endIndex + endFlag.Length;
+                if (endIndex > allMsgStr.Length)
+                {
+                    OnOutputLog(LogInfoType.WARN, "未找到Xml消息结束标志！");
+                    return string.Empty;
+                }
+
+                int startIndex = allMsgStr.IndexOf(startFlag);
+                if (startIndex < 0)
+                {
+                    OnOutputLog(LogInfoType.WARN, "未找到Xml消息起始标志！");
+                    MyDeviceList.DelMsgBuff(token, 0, endIndex);
+                    return string.Empty;
+                }
+                if (startIndex >= endIndex)
+                {
+                    OnOutputLog(LogInfoType.WARN, "Xml消息起始标志错误！");
+                    MyDeviceList.DelMsgBuff(token, 0, startIndex);
+                    return string.Empty;
+                }
+
+
+                string msgStr = allMsgStr.Substring(startIndex, endIndex - startIndex);
+                MyDeviceList.DelMsgBuff(token, 0, endIndex);
+
+                OnOutputLog(LogInfoType.DEBG, "收到AP消息：————————————————————");
+                OnOutputLog(LogInfoType.DEBG, msgStr);
+                OnOutputLog(LogInfoType.DEBG, "————————————————————\n\n");
+                return msgStr;
+            }
+
+            return string.Empty;
+        }
+
+        #region 与MainController模块收发消息初始化
+
+        //声明用于发送信息给MainController的代理
+        private MessageDelegate sendMsg_2_MainController = new MessageDelegate(FrmMainController.MessageDelegate_For_ApController);
+
+        public void OnSendMsg2Main(UInt16 msgId,MsgStruct.MsgType msgType,AsyncUserToken token, Msg_Body_Struct TypeKeyValue)
+        {
+            MessageType mt = MessageType.MSG_JSON;
+            MessageBody mb = new MessageBody();
+
+            InterModuleMsgStruct msg = new InterModuleMsgStruct();
+            
+            msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            msg.MsgType = msgType.ToString();
+
+            msg.ApInfo.Sn = token.Sn;
+            msg.ApInfo.Fullname = token.FullName;
+            msg.ApInfo.Ip = token.IPAddress.ToString();
+            msg.ApInfo.Port = token.Port;
+            msg.ApInfo.Type = DeviceType;
+
+            App_Info_Struct appInfo = new App_Info_Struct();
+            if (msgType == MsgType.NOTICE)
+            {
+                appInfo.Ip = AllDevice;
+            }
+            else
+            {
+                //通过消息id查找AppInfo
+                AsyncUserToken ListToken = MyDeviceList.FindByIpPort(token.IPAddress.ToString(), token.Port);
+                foreach (MsgId2App x in ListToken.msgId2App)
+                {
+                    if (x.id == msgId)
+                    {
+                        appInfo = x.AppInfo;
+                        break;
+                    }
+                }
+            }
+
+            msg.AppInfo = appInfo;
+            msg.Body =TypeKeyValue;
+            mb.bJson = JsonConvert.SerializeObject(msg);
+
+            sendMsg_2_MainController(mt, mb);
+
+            MyDeviceList.RemoveMsgId2App(token,msgId);
+
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块成功！"));
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson));
+            //OnReceiveMainMsg(mt, mb);
+        }
+
+        public static void MessageDelegate_For_MainController(MessageType mt, MessageBody mb)
+        {
+            //在此处理MainController发送过来的信息
+            //Recv_Main_Msg_Struct para = new Recv_Main_Msg_Struct();
+            //para.mt = mt;
+            //para.mb = mb;
+            string outStr = string.Format("接收到MainController消息。消息内容:\n{0}\n",mb.bJson);
+            FrmMainController.add_log_info(LogInfoType.EROR, outStr);
+            Logger.Trace(LogInfoType.EROR, outStr);
+
+            Thread t = new Thread(new ParameterizedThreadStart(ReceiveMainMsg));
+            t.Start(mb.bJson);
+            t.IsBackground = true;
+
+        }
+
+        public static void ReceiveMainMsg(object o)
+        {
+            string str = (string)o;
+
+            //解析收到的消息
+            InterModuleMsgStruct MainMsg = null;
+            try
+            {
+                MainMsg = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
+            }
+            catch (Exception)
+            {
+                FrmMainController.add_log_info(LogInfoType.EROR, "解析收到的Main模块消息出错！");
+                Logger.Trace(LogInfoType.EROR, "解析收到的Main模块消息出错！");
+                return;
+            }
+
+            if (ReceiveMainData != null && MainMsg != null)
+                ReceiveMainData(MainMsg);
+        }
+
+        /// <summary>
+        /// msgId自增
+        /// </summary>
+        public static UInt16 addMsgId()
+        {
+            if (msgId >= 0xFFFF)
+            {
+                msgId = 1;
+            }
+            else
+            {
+                msgId++;
+            }
+            return msgId;
+        }
+
+        #endregion
+
+
+        /// <summary>
+        /// 发送消息到AP
+        /// </summary>
+        /// <param name="token">Ap信息</param>
+        /// <param name="buff">消息内容</param>
+        public void SendMsg2Ap(AsyncUserToken token, byte[] buff)
+        {
+            MySocket.SendMessage(token, buff);
+        }
+
+        /// <summary>
+        /// 重写设备更改事件
+        /// </summary>
+        /// <param name="num">num大于0表示设备上线，否则设备下线</param>
+        /// <param name="token">设备信息</param>
+        public override void OnDeviceNumberChange(int num, AsyncUserToken token)
+        {
+            if (num > 0)  
+            {
+                MyDeviceList.add(token);
+                //在收到心跳消息时上报
+                //send2main_OnOffLine("OnLine",token);
+            }
+            else  //AP下线，删除设备列表中的AP信息
+            {
+                if (MyDeviceList.remov(token))
+                {
+                    Send2main_OnOffLine("OffLine", token);
+                }
+            }
+        }
+
+
+        #region 向MainController模块发送消息
+
+        /// <summary>
+        /// 发送AP上下线消息
+        /// </summary>
+        /// <param name="status">状态（OnLine：上线；OffLine:下线）</param>
+        /// <param name="token">Ap信息</param>
+        protected void Send2main_OnOffLine(string status, AsyncUserToken token)
+        {
+            //保存的状态有更改时才上报
+            string MainControllerStatus = MyDeviceList.GetMainControllerStatus(token);
+
+            OnOutputLog(LogInfoType.DEBG, "旧状态为：" + MainControllerStatus + "新状态为：" + status);
+
+            if ((String.IsNullOrEmpty(MainControllerStatus) && (String.Compare(status, "OffLine", true) == 0)))
+                return;
+
+            if (String.Compare(MainControllerStatus, status, true) != 0)
+            {
+                Msg_Body_Struct TypeKeyValue =
+                    new Msg_Body_Struct(Main2ApControllerMsgType.OnOffLine,
+                    "AllOnLineNum",MyDeviceList.GetCount().ToString(),
+                    "Status", status);
+
+                //向Main模块发消息
+                OnSendMsg2Main(0,MsgStruct.MsgType.NOTICE,token, TypeKeyValue);
+                //修改状态
+                MyDeviceList.SetMainControllerStatus(status, token);
+            }
+        }
+
+        protected void Send2main_OnLineList()
+        {
+            OnOutputLog(LogInfoType.DEBG, "发送所有在线AP列表给MainController模块!" );
+
+            AsyncUserToken token = new AsyncUserToken();
+
+            Msg_Body_Struct TypeKeyValue =
+                    new Msg_Body_Struct(Main2ApControllerMsgType.OnLineAPList);
+
+            List <AsyncUserToken> dList =  MyDeviceList.GetConnList();
+            int i = 0;
+            foreach(AsyncUserToken x in dList)
+            {
+                Name_DIC_Struct n_dic = new Name_DIC_Struct("Ap" + i++);
+                n_dic.dic.Add("Sn",x.Sn);
+                n_dic.dic.Add("Port", x.FullName);
+                n_dic.dic.Add("Ip", x.IPAddress.ToString());
+                n_dic.dic.Add("Port", x.Port.ToString());
+                n_dic.dic.Add("Type", DeviceType);
+                TypeKeyValue.n_dic.Add(n_dic);
+            }
+
+            //向Main模块发消息
+            OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, token, TypeKeyValue);
+    
+        }
+        #endregion
+    }
+}

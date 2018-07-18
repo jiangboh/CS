@@ -1,0 +1,42 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace ScannerBackgrdServer
+{
+    class AppController_test
+    {
+        /*
+         *  声明用于发送信息给MainController的代理
+         */
+        private MessageDelegate sendMsg_2_MainController = new MessageDelegate(FrmMainController.MessageDelegate_For_AppController);
+
+        public AppController_test()
+        {
+            MessageType mt = MessageType.MSG_JSON;
+            MessageBody mb = new MessageBody();
+
+            mb.bJson = "XML Formmat";
+
+            /*
+             *  发送消息给MainController
+             */
+            sendMsg_2_MainController(mt, mb);
+        }
+
+
+        /// <summary>
+        /// 用于从MainController中收消息
+        /// </summary>
+        /// <param name="mt"></param>
+        /// <param name="mb"></param>
+        public static void MessageDelegate_For_MainController(MessageType mt, MessageBody mb)
+        {
+            //在此处理MainController发送过来的信息
+            MessageBox.Show(mb.bJson);
+        }
+    }
+}

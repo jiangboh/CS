@@ -1,0 +1,614 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+
+namespace ScannerBackgrdServer.Common
+{
+    class ApMsgType
+    {
+        public const string set_ip_address_request = "set_ip_address_request";
+        public const string set_ip_address_response = "set_ip_address_response";
+        public const string status_request = "status_request";
+        public const string status_response = "status_response";
+        public const string set_configuration = "set_configuration";
+        public const string set_configuration_result = "set_configuration_result";
+        public const string activate_nodeb_request = "activate_nodeb_request";
+        public const string activate_nodeb_result = "activate_nodeb_result";
+        public const string cell_info_request = "cell_info_request";
+        public const string cell_info_result = "cell_info_result";
+        public const string femto_status_request = "femto_status_request";
+        public const string femto_status_response = "femto_status_response";
+        public const string scanner = "scanner";
+        public const string result_ack = "result_ack";
+        public const string paging_request = "paging_request";
+        public const string paging_response = "paging_response";
+        public const string meas_report = "meas_report";
+        public const string set_son_earfcn = "set_son_earfcn";
+        public const string set_son_earfcn_response = "set_son_earfcn_response";
+        public const string imsi_list_setconfig = "imsi_list_setconfig";
+        public const string imsi_list_delconfig = "imsi_list_delconfig";
+        public const string imsi_list_config_result = "imsi_list_config_result";
+        public const string imsi_list_check = "imsi_list_check";
+        public const string imsi_list_check_result = "imsi_list_check_result";
+        public const string warning_status = "warning_status";
+        public const string set_periodic_restart_time = "set_periodic_restart_time";
+        public const string set_periodic_restart_time_response = "set_periodic_restart_time_response";
+        public const string get_son_earfcn = "get_son_earfcn";
+        public const string get_son_earfcn_response = "get_son_earfcn_response";
+        public const string set_redirection_req = "set_redirection_req";
+        public const string set_redirection_rsp = "set_redirection_rsp";
+        public const string UE_cap_report = "UE_cap_report";
+        public const string set_tac_value = "set_tac_value";
+        public const string set_xml_msg_all = "set_xml_msg_all";
+        public const string set_work_mode = "set_work_mode";
+        public const string set_work_mode_reponse = "set_work_mode_reponse";
+        public const string get_work_mode = "get_work_mode";
+        public const string get_work_mode_reponse = "get_work_mode_reponse";
+        public const string set_macro = "set_macro";
+        public const string set_macro_response = "set_macro_response";
+        public const string get_macro = "get_macro";
+        public const string get_macro_response = "get_macro_response";
+        public const string set_report_target_request = "set_report_target_request";
+        public const string get_report_target_request = "get_report_target_request";
+        public const string set_report_target_response = "set_report_target_response";
+        public const string get_report_target_response = "get_report_target_response";
+        public const string get_redirection_req = "get_redirection_req";
+        public const string get_redirection_rsp = "get_redirection_rsp";
+        public const string set_upload_req = "set_upload_req";
+        public const string set_upload_response = "set_upload_response";
+        public const string get_upload_req = "get_upload_req";
+        public const string get_upload_response = "get_upload_response";
+        public const string set_system_request = "set_system_request";
+        public const string get_system_request = "get_system_request";
+        public const string set_system_response = "set_system_response";
+        public const string get_system_response = "get_system_response";
+        public const string Update = "Update";
+        public const string Update_result = "Update_result";
+        public const string file_eof = "file_eof";
+        public const string Get_Log = "Get_Log";
+        public const string Get_Log_result = "Get_Log_result";
+        public const string get_rt_info = "get_rt_info";
+        public const string rt_info_report = "rt_info_report";
+        public const string SYNC_request = "SYNC_request";
+        public const string SYNC_info = "SYNC_info";
+        public const string set_device_id = "set_device_id";
+        public const string set_device_id_response = "set_device_id_response";
+        public const string get_device_id = "get_device_id";
+        public const string get_device_id_response = "get_device_id_response";
+        public const string Syncinfo_set = "Syncinfo_set";
+        public const string Syncinfo_set_response = "Syncinfo_set_response";
+        public const string Syncinfo_get = "Syncinfo_get";
+        public const string Syncinfo_get_response = "Syncinfo_get_response";
+        public const string imei_list_setconfig = "imei_list_setconfig";
+        public const string imei_list_delconfig = "imei_list_delconfig";
+        public const string imei_list_config_result = "imei_list_config_result";
+        public const string imei_list_delconfig_result = "imei_list_delconfig_result";
+        public const string imei_list_check = "imei_list_check";
+        public const string imei_list_check_result = "imei_list_check_result";
+        public const string imsi_temp_list_config = "imsi_temp_list_config";
+        public const string imsi_temp_list_result = "imsi_temp_list_result";
+        public const string set_device_reboot = "set_device_reboot";
+    }
+
+    class AppMsgType : ApMsgType
+    {
+        public const string app_login_request = "app_login_request";
+        public const string app_login_response = "app_login_response";
+        public const string app_heartbeat_request = "app_heartbeat_request";
+        public const string app_heartbeat_response = "app_heartbeat_response";
+    }
+
+    class Main2ApControllerMsgType : AppMsgType
+    {
+        /// <summary>
+        /// AP上下线通知消息
+        /// </summary>
+        public const string OnOffLine = "OnOffLine";
+        /// <summary>
+        /// AP上下线通知消息回复
+        /// </summary>
+        public const string OnOffLine_Ack = "OnOffLine_Ack";
+        /// <summary>
+        /// 所有在线消息
+        /// </summary>
+        public const string OnLineAPList = "OnLineAPList";
+
+        /// <summary>
+        /// MainController透传消息
+        /// </summary>
+        public const string Transparent = "Transparent";
+    }
+
+    class MsgStruct
+    {
+        /// <summary>
+        /// 表示空设备
+        /// </summary>
+        static public string NullDevice = "NULL_DEVICE";
+        /// <summary>
+        /// 表示所有设备
+        /// </summary>
+        static public string AllDevice = "ALL_DEVICE";
+        /// <summary>
+        /// 表示字典里（包括AllNum）所有键值对数。
+        /// </summary>
+        static public string AllNum = "AllNum";
+
+        public enum MsgType
+        {
+            /// <summary>
+            /// 通知消息。用于AP上线，Imsi上报等
+            /// </summary>
+            NOTICE = 1,
+            /// <summary>
+            /// 透传消息。MainController收到该消息后不用处理，直接透传
+            /// </summary>
+            TRANSPARENT,
+            /// <summary>
+            /// 配置消息。用于配置读取、设置及配置回复
+            /// </summary>
+            CONFIG,
+        }
+
+        /// <summary>
+        /// 消息id号与App对应关系
+        /// </summary>
+        public class MsgId2App
+        {
+            /// <summary>
+            /// 消息id
+            /// </summary>
+            public UInt16 id;
+            /// <summary>
+            /// App信息
+            /// </summary>
+            public App_Info_Struct AppInfo;
+
+            public MsgId2App()
+            {
+                AppInfo = new App_Info_Struct();
+            }
+        }
+        /// <summary>
+        /// Ap设备信息
+        /// </summary>
+        public class Ap_Info_Struct
+        {
+            /// <summary>
+            /// Ap的Sn
+            /// </summary>
+            public string Sn { get; set; }
+            /// <summary>
+            /// Ap的全名
+            /// </summary>
+            public string Fullname { get; set; }
+            /// <summary>  
+            /// Ap的Ip 。当为NullDevice时表示不向设备发送该消息
+            /// </summary>  
+            public string Ip { get; set; }
+            /// <summary>  
+            /// Ap的Port
+            /// </summary>  
+            public int Port { get; set; }
+            /// <summary>  
+            /// Ap的类型：LTE,WCDMA,GSM,TD-SCDMA
+            /// </summary>  
+            public string Type { get; set; }
+
+            //public List<MsgId2App> msgId2App { get; set; }
+
+            public Ap_Info_Struct()
+            {
+                //msgId2App = new List<MsgId2App>();
+                Ip = NullDevice;
+            }
+
+        }
+
+        /// <summary>
+        /// 设备(Ap/App)与本程序通信消息结构
+        /// </summary>
+        public class DeviceServerMsgStruct
+        {
+            /// <summary>
+            /// 版本信息
+            /// </summary>
+            public string Version { get; set; }
+            /// <summary>
+            /// Ap信息
+            /// </summary>
+            public Ap_Info_Struct ApInfo;
+            /// <summary>
+            /// 消息内容
+            /// </summary>
+            //public List<Msg_Body_Struct> TypeKeyValueList;
+            public Msg_Body_Struct Body;
+
+            public DeviceServerMsgStruct()
+            {
+                ApInfo = new Ap_Info_Struct();
+                Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct();
+            }
+
+            public DeviceServerMsgStruct(string type)
+            {
+                ApInfo = new Ap_Info_Struct();
+                Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(type);
+            }
+        }
+
+        /// <summary>
+        /// 本程序模块间消息结构
+        /// </summary>
+        public class InterModuleMsgStruct : DeviceServerMsgStruct
+        {
+            /// <summary>
+            /// 消息类型（Notice;Get;GetAck;Set;SetAck）
+            /// </summary>
+            public string MsgType { get; set; }
+
+            /// <summary>
+            /// App信息
+            /// </summary>
+            public App_Info_Struct AppInfo;
+
+            public InterModuleMsgStruct()
+            {
+                AppInfo = new App_Info_Struct();
+            }
+        }
+
+        /// <summary>
+        /// App信息
+        /// </summary>
+        public class App_Info_Struct
+        {
+            /// <summary>
+            /// App登录用户名
+            /// </summary>
+            public string User { get; set; }
+            /// <summary>
+            /// App登录用户所属组
+            /// </summary>
+            public string Group { get; set; }
+            /// <summary>
+            /// App登录用户所属域
+            /// </summary>
+            public string Domain { get; set; }
+            /// <summary>  
+            /// Ap的Ip 
+            /// </summary>  
+            public string Ip { get; set; }
+            /// <summary>  
+            /// Ap的Port
+            /// </summary>  
+            public int Port { get; set; }
+            /// <summary>  
+            /// App的类型：WEB,WINDOWS,ANDROID等
+            /// </summary>  
+            public string Type { get; set; }
+
+        }
+
+        public class Msg_Body_Struct
+        {
+            public string type;
+            public Dictionary<string, object> dic;
+            public List<Name_DIC_Struct> n_dic;
+
+            #region 构造函数
+            public Msg_Body_Struct(string type)
+            {
+                this.type = type;
+                dic = new Dictionary<string, object>();
+                n_dic = new List<Name_DIC_Struct>();
+            }
+            public Msg_Body_Struct() : this(string.Empty)
+            {
+            }
+            public Msg_Body_Struct(string type, Dictionary<string, object> dic)
+            {
+                this.type = type;
+                this.dic = dic;
+                n_dic = null;
+            }
+
+            public Msg_Body_Struct(string type, Dictionary<string, object> dic,List<Name_DIC_Struct> n_dic)
+            {
+                this.type = type;
+                this.dic = dic;
+                this.n_dic = n_dic;
+            }
+            /// <summary>
+            /// 构造函数
+            /// </summary>
+            /// <param name="xmlType">xml消息类型</param>
+            /// <param name="KeyValue">xml消息里的键值对，键值对必须成对出现。</param>
+            public Msg_Body_Struct(string xmlType, params string[] KeyValue)
+            {
+                type = xmlType;
+                dic = new Dictionary<string, object>();
+
+                if ((KeyValue.Length % 2) != 0)
+                {
+                    //OutputLog("输入的参数不是2的倍数。键值对必须成对出现。");
+                }
+                else
+                {
+                    for (int i = 0; i < KeyValue.Length; i = i + 2)
+                    {
+                        dic.Add(KeyValue[i], KeyValue[i + 1]);
+                    }
+                    
+                    //dic.Add(MsgStruct.AllNum, dic.Count + 1);
+                }
+            }
+
+            public Msg_Body_Struct(string xmlType, params object[] KeyValue)
+            {
+                type = xmlType;
+                dic = new Dictionary<string, object>();
+
+                if ((KeyValue.Length % 2) != 0)
+                {
+                    //OutputLog("输入的参数不是2的倍数。键值对必须成对出现。");
+                }
+                else
+                {
+                    for (int i = 0; i < KeyValue.Length; i = i + 2)
+                    {
+                        dic.Add((string)KeyValue[i], KeyValue[i + 1]);
+                    }
+
+                    //dic.Add(MsgStruct.AllNum, dic.Count + 1);
+                }
+            }
+            #endregion
+
+
+        }
+
+        public class Name_DIC_Struct
+        {
+            public string name;
+            public Dictionary<string, object> dic;
+
+            public Name_DIC_Struct(string name)
+            {
+                this.name = string.Empty;
+                dic = new Dictionary<string, object>();
+            }
+
+            public Name_DIC_Struct() : this(string.Empty)
+            {
+            }
+        }
+
+      
+        /// <summary>
+        /// 在第一层字典里查找值
+        /// </summary>
+        /// <param name="name">第二层名称</param>
+        /// <param name="key">键</param>
+        /// <param name="msgBody">消息内容</param>
+        /// <returns>值。未找到时返回空</returns>
+        static public object GetMsgValueInList(string name, string key, Msg_Body_Struct msgBody)
+        {
+            if (msgBody.n_dic == null)
+                return string.Empty;
+
+            foreach (Name_DIC_Struct x in msgBody.n_dic)
+            {
+                if (String.Compare(x.name, name, true) == 0)
+                {
+                    //没有该键
+                    if (!x.dic.ContainsKey(key)) return string.Empty;
+
+                    return x.dic[key];
+                }
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// 在第一层字典里查找值
+        /// </summary>
+        /// <param name="key">键</param>
+        /// <param name="msgBody">消息内容</param>
+        /// <returns>值。未找到时返回空</returns>
+        static public object GetMsgValueInList(string key, Msg_Body_Struct msgBody)
+        {
+            if (!msgBody.dic.ContainsKey(key)) return string.Empty;
+
+            return msgBody.dic[key];
+        }
+        static public int GetMsgIntValueInList(string key, Msg_Body_Struct msgBody)
+        {
+            if (!msgBody.dic.ContainsKey(key)) return 0;
+            return Convert.ToInt32(msgBody.dic[key]);
+        }
+        static public string GetMsgStringValueInList(string key, Msg_Body_Struct msgBody)
+        {
+            if (!msgBody.dic.ContainsKey(key)) return string.Empty;
+            return Convert.ToString(msgBody.dic[key]);
+        }
+        static public double GetMsgDoubleValueInList(string key, Msg_Body_Struct msgBody)
+        {
+            if (!msgBody.dic.ContainsKey(key)) return 0;
+            return Convert.ToDouble(msgBody.dic[key]);
+        }
+        /// <summary>
+        /// Ap(app)与本程序通信消息封装示例
+        /// </summary>
+        private void DeviceServerMsgEncodeDemo()
+        {
+            //只有单层字典的封装示例
+            Dictionary<string, object> dic = new Dictionary<string, object>();
+            dic.Add("timeout", Convert.ToString(5));
+            dic.Add("timestamp", DateTime.Now.ToLocalTime().ToString());
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            //dic.Add(MsgStruct.AllNum, dic.Count + 1);
+
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.status_request, dic);
+
+
+            /*
+            //多层字典封装示例
+            List<Name_DIC_Struct> n_dicList = new List<Name_DIC_Struct>();
+            Name_DIC_Struct n_dic = new Name_DIC_Struct();
+
+            n_dic.name = "name1";
+            n_dic.dic.Add("key1","1");
+            n_dic.dic.Add("key2","2");
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            n_dic.dic.Add(MsgStruct.AllNum, n_dic.dic.Count + 1);
+            n_dicList.Add(n_dic);
+
+            n_dic.name = "name2";
+            n_dic.dic.Add("key1", "1");
+            n_dic.dic.Add("key2", "2");
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            n_dic.dic.Add(MsgStruct.AllNum, n_dic.dic.Count + 1);
+            n_dicList.Add(n_dic);
+
+            Msg_Body_Struct TypeKeyValue2 = new Msg_Body_Struct(ApMsgType.status_request, dic,n_dicList);
+            */
+
+            DeviceServerMsgStruct msgStruct = new DeviceServerMsgStruct();
+            msgStruct.Version = "1.0.0";
+            //msgStruct.MsgType = MsgType.CONFIG.ToString();
+
+            msgStruct.ApInfo.Ip = "192.168.88.100";
+            msgStruct.ApInfo.Port = 12345;
+            msgStruct.ApInfo.Sn = "EN1800123456789";
+            msgStruct.ApInfo.Fullname = "guangdong.shenzhen.nanshan.1234";
+
+            msgStruct.Body = TypeKeyValue;
+
+            string strJosn = JsonConvert.SerializeObject(msgStruct);
+        }
+
+        /// <summary>
+        /// Ap(app)与本程序通信消息解析示例
+        /// </summary>
+        /// <param name="str">收到的消息</param>
+        private void DeviceServerMsgDecodeDemo(string str)
+        {
+            int i = 0;
+            // 解析收到的消息
+            DeviceServerMsgStruct msgStruct = JsonConvert.DeserializeObject<DeviceServerMsgStruct>(str);
+
+            Console.WriteLine("------------------------------------------------------");
+            Console.WriteLine("消息类型：" + msgStruct.Body.type.ToString());
+
+            foreach (KeyValuePair<string, object> kvp in msgStruct.Body.dic)
+            {
+                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+            }
+
+            foreach (Name_DIC_Struct x in msgStruct.Body.n_dic)
+            {
+                Console.WriteLine("List [" + i.ToString() + "] 名称:" + x.name);
+                i++;
+                foreach (KeyValuePair<string, object> kvp in x.dic)
+                {
+                    Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                }
+            }
+            Console.WriteLine("------------------------------------------------------");
+        }
+
+        /// <summary>
+        /// ApController(AppController)模块与MainController模块通信消息封装示例
+        /// </summary>
+        private void InterModuleMsgEncodeDemo()
+        {
+            //只有单层字典的封装示例
+            Dictionary<string, object> dic = new Dictionary<string, object>();
+            dic.Add("timeout", Convert.ToString(5));
+            dic.Add("timestamp", DateTime.Now.ToLocalTime().ToString());
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            //dic.Add(MsgStruct.AllNum, dic.Count + 1);
+
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.status_request, dic);
+
+
+            /*
+            //多层字典封装示例
+            List<Name_DIC_Struct> n_dicList = new List<Name_DIC_Struct>();
+            Name_DIC_Struct n_dic = new Name_DIC_Struct();
+
+            n_dic.name = "name1";
+            n_dic.dic.Add("key1","1");
+            n_dic.dic.Add("key2","2");
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            n_dic.dic.Add("AllNum", n_dic.dic.Count + 1);
+            n_dicList.Add(n_dic);
+
+            n_dic.name = "name2";
+            n_dic.dic.Add("key1", "1");
+            n_dic.dic.Add("key2", "2");
+            //AllNum表示该字典中所有键值对的个数,协议规定，每条消息必须包括
+            n_dic.dic.Add("AllNum", n_dic.dic.Count + 1);
+            n_dicList.Add(n_dic);
+
+            Msg_Body_Struct TypeKeyValue2 = new Msg_Body_Struct(ApMsgType.status_request, dic,n_dicList);
+            */
+
+            InterModuleMsgStruct msgStruct = new InterModuleMsgStruct();
+            msgStruct.Version = "1.0.0";
+            msgStruct.MsgType = MsgType.CONFIG.ToString();
+
+            msgStruct.ApInfo.Ip = "192.168.88.100";
+            msgStruct.ApInfo.Port = 12345;
+            msgStruct.ApInfo.Sn = "EN1800123456789";
+            msgStruct.ApInfo.Fullname = "guangdong.shenzhen.nanshan.1234";
+
+            msgStruct.AppInfo.Ip = "192.168.88.104";
+            msgStruct.AppInfo.Port = 65478;
+            msgStruct.AppInfo.User = "root";
+            msgStruct.AppInfo.Group = "guangdong";
+
+            msgStruct.Body = TypeKeyValue;
+
+            string strJosn = JsonConvert.SerializeObject(msgStruct);
+        }
+
+        /// <summary>
+        /// ApController(AppController)模块与MainController模块通信消息解析示例
+        /// </summary>
+        /// <param name="str">收到的消息</param>
+        private void InterModuleMsgDecodeDemo(string str)
+        {
+            int i = 0;
+            // 解析收到的消息
+            InterModuleMsgStruct msgStruct = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
+
+            Console.WriteLine("------------------------------------------------------");
+            Console.WriteLine("消息类型：" + msgStruct.Body.type.ToString());
+
+            foreach (KeyValuePair<string, object> kvp in msgStruct.Body.dic)
+            {
+                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+            }
+
+            if (msgStruct.Body.n_dic != null)
+            {
+                foreach (Name_DIC_Struct x in msgStruct.Body.n_dic)
+                {
+                    Console.WriteLine("List [" + i.ToString() + "] 名称:" + x.name);
+                    i++;
+                    foreach (KeyValuePair<string, object> kvp in x.dic)
+                    {
+                        Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                    }
+                }
+            }
+            Console.WriteLine("------------------------------------------------------");
+        }
+
+    }
+}

@@ -1,0 +1,3966 @@
+﻿
+/************************************* 修改记录 ******************************************
+  
+    一、添加数据库的各种接口
+                            2018-04-23
+ 
+ ***************************************************************************************/
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
+using ScannerBackgrdServer.Common;
+
+namespace ScannerBackgrdServer
+{
+    public struct StrDomian
+    {
+        public int id;                //主键ID
+        public string name;           //节点的名称
+        public int parentId;          //节点的父亲ID
+      //public string idFullPath;     //节点的ID全路径
+        public string nameFullPath;   //节点的名称全路径
+        public int isStation;         //标识是否为站点
+        public string des;            //描述
+    };
+
+
+    public struct StrDevice
+    {
+        public string name;          //设备名称
+        public string sn;            //SN，GSM或第三方设备可能没有该字段
+        public string carrier;       //仅用于标识GSM的载波，0：载波0；1：载波1
+        public string bindingDevId;  //仅用于标识GSM的绑定设备id
+        public string ipAddr;        //IP地址
+        public string port;          //端口号
+        public string netmask;       //掩码
+        public string mode;          //设备制式，LTE-TDD，LTE-FDD，GSM，WCDMA等
+        public string online;        //上下线标识，0：下线；1：上线
+        public string lastOnline;    //最后的上线时间
+        public string isActive;      //标识该设备是否生效，0：无效；1：生效
+        public string affDomainId;   //标识设备的从属于那个域，FK
+    };
+
+    public class DbHelper
+    {
+        #region 定义
+
+        /// <summary>
+        /// 省信息
+        /// </summary>
+        public struct Province
+        {
+            public string provice_id;
+            public string provice_name;
+        };
+
+        /// <summary>
+        /// 市信息
+        /// </summary>
+        public struct City
+        {
+            public string city_id;
+            public string city_name;
+        };
+
+        /// <summary>
+        /// 区信息
+        /// </summary>
+        public struct Distract
+        {
+            public string county_id;
+            public string county_name;
+        };        
+
+        private MySqlConnection myDbConn;
+
+        private string server;
+        private string database;
+        private string uid;
+        private string password;
+        private string port;
+        private bool myDbConnFlag = false;
+
+        public  enum RC   //数据库返回代码
+        {
+            SUCCESS  = 0,  //成功
+
+            EXIST    = 1,   //记录已经存在
+            NO_EXIST = -6,  //记录不存在
+
+            NO_OPEN = -1,      //数据库尚未打开
+            PAR_NULL = -2,     //参数为空
+            PAR_LEN_ERR = -3,  //参数长度有误
+            OP_FAIL = -4,      //数据库操作失败
+            PSW_ERR = -5,      //验证失败，密码有误
+            PAR_FMT_ERR = -7,  //参数格式有误
+
+            NO_INS_DEFUSR  = -8,  //不能插入默认用户engi,root
+            NO_DEL_DEFUSR  = -9,  //不能删除默认用户engi,root
+            FAIL_NO_USR = -10,    //验证失败，用户不存在
+            FAIL_NO_MATCH = -11,  //用户和密码不匹配
+
+            NO_INS_DEFRT = -12,    //不能插入默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator
+            NO_DEL_DEFRT = -13,    //不能删除默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator
+
+            NO_INS_DEFROLE = -14,  //不能插入默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP
+            NO_DEL_DEFROLE = -15,  //不能删除默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP 
+
+            NO_EXIST_RT  = -16,     //角色类型不存在
+            TIME_FMT_ERR = -17,     //时间格式有误
+
+            USR_NO_EXIST  = -18,     //usrName不存在
+            ROLE_NO_EXIST = -19,     //roleName不存在
+
+            NO_ROLE_ENG_SA = -20,    //不能指定到RoleEng和RoleSA中
+            ID_SET_ERR     = -21,    //ID集合有误
+
+            IS_STATION     = -22,    //域ID是站点
+            IS_NOT_STATION = -23,    //域ID不是站点
+
+            NO_EXIST_PARENT  = -24,    //父亲节点不存在
+            GET_PARENT_FAIL  = -25,    //父亲节点信息获取失败
+        }
+
+        private Dictionary<int, string> dicRTV = new Dictionary<int, string>();
+
+        //省
+        private static List<Province> provinceData = new List<Province>();
+
+        //市
+        private static List<City> cityData = new List<City>();
+
+        //区
+        private static List<Distract> distractData = new List<Distract>();
+
+        #endregion
+
+        #region 属性
+
+        /// <summary>
+        /// 是否已经连接上数据库的标识
+        /// </summary>
+        public bool MyDbConnFlag
+        {
+            get
+            {
+                return myDbConnFlag;
+            }
+
+            //set 
+            //{ 
+            //    myDbConnFlag = value; 
+            //}
+        }
+
+        public static List<Province> ProvinceData
+        {
+            get
+            {
+                return provinceData;
+            }
+
+            set
+            {
+                provinceData = value;
+            }
+        }
+
+        public static List<City> CityData
+        {
+            get
+            {
+                return cityData;
+            }
+
+            set
+            {
+                cityData = value;
+            }
+        }
+
+        public static List<Distract> DistractData
+        {
+            get
+            {
+                return distractData;
+            }
+
+            set
+            {
+                distractData = value;
+            }
+        }
+
+        #endregion
+
+        #region 构造函数
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="conString">连接数据库的字符串</param>
+        public DbHelper(string conString)
+        {
+            myDbConn = new MySqlConnection(conString);
+            OpenDbConn();
+        }
+
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="server">数据库所在机器的IP地址</param>
+        /// <param name="database">数据库名称</param>
+        /// <param name="uid">用户名</param>
+        /// <param name="password">密码</param>
+        /// <param name="port">端口</param>
+        public DbHelper(string server, string database, string uid, string password, string port)
+        {           
+            this.server = server;
+            this.uid = uid;
+            this.password = password;
+            this.port = port;
+            this.database = database;
+
+            string conString = "Data Source=" + server + ";" + "port=" + port + ";" + "Database=" + database + ";" + "User Id=" + uid + ";" + "Password=" + password + ";" + "CharSet=utf8";
+            myDbConn = new MySqlConnection(conString);
+
+            OpenDbConn();
+        }
+
+        /// <summary>
+        /// Default Constructor
+        /// </summary>
+        public DbHelper() : this("172.17.8.130", "hsdatabase", "root", "root", "3306")
+        {
+        }
+
+        #endregion
+
+        #region 打开和关闭
+
+
+        /// <summary>
+        /// open connection to database
+        /// </summary>
+        /// <returns>
+        /// true  : 成功
+        /// false ：失败
+        /// </returns>
+        public bool OpenDbConn()
+        {
+            dicRTV.Add((int)RC.SUCCESS,  "成功");
+            dicRTV.Add((int)RC.EXIST,    "记录已经存在");
+            dicRTV.Add((int)RC.NO_EXIST, "记录不存在");
+
+            dicRTV.Add((int)RC.NO_OPEN,     "数据库尚未打开");
+            dicRTV.Add((int)RC.PAR_NULL,    "参数为空");
+            dicRTV.Add((int)RC.PAR_LEN_ERR, "参数长度有误");
+            dicRTV.Add((int)RC.OP_FAIL,     "数据库操作失败");
+            dicRTV.Add((int)RC.PSW_ERR,     "验证失败，密码有误");
+            dicRTV.Add((int)RC.PAR_FMT_ERR, "参数格式有误");
+
+            dicRTV.Add((int)RC.NO_INS_DEFUSR, "不能插入默认用户engi,root");
+            dicRTV.Add((int)RC.NO_DEL_DEFUSR, "不能删除默认用户engi,root");
+            dicRTV.Add((int)RC.FAIL_NO_USR,   "验证失败，用户不存在");
+            dicRTV.Add((int)RC.FAIL_NO_MATCH, "用户和密码不匹配");
+
+            dicRTV.Add((int)RC.NO_INS_DEFRT, "不能插入默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator");
+            dicRTV.Add((int)RC.NO_DEL_DEFRT, "不能删除默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator");
+
+            dicRTV.Add((int)RC.NO_INS_DEFROLE, "不能插入默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP");
+            dicRTV.Add((int)RC.NO_DEL_DEFROLE, "不能删除默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP");
+
+            dicRTV.Add((int)RC.NO_EXIST_RT, "角色类型不存在");
+            dicRTV.Add((int)RC.TIME_FMT_ERR, "时间格式有误");
+
+            dicRTV.Add((int)RC.USR_NO_EXIST, "usrName不存在");
+            dicRTV.Add((int)RC.ROLE_NO_EXIST, "roleName不存在");
+
+            dicRTV.Add((int)RC.NO_ROLE_ENG_SA, "不能指定到RoleEng和RoleSA中");
+            dicRTV.Add((int)RC.ID_SET_ERR, "ID集合有误");
+
+            dicRTV.Add((int)RC.IS_STATION, "域ID是站点");
+            dicRTV.Add((int)RC.IS_NOT_STATION, "域ID不是站点");
+
+            dicRTV.Add((int)RC.NO_EXIST_PARENT, "父亲节点不存在");
+            dicRTV.Add((int)RC.GET_PARENT_FAIL, "父亲节点信息获取失败");
+
+            try
+            {
+                myDbConn.Open();
+                myDbConnFlag = true;
+                return true;
+            }
+            catch (MySqlException e)
+            {
+                Logger.Trace(e);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Close connection
+        /// </summary>
+        /// <returns>
+        /// true  : 成功
+        /// false ：失败
+        /// </returns>
+        public bool CloseDbConn()
+        {
+            try
+            {
+                myDbConn.Close();
+                myDbConnFlag = false;
+                return true;
+            }
+            catch (MySqlException e)
+            {
+                Logger.Trace(e);
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region 获取表和列的名称
+
+        /// <summary>
+        /// 获取数据库中所有的表名称
+        /// </summary>
+        /// <returns>
+        /// 成功 ： 数据库中所有表名的列表
+        /// 失败 ： null
+        /// </returns>
+        public List<string> Get_All_TableName()
+        {
+            List<string> retNameList = new List<string>();
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.INFO,"数据库尚未连接");
+                return null;
+            }
+
+            DataTable tbName = myDbConn.GetSchema("Tables");
+
+            if (tbName.Columns.Contains("TABLE_NAME"))
+            {
+                foreach (DataRow dr in tbName.Rows)
+                {
+                    retNameList.Add((string)dr["TABLE_NAME"]);
+                }
+            }
+
+            return retNameList;
+        }
+
+        /// <summary>
+        /// 获取某个表中的所有列
+        /// </summary>
+        /// <param name="tableName">要获取的表名称</param>
+        /// <returns>
+        /// 成功 ： 返回tableName中所有的列名称
+        /// 失败 :  null
+        /// </returns>
+        public List<string> Get_All_ColumnName(string tableName)
+        {
+            List<string> columnName = new List<string>();
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.INFO, "数据库尚未连接");
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(tableName))
+            {
+                Logger.Trace(LogInfoType.INFO, "tableName is null.");
+                return null;
+            }
+
+            string sql = string.Format("show columns from {0};", tableName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            columnName.Add(dr[0].ToString());
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return null;
+            }
+
+            return columnName;
+        }
+
+        public DataTable GetSchema(string str)
+        {
+            return myDbConn.GetSchema(str);
+        }
+
+        public DataTable GetSchema(string str, string[] restri)
+        {
+            return myDbConn.GetSchema(str, restri);
+        }
+
+        /// <summary>
+        /// 通过数据库操作返回码获取对应的字符串
+        /// </summary>
+        /// <param name="rtCode">数据库操作返回码</param>
+        /// <returns>
+        /// 成功 ： 非null
+        /// 失败 ： null
+        /// </returns>
+        public string Get_Return_String(int rtCode)
+        {
+            if (dicRTV.ContainsKey(rtCode))
+            {
+                return dicRTV[rtCode];
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region 01-user操作
+
+        /// <summary>
+        /// 检查用户记录是否存在
+        /// </summary>
+        /// <param name="name">用户名</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int user_record_exist(string name)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from user where name = '{0}'", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到用户表中
+        /// </summary>
+        /// <param name="name">用户名</param>
+        /// <param name="psw">用户密码（明文），最长32字符</param>
+        /// <param name="des">描述</param>
+        /// <returns>
+        ///   RC.NO_OPEN    ：数据库尚未打开
+        ///   RC.PAR_NULL   ：参数为空
+        ///   PAR_LEN_ERR   ：参数长度有误
+        ///   RC.OP_FAIL    ：数据库操作失败 
+        ///   RC.NO_INS_DEFUSR ：不能插入默认用户 
+        ///   RC.EXIST      ：存在
+        ///   RC.SUCCESS    ：成功
+        /// </returns>
+        public int user_record_insert(string name,string psw,string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name)  || string.IsNullOrEmpty(psw) || string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64 || psw.Length > 32)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }           
+
+            if ( (name == "root") || (name == "engi"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_INS_DEFUSR]);
+                return (int)RC.NO_INS_DEFUSR;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.EXIST == user_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into user values(NULL,'{0}','MD5({1})','{2}',now())", name,psw,des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在用户表中删除指定的用户 
+        /// </summary>
+        /// <param name="name">用户名</param>
+        /// <returns>
+        ///   RC.NO_OPEN    ：数据库尚未打开
+        ///   RC.PAR_NULL   ：参数为空
+        ///   RC.PAR_LEN_ERR：参数长度有误
+        ///   RC.OP_FAIL    ：数据库操作失败 
+        ///   RC.NO_DEL_DEF ：不能删除默认用户 
+        ///   RC.NO_EXIST   ：记录不存在
+        ///   RC.SUCCESS    ：成功
+        /// </returns>
+        public int user_record_delete(string name)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }           
+
+            if ( (name == "root") || (name == "engi"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_DEL_DEFUSR]);
+                return (int)RC.NO_DEL_DEFUSR;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from user where name = '{0}'", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在用户表中验证指定的用户和密码是否匹配
+        /// </summary>
+        /// <param name="name">用户名</param>
+        /// <param name="psw">用户密码</param>
+        /// <returns>
+        ///   RC.NO_OPEN    ：数据库尚未打开
+        ///   RC.PAR_NULL   ：参数为空
+        ///   RC.PAR_LEN_ERR：参数长度有误
+        ///   RC.OP_FAIL    ：数据库操作失败 
+        ///   RC.NO_EXIST   ：记录不存在
+        ///   RC.PSW_ERR    ：验证失败，密码有误
+        ///   RC.SUCCESS    ：成功
+        /// </returns>
+        public int user_record_check(string name, string psw)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(psw))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64 || psw.Length > 32)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from user where name = '{0}' and psw = 'MD5({1})'", name, psw);
+            try
+            {               
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }               
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.SUCCESS;
+            }
+            else
+            {
+                return (int)RC.PSW_ERR;
+            }
+        }
+
+        /// <summary>
+        /// 在用户信息表中修改用户的密码 
+        /// </summary>
+        /// <param name="name">用户名</param>
+        /// <param name="oldPsw">用户的老密码</param>
+        /// <param name="newPsw">用户的新密码</param>
+        /// <returns>
+        ///   RC.NO_OPEN       ：数据库尚未打开
+        ///   RC.PAR_NULL      ：参数为空
+        ///   RC.PAR_LEN_ERR   ：参数长度有误
+        ///   RC.OP_FAIL       ：数据库操作失败 
+        ///   RC.NO_EXIST      ：记录不存在
+        ///   RC.FAIL_NO_MATCH ：用户和密码不匹配
+        ///   RC.SUCCESS       ：成功        
+        /// </returns>
+        public int user_record_update(string name, string oldPsw, string newPsw)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(oldPsw) || string.IsNullOrEmpty(newPsw))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if (oldPsw.Length > 32 || newPsw.Length > 32)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from user where name = '{0}' and psw = 'MD5({1})'", name, oldPsw);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            //用户和老密码不匹配 
+            if (cnt <= 0)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.FAIL_NO_MATCH]);
+                return (int)RC.FAIL_NO_MATCH;
+            }
+
+            sql = string.Format("update user set psw = 'MD5({0})' ,operTime = now() where name = '{1}'", newPsw, name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取用户表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：usrId,name,des,operTime
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int user_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("user");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "usrId";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "name";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "des";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "operTime";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+
+            string sql = string.Format("select usrId,name,des,operTime from user");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 02-roletype操作
+
+        /// <summary>
+        /// 检查角色类型记录是否存在
+        /// </summary>
+        /// <param name="roleType"></param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int roletype_record_exist(string roleType)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(roleType))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (roleType.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from roletype where roleType = '{0}'", roleType);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到角色类型表中
+        /// </summary>
+        /// <param name="roleType">角色类型</param>
+        /// <param name="des">描述</param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败
+        ///   RC.EXIST       ：记录已经存在
+        ///   RC.NO_INS_DEFRT：不能插入默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator
+        ///   RC.SUCCESS     ：成功
+        /// </returns>
+        public int roletype_record_insert(string roleType,string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(roleType) || string.IsNullOrEmpty(des) )
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (roleType.Length > 64 || des.Length > 256)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if ((roleType == "Engineering")    || 
+                (roleType == "SuperAdmin")     ||
+                (roleType == "Administrator")  ||
+                (roleType == "SeniorOperator") ||
+                (roleType == "Operator"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_INS_DEFRT]);
+                return (int)RC.NO_INS_DEFRT;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.EXIST == roletype_record_exist(roleType))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into roletype values(NULL,'{0}','{1}')", roleType, des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在角色类型表中删除指定的记录 
+        /// </summary>
+        /// <param name="roleType">角色类型</param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败
+        ///   RC.NO_EXIST    ：记录不存在
+        ///   RC.NO_DEL_DEFRT：不能删除默认角色类型Engineering,SuperAdmin,Administrator,SeniorOperator,Operator
+        ///   RC.SUCCESS     ：成功
+        /// </returns>
+        public int roletype_record_delete(string roleType)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(roleType))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (roleType.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if ((roleType == "Engineering")    ||
+                (roleType == "SuperAdmin")     ||
+                (roleType == "Administrator")  ||
+                (roleType == "SeniorOperator") ||
+                (roleType == "Operator"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_DEL_DEFRT]);
+                return (int)RC.NO_DEL_DEFRT;
+            }
+           
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == roletype_record_exist(roleType))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }           
+
+            string sql = string.Format("delete from roletype where roleType = '{0}'", roleType);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取角色类型表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：id,roleType,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int roletype_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("roletype");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "id";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "roleType";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);    
+
+            string sql = string.Format("select * from roletype");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();        
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 03-role操作
+
+        /// <summary>
+        /// 检查角色记录是否存在
+        /// </summary>
+        /// <param name="name">角色名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int role_record_exist(string name)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from role where name = '{0}'", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到角色表中
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="roleType"></param>
+        /// <param name="timeStart"></param>
+        /// <param name="timeEnd"></param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN       ：数据库尚未打开
+        ///   RC.PAR_NULL      ：参数为空
+        ///   PAR_LEN_ERR      ：参数长度有误
+        ///   RC.OP_FAIL       ：数据库操作失败
+        ///   RC.EXIST         ：记录已经存在
+        ///   RC.NO_INS_DEFROLE：不能插入默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP
+        ///   NO_EXIST_RT      ：角色类型不存在
+        ///   TIME_FMT_ERR     ：时间格式有误
+        ///   RC.SUCCESS       ：成功
+        /// </returns>
+        public int role_record_insert(string name, string roleType, string timeStart,string timeEnd, string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name)      ||
+                string.IsNullOrEmpty(roleType)  ||
+                string.IsNullOrEmpty(timeStart) ||
+                string.IsNullOrEmpty(timeEnd)   ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64 || des.Length > 256 || roleType.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            try
+            {
+                DateTime.Parse(timeStart);
+                DateTime.Parse(timeEnd);
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + dicRTV[(int)RC.TIME_FMT_ERR]);
+                return (int)RC.TIME_FMT_ERR;
+            }
+
+            
+            if (string.Compare(timeStart, timeEnd) > 0 )
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR]);
+                return (int)RC.TIME_FMT_ERR;
+            }
+
+            if ((name == "RoleEng")   ||
+                (name == "RoleSA")    ||
+                (name == "RoleAdmin") ||
+                (name == "RoleSO")    ||
+                (name == "RoleOP"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_INS_DEFROLE]);
+                return (int)RC.NO_INS_DEFROLE;
+            }   
+            
+
+            //检查角色记录是否存在
+            if( (int) RC.EXIST == role_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            //检查角色类型记录是否存在
+            if ((int)RC.NO_EXIST == roletype_record_exist(roleType))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST_RT]);
+                return (int)RC.NO_EXIST_RT;
+            }
+
+            string sql = string.Format("insert into role values(NULL,'{0}','{1}','{2}','{3}','{4}')", name,roleType, timeStart,timeEnd,des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在角色表中删除指定的记录 
+        /// </summary>
+        /// <param name="name">角色名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN       ：数据库尚未打开
+        ///   RC.PAR_NULL      ：参数为空
+        ///   PAR_LEN_ERR      ：参数长度有误
+        ///   RC.OP_FAIL       ：数据库操作失败
+        ///   RC.NO_EXIST      ：记录不存在
+        ///   RC.NO_DEL_DEFROLE：不能删除默认角色RoleEng,RoleSA,RoleAdmin,RoleSO,RoleOP
+        ///   RC.SUCCESS       ：成功
+        /// </returns>
+        public int role_record_delete(string name)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if ((name == "RoleEng")   ||
+                (name == "RoleSA")    ||
+                (name == "RoleAdmin") ||
+                (name == "RoleSO")    ||
+                (name == "RoleOP"))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_DEL_DEFROLE]);
+                return (int)RC.NO_DEL_DEFROLE;
+            }
+
+            //检查角色记录是否存在
+            if ((int)RC.NO_EXIST == role_record_exist(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from role where name = '{0}'", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取角色表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：roleId,name,roleType,timeStart,timeEnd,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int role_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("role");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "id";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "name";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "roleType";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "timeStart";
+
+            DataColumn column4 = new DataColumn();
+            column4.DataType = System.Type.GetType("System.String");
+            column4.ColumnName = "timeEnd";
+
+            DataColumn column5 = new DataColumn();
+            column5.DataType = System.Type.GetType("System.String");
+            column5.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+            dt.Columns.Add(column4);
+            dt.Columns.Add(column5);
+
+            string sql = string.Format("select * from role");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();
+                            row[4] = dr[4].ToString();
+                            row[5] = dr[5].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 04-privilege操作
+
+        /// <summary>
+        /// 检查权限记录是否存在
+        /// </summary>
+        /// <param name="funName">功能名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int privilege_record_exist(string funName)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(funName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (funName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from privilege where funName = '{0}'", funName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到权限表中
+        /// </summary>
+        /// <param name="funName"></param>
+        /// <param name="aliasName"></param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN       ：数据库尚未打开
+        ///   RC.PAR_NULL      ：参数为空
+        ///   PAR_LEN_ERR      ：参数长度有误
+        ///   RC.OP_FAIL       ：数据库操作失败
+        ///   RC.EXIST         ：记录已经存在
+        ///   RC.SUCCESS       ：成功
+        /// </returns>
+        public int privilege_record_insert(string funName, string aliasName,string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(funName)   ||
+                string.IsNullOrEmpty(aliasName) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (funName.Length > 64 || des.Length > 256 || aliasName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查权限记录是否存在
+            if ((int)RC.EXIST  == privilege_record_exist(funName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into privilege values(NULL,'{0}','{1}','{2}')", funName, aliasName,des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在权限表中删除指定的记录 
+        /// </summary>
+        /// <param name="name">功能名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN       ：数据库尚未打开
+        ///   RC.PAR_NULL      ：参数为空
+        ///   PAR_LEN_ERR      ：参数长度有误
+        ///   RC.OP_FAIL       ：数据库操作失败
+        ///   RC.NO_EXIST      ：记录不存在
+        ///   RC.SUCCESS       ：成功
+        /// </returns>
+        public int privilege_record_delete(string funName)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(funName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (funName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == privilege_record_exist(funName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from privilege where funName = '{0}'", funName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取权限表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：roleId,funName,aliasName,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int privilege_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("privilege");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "priId";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "funName";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "aliasName";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+
+            string sql = string.Format("select * from privilege");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();         
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 05-userrole操作
+
+        /// <summary>
+        /// 检查用户角色记录是否存在
+        /// </summary>
+        /// <param name="usrName"></param>
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int userrole_record_exist(string usrName,string roleName)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName) || string.IsNullOrEmpty(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64 || roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from userrole where usrName = '{0}' and roleName = '{1}'", usrName, roleName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到用户角色表中,在此，一个用户只能指定到一个角色中
+        /// </summary>
+        /// <param name="usrName"></param>
+        /// <param name="roleName"></param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   EXIST          ：记录已经存在
+        ///   USR_NO_EXIST   ：usrName不存在
+        ///   ROLE_NO_EXIST  ：roleName不存在
+        ///   NO_ROLE_ENG_SA ：不能指定到RoleEng和RoleSA中
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int userrole_record_insert(string usrName, string roleName, string des)
+        {            
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName) ||
+                string.IsNullOrEmpty(roleName) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64 || des.Length > 256 || roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+
+            //检查用户角色记录是否存在
+            if ((int)RC.EXIST == userrole_record_exist(usrName,roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.USR_NO_EXIST]);
+                return (int)RC.USR_NO_EXIST;
+            }
+
+
+            //检查角色是否存在
+            if ((int)RC.NO_EXIST == role_record_exist(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.ROLE_NO_EXIST]);
+                return (int)RC.ROLE_NO_EXIST;
+            }
+
+            /*
+             * 角色默认有5种：RoleEng，RoleSA，RoleAdmin，RoleSO，RoleOP，
+             * 在指定用户到角色中时，是不能指定到RoleEng和RoleSA中的
+             */
+            if (roleName == "RoleEng" || roleName == "RoleSA")
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_ROLE_ENG_SA]);
+                return (int)RC.NO_ROLE_ENG_SA;
+            }
+
+            string sql = string.Format("insert into userrole values(NULL,'{0}','{1}','{2}')", usrName, roleName, des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在用户角色表中删除指定的记录 
+        /// </summary>
+        /// <param name="usrName"></param>
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS     ：成功
+        /// </returns>
+        public int userrole_record_delete(string usrName,string roleName)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName) || string.IsNullOrEmpty(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64 || roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == userrole_record_exist(usrName,roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from userrole where usrName = '{0}' and roleName = '{1}'", usrName, roleName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取用户角色表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：usrRoleId,usrName,roleName,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int userrole_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("userrole");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "usrRoleId";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "usrName";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "roleName";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+
+            string sql = string.Format("select * from userrole");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 06-roleprivilege操作
+
+        /// <summary>
+        /// 检查角色权限记录是否存在
+        /// </summary>
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int roleprivilege_record_exist(string roleName)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if ( string.IsNullOrEmpty(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if ( roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from roleprivilege where roleName = '{0}'", roleName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return  (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 检查ID集合的合法性
+        /// </summary>
+        /// <param name="idSet">集合以逗号分隔，如下1,2,3,4,5</param>
+        /// <returns>
+        /// true  ： 合法
+        /// false ： 非法
+        /// </returns>
+        private bool check_id_set(string idSet)
+        {                     
+            if (string.IsNullOrEmpty(idSet))
+            {
+                Logger.Trace(LogInfoType.EROR, "idSet参数为空");
+                return false;
+            }
+
+            if (idSet.Length > 1024)
+            {
+                Logger.Trace(LogInfoType.EROR, "idSet参数长度有误");
+                return false;
+            }
+
+            string[] s = idSet.Split(new char[]{','});
+
+            if (s.Length <= 0)
+            {
+                return false;
+            }
+            else
+            {
+                foreach (string str in s)
+                {
+                    try
+                    {
+                        UInt16.Parse(str);
+                    }
+                    catch (Exception ee)
+                    {
+                        Logger.Trace(ee);
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 插入记录到角色-权限表中
+        /// </summary>
+        /// <param name="roleName"></param>
+        /// <param name="priIdSet">权限ID集合，如下：1,2,3,4,5，每个权限用逗号隔开</param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   EXIST          ：记录已经存在
+        ///   ROLE_NO_EXIST  ：roleName不存在
+        ///   ID_SET_ERR     ：ID集合有误
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int roleprivilege_record_insert(string roleName, string priIdSet, string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(priIdSet) ||
+                string.IsNullOrEmpty(roleName) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (priIdSet.Length > 1024 || des.Length > 256 || roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if ((int)RC.NO_EXIST == role_record_exist(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.ROLE_NO_EXIST]);
+                return (int)RC.ROLE_NO_EXIST;
+            }
+
+            //检查权限ID集合的合法性
+            if (false == check_id_set(priIdSet))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.ID_SET_ERR]);
+                return (int)RC.ID_SET_ERR;
+            }
+           
+            //检查记录是否存在
+            if ((int)RC.EXIST == roleprivilege_record_exist(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into roleprivilege values(NULL,'{0}','{1}','{2}')",roleName,priIdSet,des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 更新记录到角色-权限表中
+        /// </summary>
+        /// <param name="roleName"></param>
+        /// <param name="priIdSet">权限ID集合，如下：1,2,3,4,5，每个权限用逗号隔开</param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   NO_EXIST       ：记录不存在
+        ///   ID_SET_ERR     ：ID集合有误
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int roleprivilege_record_update(string roleName, string priIdSet, string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(priIdSet) ||
+                string.IsNullOrEmpty(roleName) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (priIdSet.Length > 1024 || des.Length > 256 || roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查权限ID集合的合法性
+            if (false == check_id_set(priIdSet))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.ID_SET_ERR]);
+                return (int)RC.ID_SET_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == roleprivilege_record_exist(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+        
+            string sql = string.Format("update roleprivilege set priIdSet='{0}',des='{1}' where roleName='{2}'", priIdSet,des,roleName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在角色-权限表中删除指定的记录 
+        /// </summary>  
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int roleprivilege_record_delete(string roleName)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (roleName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == roleprivilege_record_exist(roleName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from roleprivilege where roleName = '{0}'", roleName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取角色-权限表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：rolePriId,roleName,priIdSet,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功  
+        /// </returns>
+        public int roleprivilege_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("roleprivilege");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "rolePriId";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "roleName";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "priIdSet";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+
+            string sql = string.Format("select * from roleprivilege");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 07-domain操作
+
+        /// <summary>
+        /// 通过名称全路径获取对应记录的信息
+        /// </summary>
+        /// <param name="nameFullPath">全路径</param>
+        /// <param name="str">成功时返回的记录信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：记录不存在
+        ///   RC.SUCCESS  ：成功 
+        /// </returns>
+        private int domain_record_get_by_nameFullPath(string nameFullPath,ref StrDomian str)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(nameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (nameFullPath.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if ((int)RC.NO_EXIST == domain_record_exist(nameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            str = new StrDomian();
+
+            string sql = string.Format("select * from domain where nameFullPath='{0}'", nameFullPath);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            str.id = Convert.ToInt32(dr[0]);
+                            str.name = dr[1].ToString();
+                            str.parentId = Convert.ToInt32(dr[2]);
+                            //str.idFullPath = dr[3].ToString();
+                            str.nameFullPath = dr[3].ToString();
+                            str.isStation = Convert.ToInt32(dr[4]);
+                            str.des = dr[5].ToString();
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 检查节点是否存在
+        /// </summary>
+        /// <param name="nameFullPath">节点的全路径名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int domain_record_exist(string nameFullPath)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(nameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (nameFullPath.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from domain where nameFullPath = '{0}'", nameFullPath);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 检查域ID是否为站点
+        /// </summary>
+        /// <param name="id">节点的id</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.IS_STATION     ：域ID是站点
+        ///   RC.IS_NOT_STATION ：域ID不是是站点
+        /// </returns>
+        public int domain_record_is_station(int id)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }            
+
+            string sql = string.Format("select count(*) from domain where id = '{0}' and isStation = {1}", id,1);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.IS_STATION;
+            }
+            else
+            {
+                return (int)RC.IS_NOT_STATION;
+            }
+        }
+
+        /// <summary>
+        /// 添加一个节点到域表中
+        /// </summary>
+        /// <param name="name">节点名称</param>
+        /// <param name="parentNameFullPath">节点的父亲全路径</param>
+        /// <param name="isStation">是否为站点</param>
+        /// <param name="des">描述</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.EXIST        ：记录已经存在
+        ///   NO_EXIST_PARENT ：父亲节点不存在
+        ///   GET_PARENT_FAIL ：父亲节点信息获取失败
+        ///   RC.SUCCESS      ：成功 
+        /// </returns>
+        public int domain_record_insert(string name, string parentNameFullPath, int isStation,string des)
+        {
+            string curNameFullPath = "";
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name)  ||
+                string.IsNullOrEmpty(parentNameFullPath) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64 || 
+                des.Length > 256  ||
+                parentNameFullPath.Length > 1024)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            curNameFullPath = string.Format("{0}.{1}", parentNameFullPath, name);
+
+
+            //(1)先检查父亲节点是否存在
+            if ((int)RC.NO_EXIST == domain_record_exist(parentNameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST_PARENT]);
+                return (int)RC.NO_EXIST_PARENT;
+            }
+
+
+            //(2)再检查新增节点是否存在
+            if ((int)RC.EXIST == domain_record_exist(curNameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            StrDomian str = new StrDomian();
+            if ((int)RC.NO_EXIST != domain_record_get_by_nameFullPath(parentNameFullPath,ref str))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.GET_PARENT_FAIL]);
+                return (int)RC.GET_PARENT_FAIL;
+            }
+
+            string sql = string.Format("insert into domain values(NULL,'{0}',{1},'{2}',{3},'{4}')", 
+                name, str.id,curNameFullPath,isStation,des);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 删除一个节点和其下面的所有节点(包括节点本身)
+        /// </summary>
+        /// <param name="nameFullPath">节点的全路径名称</param>       
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int domain_record_delete(string nameFullPath)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(nameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (nameFullPath.Length > 1024 )
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == domain_record_exist(nameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = "";
+
+            //先删除节点本身
+            if (nameFullPath == "设备")
+            {
+                //保留根节点                
+            }
+            else
+            {
+                sql = string.Format("delete from domain where nameFullPath = '{0}'", nameFullPath);
+
+                try
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                    {
+                        if (cmd.ExecuteNonQuery() < 0)
+                        {
+                            Logger.Trace(LogInfoType.EROR, sql);
+                            return (int)RC.OP_FAIL;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Logger.Trace(e);
+                    return (int)RC.OP_FAIL;
+                }
+            }
+
+
+            //再删除节点下面的所有子孙节点
+
+            /*
+             *  注意要加上分隔符".",如'%%{0}.%%'，否则会误删除
+             */
+            sql = string.Format("delete from domain where nameFullPath like '%%{0}.%%'", nameFullPath);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 重命名节点的名称
+        /// </summary>
+        /// <param name="oldNameFullPath">修改前节点的全路径名称</param>
+        /// <param name="newNameFullPath">修改后节点的全路径名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在(修改前的节点不存在)
+        ///   RC.EXIST        ：记录已经存在(修改后的节点已经存在)
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int domain_record_rename(string oldNameFullPath,string newNameFullPath)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(oldNameFullPath) || string.IsNullOrEmpty(newNameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (oldNameFullPath.Length > 1024 || newNameFullPath.Length > 1024)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+
+            //检查修改前节点是否存在
+            if ((int)RC.NO_EXIST == domain_record_exist(oldNameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST] + "(修改前的节点不存在)");
+                return (int)RC.NO_EXIST;
+            }
+
+            //检查修改后的节点是否已经存在
+            if ((int)RC.EXIST == domain_record_exist(newNameFullPath))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST] + "(修改后的节点已经存在)");
+                return (int)RC.EXIST;
+            }
+
+            //重命名本节点本身
+            string sql = string.Format("update domain set nameFullPath = '{0}' where nameFullPath = '{1}'", newNameFullPath, oldNameFullPath);           
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            //重命名本节点本身下的所有子节点           
+            sql = string.Format("update domain set nameFullPath = REPLACE(nameFullPath, '{0}.', '{1}.') where nameFullPath like '%%{0}.%%'",oldNameFullPath, newNameFullPath);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取域表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：id,name,parentId,nameFullPath,isStation,des
+        /// </param>
+        /// <param name="isStationFlag">
+        /// 是否只返回站点的记录
+        /// 0：所有记录
+        /// 1：只返回是站点的记录
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int domain_record_entity_get(ref DataTable dt,int isStationFlag)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("domain");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.Int32");
+            column0.ColumnName = "id";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "name";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.Int32");
+            column2.ColumnName = "parentId";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "nameFullPath";
+
+            DataColumn column4 = new DataColumn();
+            column4.DataType = System.Type.GetType("System.Int32");
+            column4.ColumnName = "isStation";
+
+            DataColumn column5 = new DataColumn();
+            column5.DataType = System.Type.GetType("System.String");
+            column5.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+            dt.Columns.Add(column4);
+            dt.Columns.Add(column5);
+
+            string sql = "";
+
+            if (1 == isStationFlag)
+            {
+                sql = string.Format("select * from domain where isStation = 1");
+            }
+            else
+            {
+                sql = string.Format("select * from domain");
+            }
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = Convert.ToInt32(dr[2]);
+                            row[3] = dr[3].ToString();
+                            row[4] = Convert.ToInt32(dr[4]);
+                            row[5] = dr[5].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 08-userdomain操作
+
+        /// <summary>
+        /// 检查用户-域的记录是否存在
+        /// </summary>
+        /// <param name="usrName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int userdomain_record_exist(string usrName)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64 )
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from userdomain where usrName = '{0}'", usrName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到用户权限表中,在此，一个用户只能指定到一个角色中
+        /// </summary>
+        /// <param name="usrName">用户名</param>
+        /// <param name="domainIdSet">
+        /// 域ID集合，即该用户可以访问的站点集合，如下：1,2,3,4,5，每个域用逗号隔开
+        /// </param>
+        /// <param name="des"></param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   EXIST          ：记录已经存在
+        ///   USR_NO_EXIST   ：userName不存在
+        ///   ID_SET_ERR     ：ID集合有误
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int userdomain_record_insert(string usrName, string domainIdSet, string des)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName) ||
+                string.IsNullOrEmpty(domainIdSet) ||
+                string.IsNullOrEmpty(des))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64 || des.Length > 256 || domainIdSet.Length > 1024)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查ID集合的合法性
+            if (false == check_id_set(domainIdSet))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.ID_SET_ERR]);
+                return (int)RC.ID_SET_ERR;
+            }
+
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.USR_NO_EXIST;
+            }
+
+
+            //检查用户域记录是否存在
+            if ((int)RC.EXIST == userdomain_record_exist(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }         
+
+            string sql = string.Format("insert into userdomain values(NULL,'{0}','{1}','{2}')", usrName, domainIdSet, des);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在用户-域表中删除指定的记录 
+        /// </summary>
+        /// <param name="usrName"></param>
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int userdomain_record_delete(string usrName)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (usrName.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查用户是否存在
+            if ((int)RC.NO_EXIST == user_record_exist(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.USR_NO_EXIST]);
+                return (int)RC.USR_NO_EXIST;
+            }            
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == userdomain_record_exist(usrName))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from userdomain where usrName = '{0}'", usrName);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取用户-域表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：usrDomainId,usrName,domainIdSet,des
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int userdomain_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("userdomain");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "usrDomainId";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "usrName";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "domainIdSet";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.String");
+            column3.ColumnName = "des";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+
+            string sql = string.Format("select * from userdomain");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0] = Convert.ToUInt32(dr[0]);
+                            row[1] = dr[1].ToString();
+                            row[2] = dr[2].ToString();
+                            row[3] = dr[3].ToString();
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 09-device操作
+
+        /// <summary>
+        /// 检查设备记录是否存在
+        /// 用域名+设备名来区分，如：设备.深圳.福田.中心广场.西北监控.LTE-FDD
+        /// </summary>
+        /// <param name="roleName"></param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int device_record_exist(int affDomainId,string name)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select count(*) from device where affDomainId = {0} and name = '{1}'", affDomainId,name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到设备表中
+        /// </summary>
+        /// <param name="affDomainId">所属域ID</param>
+        /// <param name="name"></param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.PAR_NULL       ：参数为空
+        ///   PAR_LEN_ERR       ：参数长度有误
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.EXIST          ：记录已经存在
+        ///   RC.IS_NOT_STATION ：域ID不是站点
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int device_record_insert(int affDomainId, string name)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+
+            //检查域ID是否为站点
+            if ((int)RC.IS_NOT_STATION == domain_record_is_station(affDomainId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.IS_NOT_STATION]);
+                return (int)RC.IS_NOT_STATION;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.EXIST == device_record_exist(affDomainId,name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST]);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into device values(NULL,'{0}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,{1})",name,affDomainId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过域ID和名称更新记录到设备表中
+        /// </summary>
+        /// <param name="affDomainId"></param>
+        /// <param name="name"></param>
+        /// <param name="dev">
+        /// 更新的字段如下，那些字段不为空就更新那些
+        /// 
+        /// sn;            //SN，GSM或第三方设备可能没有该字段
+        /// carrier;       //仅用于标识GSM的载波，0：载波0；1：载波1
+        /// bindingDevId;  //仅用于标识GSM的绑定设备id
+        /// ipAddr;        //IP地址
+        /// port;          //端口号
+        /// netmask;       //掩码
+        /// mode;          //设备制式，LTE-TDD，LTE-FDD，GSM，WCDMA等
+        /// online;        //上下线标识，0：下线；1：上线
+        /// lastOnline;    //最后的上线时间
+        /// isActive;      //标识该设备是否生效，0：无效；1：生效
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN     ：数据库尚未打开
+        ///   RC.PAR_NULL    ：参数为空
+        ///   PAR_LEN_ERR    ：参数长度有误
+        ///   RC.OP_FAIL     ：数据库操作失败 
+        ///   RC.NO_EXIST    ：记录不存在
+        ///   RC.PAR_FMT_ERR ：参数格式有误
+        ///   RC.SUCCESS     ：成功 
+        /// </returns>
+        public int device_record_update(int affDomainId, string name,StrDevice dev)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST== device_record_exist(affDomainId, name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+
+            string sqlSub = "";
+
+            //(1)
+            if (!string.IsNullOrEmpty(dev.sn))
+            {
+                if (dev.sn.Length > 32)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("sn = '{0}',", dev.sn);
+                }
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(dev.carrier))
+            {                
+                if ((dev.carrier != "0") && (dev.carrier != "1"))
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("carrier = {0},", dev.carrier);
+                }                
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(dev.bindingDevId))
+            {
+                try
+                {
+                    int.Parse(dev.bindingDevId);
+                }
+                catch (Exception ee)
+                {                 
+                    Logger.Trace(ee);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+
+                sqlSub += string.Format("bindingDevId = {0},", dev.bindingDevId);               
+            }
+
+
+            //(4)
+            if (!string.IsNullOrEmpty(dev.ipAddr))
+            {
+                IPAddress ip;
+                if (IPAddress.TryParse(dev.ipAddr, out ip))
+                {
+                    sqlSub += string.Format("ipAddr = '{0}',", dev.ipAddr);
+                }
+                else
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR]);
+                    return (int)RC.PAR_FMT_ERR;
+                }                
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(dev.port))
+            {
+                try
+                {
+                    int port = int.Parse(dev.port);
+
+                    if (port > 65535)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR]);
+                        return (int)RC.PAR_FMT_ERR;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("port = {0},", dev.port);
+                    }
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(ee);
+                    return (int)RC.PAR_FMT_ERR;
+                }                
+            }
+
+            //(6)
+            if (!string.IsNullOrEmpty(dev.netmask))
+            {
+                if (dev.netmask.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("netmask = '{0}',", dev.netmask);
+                }
+            }
+
+            //(7)
+            if (!string.IsNullOrEmpty(dev.mode))
+            {
+                if (dev.mode.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("mode = '{0}',", dev.mode);
+                }
+            }
+
+            //(8)
+            if (!string.IsNullOrEmpty(dev.online))
+            {
+                if ((dev.online != "0") && (dev.online != "1"))
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("online = {0},", dev.online);
+                }
+            }
+
+
+            //(9)
+            if (!string.IsNullOrEmpty(dev.lastOnline))
+            {
+                try
+                {
+                    DateTime.Parse(dev.lastOnline);                    
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(ee);
+                    return (int)RC.TIME_FMT_ERR;
+                }
+
+                sqlSub += string.Format("lastOnline = '{0}',", dev.lastOnline);
+            }
+
+            //(10)
+            if (!string.IsNullOrEmpty(dev.isActive))
+            {
+                if ((dev.isActive != "0") && (dev.isActive != "1"))
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("isActive = {0},", dev.isActive);
+                }
+            }
+
+
+            if (sqlSub != "")
+            {
+                //去掉最后一个字符
+                sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+            }
+            else
+            {
+                //不需要更新
+                Logger.Trace(LogInfoType.INFO, "无需更新");
+                return (int)RC.SUCCESS;
+            }
+
+            string sql = string.Format("update device set {0} where name = '{1}' and affDomainId = {2}", sqlSub, name, affDomainId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在设备表中删除指定的记录 
+        /// </summary>  
+        /// <param name="affDomainId">域ID</param>
+        /// <param name="name">设备名称</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int device_record_delete(int affDomainId, string name)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL]);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR]);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDomainId,name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST]);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from device where affDomainId = {0} and name = '{1}'", affDomainId,name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 获取设备表中的各条记录
+        /// </summary>
+        /// <param name="dt">
+        /// 返回的DataTable，包含的列为：id,name,sn,carrier,bindingDevId,ipAddr
+        /// port,netmask,mode,online,lastOnline,isActive,affDomainId
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功
+        /// </returns>
+        public int device_record_entity_get(ref DataTable dt)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
+                return (int)RC.NO_OPEN;
+            }
+
+            dt = new DataTable("device");
+
+            DataColumn column0 = new DataColumn();
+            column0.DataType = System.Type.GetType("System.UInt32");
+            column0.ColumnName = "id";
+
+            DataColumn column1 = new DataColumn();
+            column1.DataType = System.Type.GetType("System.String");
+            column1.ColumnName = "name";
+
+            DataColumn column2 = new DataColumn();
+            column2.DataType = System.Type.GetType("System.String");
+            column2.ColumnName = "sn";
+
+            DataColumn column3 = new DataColumn();
+            column3.DataType = System.Type.GetType("System.Int32");
+            column3.ColumnName = "carrier";
+
+            DataColumn column4 = new DataColumn();
+            column4.DataType = System.Type.GetType("System.UInt32");
+            column4.ColumnName = "bindingDevId";
+
+            DataColumn column5 = new DataColumn();
+            column5.DataType = System.Type.GetType("System.String");
+            column5.ColumnName = "ipAddr";
+
+            DataColumn column6 = new DataColumn();
+            column6.DataType = System.Type.GetType("System.UInt16");
+            column6.ColumnName = "port";
+
+            DataColumn column7 = new DataColumn();
+            column7.DataType = System.Type.GetType("System.String");
+            column7.ColumnName = "netmask";
+
+            DataColumn column8 = new DataColumn();
+            column8.DataType = System.Type.GetType("System.String");
+            column8.ColumnName = "mode";
+
+            DataColumn column9 = new DataColumn();
+            column9.DataType = System.Type.GetType("System.Int16");
+            column9.ColumnName = "online";
+
+            DataColumn column10 = new DataColumn();
+            column10.DataType = System.Type.GetType("System.String");
+            column10.ColumnName = "lastOnline";
+
+            DataColumn column11 = new DataColumn();
+            column11.DataType = System.Type.GetType("System.Int16");
+            column11.ColumnName = "isActive";
+
+            DataColumn column12 = new DataColumn();
+            column12.DataType = System.Type.GetType("System.Int32");
+            column12.ColumnName = "affDomainId";
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+            dt.Columns.Add(column4);
+            dt.Columns.Add(column5);
+            dt.Columns.Add(column6);
+            dt.Columns.Add(column7);
+            dt.Columns.Add(column8);
+            dt.Columns.Add(column9);
+            dt.Columns.Add(column10);
+            dt.Columns.Add(column11);
+            dt.Columns.Add(column12);
+
+            string sql = string.Format("select * from device");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row[0]  = Convert.ToUInt32(dr[0]);
+                            row[1]  = dr[1].ToString();
+                            row[2]  = dr[2].ToString();
+
+                            if (dr[3].ToString() != "")
+                            {
+                                row[3] = Convert.ToInt16(dr[3]);
+                            }
+                            else
+                            {
+                                row[3] = -1;
+                            }
+
+                            if (dr[4].ToString() != "")
+                            {
+                                row[4] = Convert.ToUInt32(dr[4]);
+                            }
+                            else
+                            {
+                                row[4] = 0;
+                            }                       
+
+                            row[5]  = dr[5].ToString();
+
+                            if (dr[6].ToString() != "")
+                            {
+                                row[6] = Convert.ToUInt16(dr[6]);
+                            }
+                            else
+                            {
+                                row[6] = 0;
+                            }         
+
+                            row[7]  = dr[7].ToString();
+                            row[8]  = dr[8].ToString();
+
+                            if (dr[9].ToString() != "")
+                            {
+                                row[9] = Convert.ToInt16(dr[9]);
+                            }
+                            else
+                            {
+                                row[9] = -1;
+                            }
+                            
+                            row[10] = dr[10].ToString();
+
+                            if (dr[11].ToString() != "")
+                            {
+                                row[11] = Convert.ToInt16(dr[11]);
+                            }
+                            else
+                            {
+                                row[11] = -1;
+                            }
+
+                            if (dr[12].ToString() != "")
+                            {
+                                row[12] = Convert.ToInt32(dr[12]);
+                            }
+                            else
+                            {
+                                row[12] = -1;
+                            }                           
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+    }
+}

@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController
+END
+ApManager.cs
+K 25
+svn:wc:ra_dav:version-url
+V 122
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/ApManager.cs
+END
+Ap_WCDMA.cs
+K 25
+svn:wc:ra_dav:version-url
+V 121
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/Ap_WCDMA.cs
+END
+DeviceList.cs
+K 25
+svn:wc:ra_dav:version-url
+V 123
+/repos/lte/!svn/ver/4138/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/DeviceList.cs
+END
+AsyncUserToken.cs
+K 25
+svn:wc:ra_dav:version-url
+V 127
+/repos/lte/!svn/ver/4119/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/AsyncUserToken.cs
+END
+SocketManager.cs
+K 25
+svn:wc:ra_dav:version-url
+V 126
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/SocketManager.cs
+END
+Ap_Lte.cs
+K 25
+svn:wc:ra_dav:version-url
+V 119
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/Ap_Lte.cs
+END
+BufferManager.cs
+K 25
+svn:wc:ra_dav:version-url
+V 126
+/repos/lte/!svn/ver/4100/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/BufferManager.cs
+END
+SocketEventPool.cs
+K 25
+svn:wc:ra_dav:version-url
+V 128
+/repos/lte/!svn/ver/4100/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/SocketEventPool.cs
+END
+DeviceManager.cs
+K 25
+svn:wc:ra_dav:version-url
+V 126
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/ApController/DeviceManager.cs
+END

@@ -1,0 +1,212 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json;
+using ScannerBackgrdServer.Common;
+using static ScannerBackgrdServer.Common.MsgStruct;
+using static ScannerBackgrdServer.Common.Xml_codec;
+
+namespace ScannerBackgrdServer.ApController
+{
+
+   
+    class Ap_LTE:ApManager
+    {
+
+        private const string MODE_NAME = "LTE";
+
+        public Ap_LTE()
+        {
+            DeviceType = MODE_NAME;
+            ApManager.ReceiveMainData += OnReceiveMainMsg;
+        }
+
+        /// <summary>
+        /// 重载LOG函数
+        /// </summary>
+        /// <param name="str"></param>
+        //public override void OnOutputLog(LogInfoType type, string str)
+        //{
+        //    Console.WriteLine("[" + MODE_NAME + "] " + str);
+        //}
+
+
+
+        /// <summary>
+        /// 重载收到Ap侧消息处理
+        /// </summary>
+        /// <param name="token">Ap信息</param>
+        /// <param name="buff">消息内容</param>
+        public override void OnReceiveDeviceMsg(AsyncUserToken token, byte[] buff)
+        {
+            while (true)
+            {
+                string msg = GetDeviceMsg_XML(token, buff);
+                if (string.IsNullOrEmpty(msg))
+                {
+                    OnOutputLog(LogInfoType.INFO, "消息已解析完。缓存里没有完整消息了！");
+                    return;
+                }
+                HandleApMsg(token, msg);
+            }
+        }
+
+        /// <summary>
+        /// 处理收到的AP消息
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="msg"></param>
+        private void HandleApMsg(AsyncUserToken token, string msg)
+        { 
+            //解析AP发过来的消息
+            UInt16 msgId = 0;
+            Msg_Body_Struct msgBody = null;
+            try
+            {
+                msgBody = Xml_codec.DecodeApXmlMessage(msg, ref msgId);
+            }
+            catch (Exception)
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("解析收到的Ap[{0}:{1}]消息出错！",
+                    token.IPAddress.ToString(),token.Port.ToString()));
+                return;
+            }
+
+            if (msgBody == null)
+            {
+                OnOutputLog(LogInfoType.EROR, "收到消息格式错误！");
+                return;
+            }
+
+            //心跳消息处理
+            if (msgBody.type == ApMsgType.status_response)
+            {
+                OnOutputLog(LogInfoType.INFO, "收到心跳消息");
+                token.Sn = (string)GetMsgStringValueInList("sn", msgBody);
+                token.FullName = (string)GetMsgStringValueInList("fullaname", msgBody);
+
+                MyDeviceList.add(token);
+                Send2main_OnOffLine("OnLine", token);
+
+                //判断是周期心跳，还是上线心跳
+                int iOnline = 0x1000000; //上线或周期性标志
+                int detail = 0;
+                string sDetail = GetMsgStringValueInList("detail", msgBody);
+                if (!string.IsNullOrEmpty(sDetail))
+                    detail = Convert.ToInt32(sDetail,16);
+
+                if ((detail & iOnline) > 0) //上线
+                {
+                    OnOutputLog(LogInfoType.DEBG, "上线消息");
+                    Send2ap_status_request(token);
+                }
+                else //周期心跳
+                {
+                    OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
+                }
+            }
+            else if (msgBody.type == ApMsgType.scanner)
+            {
+                Msg_Body_Struct body = new Msg_Body_Struct(msgBody.type, msgBody.dic);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.NOTICE, token, body);
+            }
+            else
+            {
+                Msg_Body_Struct body = new Msg_Body_Struct(msgBody.type,msgBody.dic);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.CONFIG, token, body);
+            }
+        
+        }
+
+        /// <summary>
+        /// 重载收到Main模块消息处理
+        /// </summary>
+        /// <param name="msg">消息内容</param>
+        public void OnReceiveMainMsg(MsgStruct.InterModuleMsgStruct MainMsg)
+        {
+            OnOutputLog(LogInfoType.INFO, string.Format("处理MainController消息。消息类型:{0}。", MainMsg.Body.type));
+
+            //上、下线消息回复
+            if (MainMsg.Body.type == Main2ApControllerMsgType.OnOffLine_Ack)
+            {
+                //所有在线AP数与数据库不一至，回复所有在线AP
+                if (String.Compare(GetMsgStringValueInList("Status", MainMsg.Body), "success", true) != 0)
+                {
+                    Send2main_OnLineList();
+                    return;
+                }
+            }
+
+            if ((string.IsNullOrEmpty(MainMsg.ApInfo.Ip)) || (MainMsg.ApInfo.Ip == MsgStruct.NullDevice))
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("目的设备为Null，不向Ap发送信息！"));
+            }
+            else
+            { 
+                Send2ap_RecvMainMsg(MainMsg);
+            }
+            return;
+        }
+
+        #region 回复AP的消息
+
+        /// <summary>
+        /// 向Ap发送Main模块过来的消息
+        /// </summary>
+        /// <param name="msgBody"></param>
+        private void Send2ap_RecvMainMsg(InterModuleMsgStruct msgBody)
+        {
+            AsyncUserToken toKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.Ip, msgBody.ApInfo.Port);
+
+            if (toKen == null)
+            {
+                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}] ！",
+                    msgBody.ApInfo.Ip, msgBody.ApInfo.Port.ToString());
+                OnOutputLog(LogInfoType.WARN, str);
+                return;
+            }
+
+            MsgId2App msgId2App = new MsgId2App();
+            msgId2App.id = addMsgId();
+            msgId2App.AppInfo = msgBody.AppInfo;
+
+            if (MyDeviceList.AddMsgId2App(toKen, msgId2App))
+            {
+                byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, msgBody.Body);
+                if (sendMsg == null)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息出错！"));
+                    return;
+                }
+                SendMsg2Ap(toKen, sendMsg);
+            }
+        }
+
+        /// <summary>
+        /// 向AP回应心跳消息
+        /// </summary>
+        /// <param name="token">AP信息</param>
+        private void Send2ap_status_request(AsyncUserToken token)
+        {
+            //向AP回复心跳
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.status_request,
+                "timeout", 5,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
+            if (sendMsg == null)
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息出错！"));
+                return;
+            }
+            SendMsg2Ap(token, sendMsg);
+        }
+
+        #endregion
+    }
+}

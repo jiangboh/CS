@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+    <startup> 
+        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.6.1" />
+    </startup>
+  <appSettings>
+
+    <!-- Scanner后台服务器调试模式 -->
+    <add key="strAppDebugMode" value="1" />
+
+    <!-- 数据库总开关 -->
+    <add key="strDbSwitch" value="1" />
+
+    <!-- 数据库的IP地址 -->
+    <add key="strDbIpAddr" value="172.17.1.119" />
+
+    <!-- 数据库的名称 -->
+    <add key="strDbName" value="scanner_server" />
+
+    <!-- 数据库用户名 -->
+    <add key="strDbUserId" value="root" />
+
+    <!-- 数据库密码（密文） -->
+    <add key="strDbUserPsw" value="Af8SZ2BneUw=" />
+
+    <!-- 数据库端口号 -->
+    <add key="strDbPort" value="3306" />
+
+    <!-- 数据库批量更新的记录数 -->
+    <add key="strDbBatchUpdateRecords" value="20" />
+
+    <!-- 数据库最大的Idle时间，秒数 -->
+    <add key="strDbMaxIdleSeconds" value="60" />
+
+    <!-- FTP总开关 -->
+    <add key="strFtpSwitch" value="1" />
+
+    <!-- FTP的IP地址 -->
+    <add key="strFtpIpAddr" value="172.17.0.210" />
+
+    <!-- FTP的登录用户名 -->
+    <add key="strFtpUserId" value="ftpuser" />
+
+    <!-- FTP的登录密码（密文） -->
+    <add key="strFtpUserPsw" value="S4N5N1nIj1Y=" />
+
+    <!-- FTP的端口号 -->
+    <add key="strFtpPort" value="21" />
+
+    <!-- FTP的访问目录 -->
+    <add key="strFtpUserDir" value="123" />
+
+    <!-- FTP的批量更新记录数 -->
+    <add key="strFtpBatchUpdateRecords" value="40" />
+
+    <!-- FTP的最大Idle时间，秒数 -->
+    <add key="strFtpMaxIdleSeconds" value="90" />
+
+    <!-- GSM的端口号 -->
+    <add key="strStartPortGSM" value="8060" />
+
+    <!-- LTE的端口号 -->
+    <add key="strStartPortLTE" value="8080" />
+
+    <!-- TDS的端口号 -->
+    <add key="strStartPortTDS" value="8084" />
+
+    <!-- WCDMA的端口号 -->
+    <add key="strStartPortWCDMA" value="8088" />
+
+    <!-- Windows的端口号 -->
+    <add key="strStartPortAppWindows" value="14789" />
+
+    <!-- Linux的端口号 -->
+    <add key="strStartPortAppLinux" value="14790" />
+
+    <!-- Android的端口号 -->
+    <add key="strStartPortAppAndroid" value="14791" />
+
+    <!-- Ap在线检测时间。单位(秒)（如果在该时间内未收到AP的心跳消息，认为AP下线） -->
+    <add key="apOnLineTime"  value="180" />
+
+    <!-- App在线检测时间。单位(秒)（如果在该时间内未收到AP的心跳消息，认为APp下线） -->
+    <add key="appOnLineTime" value="180" />
+
+    <!-- Log的输出等级， DEBG = 0,INFO = 1,WARN = 2,EROR = 3 -->
+    <add key="logOutputLevel" value="0" />
+
+    <!-- 检查FTP Server的连接状态的频率，秒数-->
+    <add key="checkFtpConnStat" value="120" />
+
+    <!-- 对捕到的号是否进行起重复处理-->
+    <add key="removeDupMode" value="1" />
+
+    <!-- 去重的时间长度，分钟-->
+    <add key="removeDupTimeLength" value="120" />
+
+  </appSettings>
+</configuration>

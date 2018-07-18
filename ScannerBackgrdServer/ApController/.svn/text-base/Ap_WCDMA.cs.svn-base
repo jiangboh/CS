@@ -1,0 +1,123 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using ScannerBackgrdServer.Common;
+using static ScannerBackgrdServer.Common.MsgStruct;
+using static ScannerBackgrdServer.Common.Xml_codec;
+
+namespace ScannerBackgrdServer.ApController
+{
+    class Ap_WCDMA:ApManager
+    {
+        private const string MODE_NAME = "WCDMA";
+
+        public Ap_WCDMA()
+        {
+            DeviceType = MODE_NAME;
+            ApManager.ReceiveMainData += OnReceiveMainMsg;
+        }
+
+        ///// <summary>
+        ///// 重载LOG函数
+        ///// </summary>
+        ///// <param name="str"></param>
+        //public override void OnOutputLog(LogInfoType type, string str)
+        //{
+        //    Console.WriteLine("[" + MODE_NAME + "] " + str);
+        //}
+
+        /// <summary>
+        /// 重载收到Ap侧消息处理
+        /// </summary>
+        /// <param name="token">Ap信息</param>
+        /// <param name="buff">消息内容</param>
+        public override void OnReceiveDeviceMsg(AsyncUserToken token, byte[] buff)
+        {
+            string msg = GetDeviceMsg_XML(token,buff);
+            if (string.IsNullOrEmpty(msg))
+            {
+                OnOutputLog(LogInfoType.INFO, "还未收到完整消息！");
+                return;
+            }
+
+        }
+
+        /// <summary>
+        /// 重载收到Main模块消息处理
+        /// </summary>
+        /// <param name="msg">消息内容</param>
+        public void OnReceiveMainMsg(MsgStruct.InterModuleMsgStruct MainMsg)
+        {
+            OnOutputLog(LogInfoType.INFO, string.Format("处理MainController消息。消息类型:{0}。", MainMsg.Body.type));
+
+            if (MainMsg.ApInfo.Ip != MsgStruct.NullDevice)
+            {
+                Send2ap_RecvMainMsg(MainMsg);
+            }
+            return;
+        }
+
+        #region 回复AP的消息
+
+        /// <summary>
+        /// 向Ap发送Main模块过来的消息
+        /// </summary>
+        /// <param name="msgBody"></param>
+        private void Send2ap_RecvMainMsg(InterModuleMsgStruct msgBody)
+        {
+            AsyncUserToken toKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.Ip, msgBody.ApInfo.Port);
+
+            if (toKen == null)
+            {
+                string str = string.Format("Ap[{0}:{1}]不在线AP列表中 ！",
+                    msgBody.ApInfo.Ip, msgBody.ApInfo.Port.ToString());
+                OnOutputLog(LogInfoType.WARN, str);
+                return;
+            }
+
+            MsgId2App msgId2App = new MsgId2App();
+            msgId2App.id = addMsgId();
+            msgId2App.AppInfo = msgBody.AppInfo;
+
+            if (MyDeviceList.AddMsgId2App(toKen, msgId2App))
+            {
+                byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, msgBody.Body);
+                if (sendMsg == null)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息出错！"));
+                    return;
+                }
+                SendMsg2Ap(toKen, sendMsg);
+            }
+        }
+
+        /// <summary>
+        /// 向AP回应心跳消息
+        /// </summary>
+        /// <param name="token">AP信息</param>
+        private void Send2ap_status_request(AsyncUserToken token)
+        {
+            //向AP回复心跳
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.status_request,
+                "timeout", "5",
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+            //Body.Add("timeout", "5");
+            //Body.Add("timestamp", DateTime.Now.ToLocalTime().ToString());
+
+
+            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
+            if (sendMsg == null)
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息出错！"));
+                return;
+            }
+            SendMsg2Ap(token, sendMsg);
+        }
+
+        #endregion
+    }
+}

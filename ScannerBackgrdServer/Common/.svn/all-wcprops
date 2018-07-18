@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common
+END
+ModuleConfig.cs
+K 25
+svn:wc:ra_dav:version-url
+V 119
+/repos/lte/!svn/ver/4123/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common/ModuleConfig.cs
+END
+MsgStruct.cs
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common/MsgStruct.cs
+END
+Xml_codec.cs
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common/Xml_codec.cs
+END
+Logger.cs
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/repos/lte/!svn/ver/4141/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common/Logger.cs
+END
+Common.cs
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/repos/lte/!svn/ver/4110/sw/tools/ScannerBackgrdServer/ScannerBackgrdServer/ScannerBackgrdServer/Common/Common.cs
+END

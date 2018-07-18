@@ -1,0 +1,2026 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json;
+using ScannerBackgrdServer.ApController;
+using ScannerBackgrdServer.AppController;
+using ScannerBackgrdServer.Common;
+using static ScannerBackgrdServer.Common.MsgStruct;
+
+namespace ScannerBackgrdServer
+{
+    #region 消息交互相关
+
+    public enum MessageType       //消息类型
+    {
+        MSG_STRING = 0,
+        MSG_INT = 1,
+        MSG_DOUBLE = 2,
+        MSG_DATATABLE = 3,
+        MSG_XML = 4,
+        MSG_STATUS = 5,
+        MSG_JSON = 6,
+        MSG_MAX = 7
+    }
+
+    public struct MessageBody       //消息实体
+    {
+        public string bString; 
+        public int bInt;
+        public double bDouble;
+        public DataTable bDataTable;
+        public string bXml;
+        public int bStatus;
+        public string bJson;
+    }
+
+    /// <summary>
+    /// 声明消息交互的delegate对象,用于APController，MainController
+    /// 和APPController之间进行消息的交互
+    /// </summary>
+    /// <param name="mt"></param>
+    /// <param name="mb"></param>
+    public delegate void MessageDelegate(MessageType mt, MessageBody mb);
+
+    #endregion
+
+    public partial class FrmMainController : Form
+    {
+
+        /// <summary>
+        /// 声明委托类型
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="type"></param>
+        public delegate void show_log_info_delegate(string str, LogInfoType type);
+
+        private static DbHelper gDbHelper;
+        private static FtpHelper gFtpHelper;
+        private static Dictionary<string, DateTime> gDicRemoveDup = new Dictionary<string, DateTime>();
+
+        public struct strLogInfo
+        {
+            public LogInfoType type;
+            public string info;          
+        }
+
+        public struct strMsgInfo
+        {
+            public MessageType mt;
+            public MessageBody mb;
+        }
+
+        private const string LOG_DEBG = "\r\n-------- {0} DEBG [{1}] --------\r\n";
+        private const string LOG_INFO = "\r\n-------- {0} INFO [{1}] --------\r\n";
+        private const string LOG_WARN = "\r\n-------- {0} WARN [{1}] --------\r\n";
+        private const string LOG_EROR = "\r\n-------- {0} EROR [{1}] --------\r\n";
+        
+        /// <summary>
+        /// 用于调试Log的互斥
+        /// </summary>
+        private static Object mutex_Logger = new Object();
+
+        /// <summary>
+        /// 用于接收ApController消息的互斥
+        /// </summary>
+        private static Object mutex_Ap_Controller = new Object();
+
+        /// <summary>
+        /// 用于接收AppController消息的互斥
+        /// </summary>
+        private static Object mutex_App_Controller = new Object();
+
+        /// <summary>
+        /// 用于数据库处理得互斥
+        /// </summary>
+        private static Object mutex_DbHelper = new object();
+
+        /// <summary>
+        /// 用于FTP处理得互斥
+        /// </summary>
+        private static Object mutex_FtpHelper = new object();
+
+        private static Queue<strLogInfo> gListLog = new Queue<strLogInfo>();        
+        private static Queue<strMsgInfo> gMsgFor_Ap_Controller = new Queue<strMsgInfo>();        
+        private static Queue<strMsgInfo> gMsgFor_App_Controller = new Queue<strMsgInfo>();
+
+        private static InterModuleMsgStruct gIMMS_AP;
+        private static InterModuleMsgStruct gIMMS_APP;
+
+        /// <summary>
+        ///  多久一次检查一下FTP Server的连接状态（秒数）
+        /// </summary>
+        private static int CHECK_FTP_CONN_STAT = 60;
+
+        /// <summary>
+        /// 声明用于发送信息给ApController的代理
+        /// </summary>
+        //private MessageDelegate sendMsg_2_ApController = new MessageDelegate(ApController_test.MessageDelegate_For_MainController);
+        private static MessageDelegate sendMsg_2_ApController = new MessageDelegate(ApManager.MessageDelegate_For_MainController);
+
+        /// <summary>
+        ///  声明用于发送信息给AppController的代理
+        /// </summary>
+        //private MessageDelegate sendMsg_2_AppController = new MessageDelegate(AppController_test.MessageDelegate_For_MainController);
+        private static MessageDelegate sendMsg_2_AppController = new MessageDelegate(AppManager.MessageDelegate_For_MainController);
+
+        /// <summary>
+        /// 用于从ApController中收消息
+        /// </summary>
+        /// <param name="mt"></param>
+        /// <param name="mb"></param>
+        public static void MessageDelegate_For_ApController(MessageType mt, MessageBody mb)
+        {           
+            strMsgInfo msgInfo;
+            msgInfo.mt = mt;
+            msgInfo.mb = mb;
+
+            lock (mutex_Ap_Controller)
+            {
+                gMsgFor_Ap_Controller.Enqueue(msgInfo);
+            }           
+        }
+
+        /// <summary>
+        /// 用于从AppController中收消息
+        /// </summary>
+        /// <param name="mt"></param>
+        /// <param name="mb"></param>
+        public static void MessageDelegate_For_AppController(MessageType mt, MessageBody mb)
+        {  
+            strMsgInfo msgInfo;
+            msgInfo.mt = mt;
+            msgInfo.mb = mb;
+
+            lock (mutex_App_Controller)
+            {
+                gMsgFor_App_Controller.Enqueue(msgInfo);
+            }            
+        }        
+
+        /// <summary>
+        /// 添加Log消息到队列中
+        /// </summary>
+        /// <param name="type">Log类型</param>
+        /// <param name="str">Log消息</param>
+        /// <param name="filePath">文件名</param>
+        /// <param name="memberName">函数名</param>
+        /// <param name="lineNumber">行号</param>
+        public static void add_log_info(LogInfoType type, string str,
+                               [CallerFilePath]   string filePath = "",
+                               [CallerMemberName] string memberName = "",
+                               [CallerLineNumber] int lineNumber = 0)
+        {
+            if ("0" == DataController.StrAppDebugMode)
+            {
+                //不是调试模式
+                return;  
+            }
+
+            if (type < DataController.LogOutputLevel)
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(str))
+            {
+                add_log_info(LogInfoType.EROR, "add_log_info字符串为空");
+                return;
+            }
+
+            string tmp = "";
+
+            if (type == LogInfoType.INFO)
+            {
+                tmp = (string.Format(LOG_INFO, lines++, DateTime.Now));
+            }
+            else if (type == LogInfoType.WARN)
+            {
+                tmp = (string.Format(LOG_WARN, lines++, DateTime.Now));
+            }
+            else if (type == LogInfoType.EROR)
+            {
+                tmp = (string.Format(LOG_EROR, lines++, DateTime.Now));
+            }
+            else
+            {
+                tmp = (string.Format(LOG_DEBG, lines++, DateTime.Now));
+            }
+
+            str = tmp + string.Format("Line->{0}\nFunc->{1}\nFile->{2}\nInfo->{3}", lineNumber,memberName, Path.GetFileName(filePath), str);
+          
+            strLogInfo logInfo;
+            logInfo.type = type;
+            logInfo.info = str;
+
+            lock (mutex_Logger)
+            {
+                gListLog.Enqueue(logInfo);
+            }   
+        }
+
+        /// <summary>
+        /// 本例中的线程要通过这个方法来访问主线程中的控件
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="type"></param>
+        private void show_log_info(string str, LogInfoType type)
+        {
+
+            if (richTextBoxLog.Text.Length >= richTextBoxLog.MaxLength)
+            {
+                richTextBoxLog.Text = "";
+            }
+
+            richTextBoxLog.AppendText("\n");
+
+            if (type == LogInfoType.INFO)
+            {
+                richTextBoxLog.SelectionColor = Color.Black;
+            }
+            else if (type == LogInfoType.WARN)
+            {
+                richTextBoxLog.SelectionColor = Color.Blue;
+            }
+            else if (type == LogInfoType.EROR)
+            {
+                richTextBoxLog.SelectionColor = Color.Red;
+            }
+            else
+            {
+                richTextBoxLog.SelectionColor = Color.Gray;
+            }
+
+            richTextBoxLog.AppendText(str);
+          
+            //设置光标的位置到文本尾 
+            richTextBoxLog.Select(richTextBoxLog.TextLength, 0);
+
+            //滚动到控件光标处 
+            richTextBoxLog.ScrollToCaret();
+        }
+
+        /// <summary>
+        /// 创建有参的方法
+        /// 注意：方法里面的参数类型必须是Object类型
+        /// </summary>
+        /// <param name="obj"></param>
+        private static int lines = 1;
+        private void thread_for_logger(object obj)
+        {
+            strLogInfo tmp = new strLogInfo();
+
+            while (true)
+            {           
+                lock(mutex_Logger)
+                {
+                    if(gListLog.Count  <= 0)
+                    {
+                        Thread.Sleep(100);
+                        continue;
+                    }
+                                          
+                    tmp = gListLog.Dequeue();
+
+                    /*
+                     * 线程通过方法的委托执行show_log_info()，实现对richTextBoxLog控件的访问
+                     * public object Invoke(Delegate method, params object[] args);
+                     */
+                    BeginInvoke(new show_log_info_delegate(show_log_info), new object[] { tmp.info, tmp.type });                                                  
+                }                             
+            }
+        }
+
+        /// <summary>
+        /// 处理收到从ApController收到的消息
+        /// </summary>
+        /// <param name="strBody">消息体</param>
+        /// <returns></returns>
+        private int process_ap_controller_msg(string strBody)
+        {
+            int rv = 0;
+            if (string.IsNullOrEmpty(strBody))
+            {
+                add_log_info(LogInfoType.EROR, "strBody is Error.\n");
+                Logger.Trace(LogInfoType.EROR, "strBody is Error.\n");
+                return -1;
+            }
+
+            try
+            {
+
+                gIMMS_AP = JsonConvert.DeserializeObject<InterModuleMsgStruct>(strBody);
+
+                switch (gIMMS_AP.Body.type)
+                {
+                    case ApMsgType.set_ip_address_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_ip_address_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.status_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.status_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_configuration:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_configuration_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.activate_nodeb_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.activate_nodeb_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.cell_info_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.cell_info_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.femto_status_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.femto_status_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.scanner:
+                        {
+                            //处理捕到的号
+
+                            break;
+                        }
+                    case ApMsgType.result_ack:
+                        {
+                            break;
+                        }
+                    case ApMsgType.paging_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.paging_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.meas_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_son_earfcn:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_son_earfcn_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_setconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_delconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_config_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_check:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_check_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.warning_status:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_periodic_restart_time:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_periodic_restart_time_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_son_earfcn:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_son_earfcn_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_redirection_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_redirection_rsp:
+                        {
+                            break;
+                        }
+                    case ApMsgType.UE_cap_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_tac_value:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_xml_msg_all:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_work_mode:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_work_mode_reponse:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_work_mode:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_work_mode_reponse:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_macro:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_macro_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_macro:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_macro_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_report_target_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_report_target_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_report_target_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_report_target_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_redirection_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_redirection_rsp:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_upload_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_upload_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_upload_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_upload_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_system_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_system_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_system_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_system_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Update:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Update_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.file_eof:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Get_Log:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Get_Log_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_rt_info:
+                        {
+                            break;
+                        }
+                    case ApMsgType.rt_info_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.SYNC_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.SYNC_info:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_id:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_id_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_device_id:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_device_id_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_set:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_set_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_get:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_get_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_setconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_delconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_config_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_delconfig_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_check:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_check_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_temp_list_config:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_temp_list_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_reboot:
+                        {
+                            break;
+                        }
+                    case Main2ApControllerMsgType.OnOffLine:
+                        {
+                            //更新一下数据库中相关的设置
+
+                            break;
+                        }
+                    case Main2ApControllerMsgType.Transparent:
+                        {
+                            break;
+                        }
+                    case Main2ApControllerMsgType.app_login_request:
+                        {
+                            break;
+                        }
+                    case Main2ApControllerMsgType.app_login_response:
+                        {
+                            break;
+                        }
+                    default:
+                        {
+                            add_log_info(LogInfoType.EROR, "NO TypeKeyValue.Type.\n");
+                            Logger.Trace(LogInfoType.EROR, "NO TypeKeyValue.Type.\n");
+                            rv = -1;
+                            break;
+                        }
+                }
+            }
+            catch (Exception ee)
+            {
+                Logger.Trace(ee);
+                return -1;
+            }          
+
+            return rv;
+        }
+
+        /// <summary>
+        /// 处理收到从AppController收到的消息
+        /// </summary>
+        /// <param name="strBody">消息体</param>
+        /// <returns></returns>
+        private int process_app_controller_msg(string strBody)
+        {
+            int rv = 0;
+            if (string.IsNullOrEmpty(strBody))
+            {
+                add_log_info(LogInfoType.EROR, "strBody is Error.\n");
+                Logger.Trace(LogInfoType.EROR, "strBody is Error.\n");
+                return -1;
+            }
+
+            try
+            {
+                //反系列化
+                gIMMS_APP = JsonConvert.DeserializeObject<InterModuleMsgStruct>(strBody);
+                switch (gIMMS_APP.Body.type)
+                {
+                    case ApMsgType.set_ip_address_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_ip_address_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.status_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.status_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_configuration:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_configuration_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.activate_nodeb_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.activate_nodeb_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.cell_info_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.cell_info_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.femto_status_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.femto_status_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.scanner:
+                        {
+                            break;
+                        }
+                    case ApMsgType.result_ack:
+                        {
+                            break;
+                        }
+                    case ApMsgType.paging_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.paging_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.meas_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_son_earfcn:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_son_earfcn_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_setconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_delconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_config_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_check:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_list_check_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.warning_status:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_periodic_restart_time:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_periodic_restart_time_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_son_earfcn:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_son_earfcn_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_redirection_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_redirection_rsp:
+                        {
+                            break;
+                        }
+                    case ApMsgType.UE_cap_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_tac_value:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_xml_msg_all:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_work_mode:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_work_mode_reponse:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_work_mode:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_work_mode_reponse:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_macro:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_macro_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_macro:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_macro_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_report_target_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_report_target_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_report_target_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_report_target_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_redirection_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_redirection_rsp:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_upload_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_upload_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_upload_req:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_upload_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_system_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_system_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_system_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_system_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Update:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Update_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.file_eof:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Get_Log:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Get_Log_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_rt_info:
+                        {
+                            break;
+                        }
+                    case ApMsgType.rt_info_report:
+                        {
+                            break;
+                        }
+                    case ApMsgType.SYNC_request:
+                        {
+                            break;
+                        }
+                    case ApMsgType.SYNC_info:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_id:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_id_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_device_id:
+                        {
+                            break;
+                        }
+                    case ApMsgType.get_device_id_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_set:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_set_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_get:
+                        {
+                            break;
+                        }
+                    case ApMsgType.Syncinfo_get_response:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_setconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_delconfig:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_config_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_delconfig_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_check:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imei_list_check_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_temp_list_config:
+                        {
+                            break;
+                        }
+                    case ApMsgType.imsi_temp_list_result:
+                        {
+                            break;
+                        }
+                    case ApMsgType.set_device_reboot:
+                        {
+                            break;
+                        }
+                    case Main2ApControllerMsgType.OnOffLine:
+                        {                        
+                            break;
+                        }
+                    case Main2ApControllerMsgType.Transparent:
+                        {
+                            break;
+                        }
+                    case Main2ApControllerMsgType.app_login_request:
+                        {
+                            if (gIMMS_APP.Body.dic.Count == 0)
+                            {
+                                add_log_info(LogInfoType.EROR, "KeyValueListList.Count == 0.");
+                                Logger.Trace(LogInfoType.EROR, "KeyValueListList.Count == 0.");
+                                break;
+                            }
+
+                            string usr = "";
+                            string psw = "";
+
+                            if (gIMMS_APP.Body.dic.ContainsKey("UserName"))
+                            {
+                                usr = gIMMS_APP.Body.dic["UserName"].ToString();
+                            }
+
+                            if (gIMMS_APP.Body.dic.ContainsKey("PassWord"))
+                            {
+                                psw = gIMMS_APP.Body.dic["PassWord"].ToString();
+                            }                            
+
+                            if (usr == "" || psw == "")
+                            {
+                                add_log_info(LogInfoType.EROR, "usr or psw NULL.");
+                                Logger.Trace(LogInfoType.EROR, "usr or psw NULL.");
+                                break;
+                            }
+
+                            string str = string.Format("UserName = {0},PassWord = {1}", usr, psw);
+
+                            add_log_info(LogInfoType.INFO, str);
+                            Logger.Trace(LogInfoType.INFO, str);
+
+                            #region 验证用户合法性
+
+                            List<string> kv = new List<string>();
+                            int rtv = gDbHelper.user_record_check(usr, psw);
+
+                            kv.Add("CheckCode");
+                            kv.Add(rtv.ToString());
+
+                            switch (rtv)
+                            {
+                                case 0:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("验证成功，用户合法");
+                                        break;
+                                    }
+                                case -1:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("数据库尚未打开");
+                                        break;
+                                    }
+                                case -2:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("参数有误");
+                                        break;
+                                    }
+                                case -3:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("验证失败，密码有误");
+                                        break;
+                                    }
+                                case -4:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("数据库操作失败");
+                                        break;
+                                    }
+                                case -5:
+                                    {
+                                        kv.Add("CheckStatus");
+                                        kv.Add("验证失败，用户不存在");
+                                        break;
+                                    }
+                            }
+
+                            #endregion
+
+                            #region 获取用户所属的组/角色
+
+                            DataTable dt = new DataTable();
+                            rtv = gDbHelper.userrole_record_entity_get(ref dt);
+
+                            if (rtv == 0)
+                            {
+                                foreach (DataRow dr in dt.Rows)
+                                {
+                                    if (dr[1].ToString() == usr)
+                                    {
+                                        kv.Add("AffGroup");
+                                        kv.Add(dr[2].ToString());
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                kv.Add("AffGroup");
+                                kv.Add("NULL");
+                            }
+
+                            #endregion
+
+                            #region 获取用户的域权限                           
+
+                            #endregion
+
+                            String[] strKV = kv.ToArray();
+
+                            //Type_Key_Value_Struct tkv = new Type_Key_Value_Struct(Main2ApControllerMsgType.app_login_response, strKV);
+                            //gIMMS_APP.TypeKeyValue = tkv;
+
+                            MessageBody mb = new MessageBody();
+                            mb.bJson = JsonConvert.SerializeObject(gIMMS_APP);
+
+                            //发信息给APPController
+                            sendMsg_2_AppController(MessageType.MSG_JSON, mb);
+
+                            break;
+                        }
+                    case Main2ApControllerMsgType.app_login_response:
+                        {
+                            break;
+                        }
+                    default:
+                        {
+                            add_log_info(LogInfoType.EROR, "NO TypeKeyValue.Type.\n");
+                            Logger.Trace(LogInfoType.EROR, "NO TypeKeyValue.Type.\n");
+
+                            rv = -1;
+                            break;
+                        }
+                }
+            }
+            catch (Exception ee)
+            {
+                Logger.Trace(ee);
+                return -1;
+            }
+
+            return rv;
+        }
+
+        /// <summary>
+        /// 用于接收ApController的消息线程
+        /// </summary>
+        /// <param name="obj"></param>
+        private void thread_for_ap_controller(object obj)
+        {
+            strMsgInfo msgInfo;
+
+            while (true)
+            {
+                lock (mutex_Ap_Controller)
+                {
+                    if (gMsgFor_Ap_Controller.Count <= 0)
+                    {
+                        Thread.Sleep(100);
+                        continue;
+                    }
+
+                    //循环处理从APController接收到的消息
+                    msgInfo = gMsgFor_Ap_Controller.Dequeue();
+
+                    switch (msgInfo.mt)
+                    {
+                        case MessageType.MSG_STRING:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STRING");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STRING");
+                                break;
+                            }
+                        case MessageType.MSG_INT:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_INT");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_INT");
+
+                                break;
+                            }
+                        case MessageType.MSG_DOUBLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE");
+
+                                break;
+                            }
+                        case MessageType.MSG_DATATABLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE");
+
+                                break;
+                            }
+                        case MessageType.MSG_XML:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_XML");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_XML");
+
+                                //发送消息给ApController
+                                //sendMsg_2_ApController(msgInfo.mt, msgInfo.mb);
+                                break;
+                            }
+                        case MessageType.MSG_STATUS:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS");
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS");
+
+
+                                break;
+                            }
+                        case MessageType.MSG_JSON:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+
+                                process_ap_controller_msg(msgInfo.mb.bJson);
+
+                                //将消息转发给AppController
+                                sendMsg_2_AppController(msgInfo.mt, msgInfo.mb);
+
+                                break;
+                            }
+                        default:
+                            {
+                                add_log_info(LogInfoType.WARN, "recv from ap controller，MSG_ERROR");
+                                Logger.Trace(LogInfoType.WARN, "recv from ap controller，MSG_ERROR");
+                                break;
+                            }
+                    }            
+                }                
+            }
+        }
+
+        /// <summary>
+        /// 用于接收AppController的消息线程
+        /// </summary>
+        /// <param name="obj"></param>
+        private void thread_for_app_controller(object obj)
+        {
+            strMsgInfo msgInfo;
+
+            while (true)
+            {
+                lock (mutex_App_Controller)
+                {                    
+                    if (gMsgFor_App_Controller.Count <= 0)
+                    {
+                        //消息队列中没有消息
+                        Thread.Sleep(50);
+                        continue;
+                    }
+
+                    //循环处理从AppController接收到的消息
+                    msgInfo = gMsgFor_App_Controller.Dequeue();
+
+                    switch (msgInfo.mt)
+                    {
+                        case MessageType.MSG_STRING:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STRING");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STRING");
+
+                                break;
+                            }
+                        case MessageType.MSG_INT:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_INT");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_INT");
+
+                                break;
+                            }
+                        case MessageType.MSG_DOUBLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE");
+                                break;
+                            }
+                        case MessageType.MSG_DATATABLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE");
+
+                                break;
+                            }
+                        case MessageType.MSG_XML:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_XML");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_XML");
+
+                                break;
+                            }
+                        case MessageType.MSG_STATUS:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STATUS");
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STATUS");
+
+                                break;
+                            }
+                        case MessageType.MSG_JSON:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+
+                                process_app_controller_msg(msgInfo.mb.bJson);
+
+                                //将消息转发给AppController
+                                //sendMsg_2_AppController(msgInfo.mt, msgInfo.mb);
+
+                                break;
+                            }
+                        default:
+                            {
+                                add_log_info(LogInfoType.WARN, "recv from app controller，MSG_ERROR");
+                                Logger.Trace(LogInfoType.WARN, "recv from app controller，MSG_ERROR");
+                                break;
+                            }
+                    }    
+                }               
+            }
+        }
+
+        /// <summary>
+        /// 用于处理DbHelper的线程
+        /// </summary>
+        /// <param name="obj"></param>
+        private void thread_for_db_helper(object obj)
+        {
+            //strMsgInfo tmp;
+
+            #region 初始化gDbHelper
+
+
+            gDbHelper = new DbHelper(DataController.StrDbIpAddr,
+                                     DataController.StrDbName,
+                                     DataController.StrDbUserId,
+                                     DataController.StrDbUserPsw,
+                                     DataController.StrDbPort);
+
+            string tmp = string.Format("{0},{1},{2},{3},{4}", DataController.StrDbIpAddr,
+                                      DataController.StrDbName,
+                                      DataController.StrDbUserId,
+                                      DataController.StrDbUserPsw,
+                                      DataController.StrDbPort);
+
+            if (gDbHelper.MyDbConnFlag == true)
+            {
+                add_log_info(LogInfoType.INFO, tmp + " -> 连接数据库OK！");
+            }
+            else
+            {
+                add_log_info(LogInfoType.EROR, tmp + " -> 连接数据库FAILED！");
+            }
+
+            #endregion
+
+            while (true)
+            {
+                //申请
+                //mutex_App_Controller.WaitOne();              
+
+                //释放
+                //mutex_App_Controller.ReleaseMutex();
+                Thread.Sleep(50);
+            }
+        }
+
+        private int ftp = 1;
+
+        /// <summary>
+        /// 用于处理FtpHelper的线程
+        /// </summary>
+        /// <param name="obj"></param>
+        private void thread_for_ftp_helper(object obj)
+        {
+            string errmsg = "";
+            bool isConn = false;
+
+
+            #region 初始化FtpHelper
+
+            CHECK_FTP_CONN_STAT = DataController.CheckFtpConnStatTime;
+
+            gFtpHelper = new FtpHelper(DataController.StrFtpIpAddr,
+                                       DataController.StrFtpUserDir,
+                                       DataController.StrFtpUserId,
+                                       DataController.StrFtpUserPsw,
+                                       int.Parse(DataController.StrFtpPort));
+
+            #endregion
+
+            DateTime startTime = System.DateTime.Now;
+
+            //Console.WriteLine("DateTime总共花费{0}ms.", ts.TotalMilliseconds);
+
+            if (!gFtpHelper.Connected)
+            {
+                gFtpHelper.Connect();
+            }
+
+            while (true)
+            {
+                DateTime endTime = System.DateTime.Now;
+                TimeSpan ts = endTime.Subtract(startTime);
+
+                if(ts.TotalSeconds >= CHECK_FTP_CONN_STAT)
+                {                   
+                    isConn = gFtpHelper.CheckFtpConnStatus(DataController.StrFtpIpAddr,
+                                                DataController.StrFtpUserId,
+                                                DataController.StrFtpUserPsw,
+                                                out errmsg,
+                                                int.Parse(DataController.StrFtpPort),
+                                                2000);
+
+                    if (isConn == false)
+                    {
+                        gFtpHelper.Connected = false;
+                        gFtpHelper.Connect();
+                    }
+
+                    FrmMainController.add_log_info(LogInfoType.INFO, "CheckFtpConnStatus:errmsg : " + errmsg.ToString());
+                    //FrmMainController.add_log_info(LogInfoType.INFO, "CheckFtpConnStatus:isConn : " + isConn.ToString());
+                    startTime = System.DateTime.Now;
+
+                    if(gFtpHelper.Connected)
+                    {                      
+                        if ((ftp % 2) == 1)
+                        {
+                            //gFtpHelper.Put(@textBox1.Text);
+                        }
+                        else
+                        {
+                            //gFtpHelper.Get(@"123.jpg", @"F:\\333", ftp.ToString() + ".jpg");
+                        }
+
+                        ftp++;                      
+                    }
+                }
+
+                
+                //申请
+                //mutex_App_Controller.WaitOne();              
+
+                //释放
+                //mutex_App_Controller.ReleaseMutex();
+                Thread.Sleep(100);
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            string dd = Guid.NewGuid().ToString(); // 9af7f46a-ea52-4aa3-b8c3-9fd484c2af12
+
+
+            MessageBox.Show("this is elephant speaking! " + dd);
+
+            add_log_info(LogInfoType.INFO, "this is elephant speaking!");
+
+            dd = "root" + dd.Substring(0, 4);
+            string str1 = Common.Common.Encode(dd);
+
+            string ddddd = Common.Common.Decode(str1);
+
+            string str2 = Common.Common.Encode("ftpuser");
+
+            string str3 = Common.Common.Decode("Af8SZ2BneUw=");
+            string str4 = Common.Common.Decode("S4N5N1nIj1Y=");
+
+            string strxx = "1,2,3,t";
+            string[] s = strxx.Split(new char[] { ',' });
+ 
+            foreach (string str in s)
+            {
+                try
+                {
+                    UInt16.Parse(str);
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(ee);                    
+                }
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {         
+            add_log_info(LogInfoType.WARN, "this is elephant speaking!");
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Logger.Trace(LogInfoType.EROR, "this is elephant speaking!");
+            add_log_info(LogInfoType.EROR, null);
+
+            byte[] aa = new byte[3];
+
+            try
+            {
+                byte b = aa[5];
+            }
+            catch (Exception ee)
+            {                
+                Logger.Trace(ee);
+            }
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {            
+            //gFtpHelper = new FtpHelper(gDataController.StrFtpIpAddr,"123",gDataController.StrFtpUserId,gDataController.StrFtpUserPsw,int.Parse(gDataController.StrFtpPort));            
+        }
+
+        public FrmMainController()
+        {
+            #region 初始化DataController
+
+            add_log_info(LogInfoType.INFO, "StrAppDebugMode = " + DataController.StrAppDebugMode);
+            add_log_info(LogInfoType.INFO, "StrDbSwitch = " + DataController.StrDbSwitch);
+            add_log_info(LogInfoType.INFO, "StrDbIpAddr = " + DataController.StrDbIpAddr);
+            add_log_info(LogInfoType.INFO, "StrDbName = " + DataController.StrDbName);
+            add_log_info(LogInfoType.INFO, "StrDbUserId = " + DataController.StrDbUserId);
+            add_log_info(LogInfoType.INFO, "StrDbUserPsw = " + DataController.StrDbUserPsw);
+            add_log_info(LogInfoType.INFO, "StrDbPort = " + DataController.StrDbPort);
+            add_log_info(LogInfoType.INFO, "StrFtpSwitch = " + DataController.StrFtpSwitch);
+            add_log_info(LogInfoType.INFO, "StrFtpIpAddr = " + DataController.StrFtpIpAddr);
+            add_log_info(LogInfoType.INFO, "StrFtpUserId = " + DataController.StrFtpUserId);
+            add_log_info(LogInfoType.INFO, "StrFtpUserPsw = " + DataController.StrFtpUserPsw);
+            add_log_info(LogInfoType.INFO, "StrFtpPort = " + DataController.StrFtpPort);
+            add_log_info(LogInfoType.INFO, "StrFtpUserDir = " + DataController.StrFtpUserDir);            
+
+            #endregion
+
+            #region 初始化ApController
+
+            new Ap_LTE().Start(int.Parse(DataController.StrStartPortLTE));
+            new Ap_WCDMA().Start(int.Parse(DataController.StrStartPortWCDMA));
+
+            #endregion
+
+            #region 初始化AppController
+
+            new App_Windows().Start(int.Parse(DataController.StrStartPortAppWindows));
+
+            #endregion         
+
+            InitializeComponent();
+        }
+
+        private void FrmMainController_Load(object sender, EventArgs e)
+        {
+            add_log_info(LogInfoType.INFO, "欢迎进入ScannerBackgrdServer！");
+            add_log_info(LogInfoType.INFO, "今天是个好日子！");            
+
+            #region 启动Log线程
+
+            //通过ParameterizedThreadStart创建线程
+            Thread thread1 = new Thread(new ParameterizedThreadStart(thread_for_logger));
+
+            //给方法传值
+            thread1.Start("this is elephant speaking!\n");
+            thread1.IsBackground = true;
+
+            #endregion
+
+            #region 启动用于接收ApController消息的线程
+
+            //通过ParameterizedThreadStart创建线程
+            Thread thread2 = new Thread(new ParameterizedThreadStart(thread_for_ap_controller));
+
+            //给方法传值
+            thread2.Start("thread_for_ap_controller!\n");
+            thread2.IsBackground = true;
+ 
+            #endregion
+
+            #region 启动用于接收AppController消息的线程
+
+            //通过ParameterizedThreadStart创建线程
+            Thread thread3 = new Thread(new ParameterizedThreadStart(thread_for_app_controller));
+
+            //给方法传值
+            thread3.Start("thread_for_app_controller!\n");
+            thread3.IsBackground = true;
+
+            #endregion
+
+            #region 启动用于处理DbHelper的线程
+
+            //通过ParameterizedThreadStart创建线程
+            Thread thread4 = new Thread(new ParameterizedThreadStart(thread_for_db_helper));
+
+            //给方法传值
+            thread4.Start("thread_for_db_helper!\n");
+            thread4.IsBackground = true;
+
+            #endregion
+
+            #region 启动用于处理FtpHelper的线程
+
+            //通过ParameterizedThreadStart创建线程
+            Thread thread5 = new Thread(new ParameterizedThreadStart(thread_for_ftp_helper));
+
+            //给方法传值
+            thread5.Start("thread_for_ftp_helper!\n");
+            thread5.IsBackground = true;
+
+            #endregion
+
+            //test aa = new test();   
+
+            //MessageType mt = MessageType.MSG_XML;
+            //MessageBody mb = new MessageBody();
+
+            //mb.bXml = "MainController -> ApController";
+
+            ///*
+            // *  发送消息给ApController
+            // */
+            //sendMsg_2_ApController(mt, mb);
+
+
+            //mb.bXml = "MainController -> AppController";
+
+            ///*
+            // *  发送消息给ApController
+            // */
+            //sendMsg_2_AppController(mt, mb);
+        }
+
+        private void FrmMainController_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            DialogResult dr = MessageBox.Show("    是否退出应用程序?", "提示:", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+
+            if (dr == DialogResult.OK)   //如果单击"是"按钮
+            {
+                //关闭窗体
+                e.Cancel = false;               
+            }
+            else if (dr == DialogResult.Cancel)
+            {
+                //不执行操作
+                e.Cancel = true;
+            }
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            GC.Collect();
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("长度：" + richTextBoxLog.Text.Length);
+            richTextBoxLog.Text = "";
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            //gFtpHelper.Put(@"D:\\123456.txt");
+            //gFtpHelper.Put(@"D:\\ucl.chm");           
+
+            gFtpHelper.Put(@textBox1.Text);
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            //gFtpHelper.Get(@"123.jpg", @"F:\\333", @"123.jpg");
+            gFtpHelper.Get("12*", @"F:\\333");
+        }
+
+        //private StrDomian aaaaaa;
+        private void button9_Click(object sender, EventArgs e)
+        {
+            DataTable dt = new DataTable();
+            int ret = gDbHelper.user_record_entity_get(ref dt);
+           
+            string str;
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                //MessageBox.Show(str); 
+            }
+
+            ret = gDbHelper.user_record_insert("root1", "1234", "asdadfadsfdaf");
+
+            ret = gDbHelper.user_record_check("root1", "1234");
+
+            ret = gDbHelper.user_record_update("root1", "1234", "123456");
+
+            ret = gDbHelper.roletype_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                //MessageBox.Show(str);
+            }
+
+            //ret = gDbHelper.roletype_record_insert("elephant", "12345");
+            //ret = gDbHelper.roletype_record_insert("SuperAdmin", "12345");
+
+            //ret = gDbHelper.roletype_record_delete("elephant");
+
+            ret = gDbHelper.role_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                //MessageBox.Show(str);
+            }
+
+            //ret = gDbHelper.role_record_insert("aaaaa", "Administrator", "2015-04-22", "2015-04-26", "adfad");
+
+            ret = ret = gDbHelper.role_record_delete("aaaaa");
+
+
+            ret = gDbHelper.privilege_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                //MessageBox.Show(str);
+            }
+
+
+            //ret = gDbHelper.privilege_record_insert("111", "111", "111");
+
+            ret = gDbHelper.privilege_record_delete("111");
+
+
+            ret = gDbHelper.userrole_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                //MessageBox.Show(str);
+            }
+
+            ret = gDbHelper.userrole_record_insert("root1", "RoleAdmin", "ssss");
+
+            ret = gDbHelper.userrole_record_delete("root12", "RoleAdmin");
+
+
+            ret = gDbHelper.roleprivilege_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                MessageBox.Show(str);
+            }
+
+            ret = gDbHelper.roleprivilege_record_insert("RoleAdmin", "1,2,3,4,5,6,7,8,9", "adsfadfd");
+
+
+            //ret = gDbHelper.roleprivilege_record_insert("RoleSO", "1,2,3,4,5,6,7,8,9", "adsfadfd");
+
+            //ret = gDbHelper.roleprivilege_record_update("RoleSO", "1,2,3,4,5,6,7,8,9,10,11", "adsfadfd");
+
+            ret = gDbHelper.roleprivilege_record_delete("RoleSO");
+
+
+            ret = gDbHelper.domain_record_insert("深圳", "设备", 0, "this is SZ");
+            ret = gDbHelper.domain_record_insert("东莞", "设备", 0, "this is DG");
+
+            ret = gDbHelper.domain_record_insert("福田", "设备.深圳", 0, "this is FT");
+            ret = gDbHelper.domain_record_insert("南山", "设备.深圳", 0, "this is NS");
+            ret = gDbHelper.domain_record_insert("城区", "设备.东莞", 0, "this is NS");
+
+            ret = gDbHelper.domain_record_insert("中心广场", "设备.深圳.福田", 0, "this is NS");
+            ret = gDbHelper.domain_record_insert("莲花山", "设备.深圳.福田", 0, "this is NS");
+
+            ret = gDbHelper.domain_record_insert("西北监控", "设备.深圳.福田.中心广场", 1, "this is elephant speaking");
+
+            //ret = gDbHelper.domain_record_delete("设备.广州");
+            //ret = gDbHelper.domain_record_delete("设备");
+
+
+            //ret = gDbHelper.domain_record_entity_get(ref dt,1);
+            //foreach (DataRow dr in dt.Rows)
+            //{
+            //    str = "";
+            //    for (int i = 0; i < dt.Columns.Count; i++)
+            //    {
+            //        if (i == (dt.Columns.Count - 1))
+            //        {
+            //            str += dr[i].ToString();
+            //        }
+            //        else
+            //        {
+            //            str += dr[i].ToString() + " -- ";
+            //        }
+            //    }
+
+            //    //MessageBox.Show(str);
+            //}
+
+            //ret = gDbHelper.domain_record_rename("设备.深圳", "设备.广州");
+
+
+            ret = gDbHelper.userdomain_record_insert("root", "1,2,3,4", "aaaaaaaaaa");
+            ret = gDbHelper.userdomain_record_insert("engi", "1,2,3,4", "aaaaaaaaaa");
+
+            //ret = gDbHelper.userdomain_record_delete("root");
+
+
+            ret = gDbHelper.userdomain_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+               //MessageBox.Show(str);
+            }
+
+
+
+            // ret = gDbHelper.device_record_insert(9, "LTE-FDD1");
+            // ret = gDbHelper.device_record_insert(9, "LTE-FDD2");
+            // ret = gDbHelper.device_record_insert(9, "LTE-FDD3");
+
+            //ret = gDbHelper.device_record_delete(9, "LTE-FDD3");
+
+
+            ret = gDbHelper.device_record_insert(9, "LTE-FDD3-dd");
+
+
+            StrDevice dev = new StrDevice();
+            dev.sn = "EN1234567890";
+            dev.carrier = "0";
+            dev.bindingDevId = "1";
+            dev.netmask = "255.255.255.0";
+            dev.mode = "中国人民解放军";
+            dev.online = "1";
+            dev.lastOnline = DateTime.Now.ToString();
+            dev.isActive = "1";
+            dev.ipAddr = "172.17.0.210";
+            dev.port = "56789";
+            ret = gDbHelper.device_record_update(9, "LTE-FDD2", dev);
+
+
+
+            ret = gDbHelper.device_record_entity_get(ref dt);
+            foreach (DataRow dr in dt.Rows)
+            {
+                str = "";
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    if (i == (dt.Columns.Count - 1))
+                    {
+                        str += dr[i].ToString();
+                    }
+                    else
+                    {
+                        str += dr[i].ToString() + " -- ";
+                    }
+                }
+
+                MessageBox.Show(str);
+            }
+
+        }
+
+        private void button10_Click(object sender, EventArgs e)
+        {         
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+
+
+            //for (int i = 0; i < 10*10000; i++)
+            //{
+            //    gDicRemoveDup.Add("12345" + i.ToString(), DateTime.Now);
+            //}
+
+            //sw.Stop();
+            //TimeSpan ts2 = sw.Elapsed;
+            //MessageBox.Show("Stopwatch总共花费ms : " + ts2.TotalMilliseconds.ToString());
+
+            ////gDicRemoveDup.Add("123450", DateTime.Now);
+
+            //sw.Restart();
+
+            //string str = "";
+            //if (gDicRemoveDup.ContainsKey("123450"))
+            //{
+            //    str = "ContainsKey";
+            //}
+            //else
+            //{
+            //    str = "NOContainsKey";
+            //}
+
+            //sw.Stop();
+            //TimeSpan ts22 = sw.Elapsed;
+            //MessageBox.Show(str + "Stopwatch总共花费ms : " + ts22.TotalMilliseconds.ToString());
+
+        }
+    }
+}

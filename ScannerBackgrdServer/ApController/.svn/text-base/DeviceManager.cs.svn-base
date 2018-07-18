@@ -1,0 +1,147 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using ScannerBackgrdServer.Common;
+
+namespace ScannerBackgrdServer.ApController
+{
+    class RecvDeviceStruct
+    {
+        public AsyncUserToken token;
+        public byte[] buff;
+
+        public RecvDeviceStruct()
+        {
+            this.token = new AsyncUserToken();
+        }
+    }
+
+    class DeviceManager
+    {
+        protected string DeviceType { get; set; }
+
+        private SocketManager m_socket;
+        private DeviceList deviceList;
+
+        internal DeviceList MyDeviceList { get => deviceList; set => deviceList = value; }
+        internal SocketManager MySocket { get => m_socket; set => m_socket = value; }
+
+        public DeviceManager()
+        {
+            this.deviceList = new DeviceList();
+        }
+        /// <summary>
+        /// 日志打印。可以在继承类里重载该函数
+        /// </summary>
+        /// <param name="str"></param>
+        public virtual void OnOutputLog(LogInfoType type,string str)
+        {
+            //if (type == LogInfoType.DEBG) return;
+
+            string outStr = "[" + DeviceType + "] " + str;
+            Console.WriteLine(outStr);
+            FrmMainController.add_log_info(LogInfoType.EROR, outStr);
+            Logger.Trace(LogInfoType.EROR, outStr);
+        }
+
+        
+        /// <summary>
+        /// 收到设备端消息处理函数，需要继承类里重载该函数
+        /// </summary>
+        /// <param name="token">发送消息的设备信息</param>
+        /// <param name="buff">接收到的消息内容</param>
+        public virtual void OnReceiveDeviceMsg(AsyncUserToken token, byte[] buff)
+        {
+            OnOutputLog(LogInfoType.WARN, "收到设备消息，需要重写处理函数！！!");
+        }
+
+        public void ReceiveDeviceMsg(object o)
+        {
+            RecvDeviceStruct recvDeviceStruct = (RecvDeviceStruct)o;
+            if (!MyDeviceList.AddMsgBuff(recvDeviceStruct.token, recvDeviceStruct.buff))
+            {
+                string str = string.Format("设备列表中未找到该设备[{0}:{1}]信息！",
+                    recvDeviceStruct.token.IPAddress.ToString(), recvDeviceStruct.token.Port.ToString());
+                OnOutputLog(LogInfoType.WARN, str);
+                return;
+            }
+            OnReceiveDeviceMsg(recvDeviceStruct.token, recvDeviceStruct.buff);
+        }
+
+        private void OnReceiveData(AsyncUserToken token, byte[] buff)
+        {
+            byte[] b = buff;
+
+            string str = string.Format("当前总在线客户端数[{0}]。收到设备[{1}:{2}]消息！",
+                deviceList.GetCount().ToString(), token.IPAddress.ToString(),token.Port.ToString());
+            OnOutputLog(LogInfoType.INFO, str);
+            str = string.Format("收到消息内容为\n{0}\n\n!",
+                System.Text.Encoding.Default.GetString(buff));
+            OnOutputLog(LogInfoType.DEBG, str);
+
+            MyDeviceList.ChangeEndMsgTime(token);
+
+            RecvDeviceStruct recvDeviceStruct = new RecvDeviceStruct();
+            recvDeviceStruct.token = token;
+            recvDeviceStruct.buff = buff;
+
+            Thread t = new Thread(new ParameterizedThreadStart(ReceiveDeviceMsg));
+            t.Start(recvDeviceStruct);
+            t.IsBackground = true;
+        }
+
+        /// <summary>
+        /// 收到设备上、下线消息处理，需要继承类里重载该函数
+        /// </summary>
+        /// <param name="token">发送消息的设备信息</param>
+        /// <param name="buff">接收到的消息内容</param>
+        public virtual void OnDeviceNumberChange(int num, AsyncUserToken token)
+        {
+            if (num > 0)
+                OnOutputLog(LogInfoType.WARN, "收到TCP连接事件，需重写事件处理函数！！!"); 
+            else
+                OnOutputLog(LogInfoType.WARN, "收到TCP断开事件，需重写事件处理函数！！!");
+        }
+        /// <summary>
+        /// 收到AP上、下线消息处理
+        /// </summary>
+        /// <param name="num">AP上线或下线。num>0为AP上线，否则为AP下线 </param>
+        /// <param name="token">上线或下线AP信息</param>
+        public void OnClientNumberChange(int num, AsyncUserToken token)
+        {
+            if (num > 0)  //AP上线，向设备列表中增加AP信息
+            {
+                OnOutputLog(LogInfoType.INFO,"设备(" + token.IPAddress + ":" + token.Port.ToString() + ")上线了！！！");
+            }
+            else  //AP上线，删除设备列表中的AP信息
+            {
+                OnOutputLog(LogInfoType.INFO, "设备(" + token.IPAddress + ":" + token.Port.ToString() + ")下线了！！！");
+            }
+
+            OnDeviceNumberChange(num,token);
+            string str = string.Format("当前在线设备数：{0}", deviceList.GetCount().ToString());
+            OnOutputLog(LogInfoType.INFO, str);
+        }
+
+        /// <summary>
+        /// 开始进行设备管理
+        /// </summary>
+        /// <param name="port">TCP服务器端口号</param>
+        public void Start(int port)
+        {
+            m_socket = new SocketManager(200, 1024);
+            m_socket.OutputLog += OnOutputLog;
+
+            m_socket.ClientNumberChange += OnClientNumberChange;
+            m_socket.ReceiveClientData += OnReceiveData;
+
+            m_socket.Init();
+            m_socket.Start(new IPEndPoint(IPAddress.Any, port));
+        }
+
+    }
+}
