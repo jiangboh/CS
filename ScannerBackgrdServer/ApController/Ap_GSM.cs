@@ -332,7 +332,7 @@ namespace ScannerBackgrdServer.ApController
         }
 
         /// <summary>
-        /// 
+        /// 解析收到的GSM消息
         /// </summary>
         /// <param name="recv">解析后的消息内容</param>
         /// <param name="msg_data">收到的消息</param>
