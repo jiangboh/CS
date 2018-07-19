@@ -574,7 +574,7 @@ namespace ScannerBackgrdServer
         /// <param name="strRemoteFileName">要下载的文件名</param>
         /// <param name="strFolder">本地目录(不得以\结束)</param>
         /// <param name="strLocalFileName">保存在本地时的文件名</param>
-        public void Get(string strRemoteFileName, string strFolder, string strLocalFileName)
+        public int Get(string strRemoteFileName, string strFolder, string strLocalFileName)
         {
             if (!bConnected)
             {
@@ -586,6 +586,7 @@ namespace ScannerBackgrdServer
             {
                 strLocalFileName = strRemoteFileName;
             }
+
             if (!File.Exists(strLocalFileName))
             {
                 Stream st = File.Create(strLocalFileName);
@@ -600,7 +601,8 @@ namespace ScannerBackgrdServer
             if (!(iReplyCode == 150 || iReplyCode == 125
                 || iReplyCode == 226 || iReplyCode == 250))
             {
-                throw new IOException(strReply.Substring(4));
+                //throw new IOException(strReply.Substring(4));
+                return -1;
             }
 
             while (true)
@@ -624,12 +626,15 @@ namespace ScannerBackgrdServer
                 ReadReply();
                 if (!(iReplyCode == 226 || iReplyCode == 250))
                 {
-                    throw new IOException(strReply.Substring(4));
+                    //throw new IOException(strReply.Substring(4));
+                    return -1;
                 }
             }
 
             Logger.Trace(LogInfoType.INFO, "下载文件：" + strRemoteFileName + ",OK.", "FTP", LogCategory.I);
             FrmMainController.add_log_info(LogInfoType.INFO, "下载文件：" + strRemoteFileName + ",OK.", "FTP", LogCategory.I);
+
+            return 0;
         }
 
 

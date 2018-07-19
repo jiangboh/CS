@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -195,11 +196,41 @@ namespace ScannerBackgrdServer
         /// </summary>
         /// <param name="imms"></param>
         /// <returns></returns>
-        private delegate void history_record_process_delegate(InterModuleMsgStruct imms);        
+        private delegate void history_record_process_delegate(InterModuleMsgStruct imms);
 
         #endregion
 
         #region 定义类型
+
+        /// <summary>
+        /// App信息
+        /// </summary>
+        public class clsDataAlign
+        {
+            public string fileNameBlackList_Ap_Base;
+            public string fileNameWhiteList_Ap_Base;
+
+            public string fileNameBlackList_Db_Base;
+            public string fileNameWhiteList_Db_Base;
+
+            public bool whiteimsi_md5_match;
+            public bool blackimsi_md5_match;
+
+            public int devId;
+
+            public clsDataAlign()
+            {
+                this.fileNameBlackList_Ap_Base = "fileNameBlackList_Ap.txt";
+                this.fileNameWhiteList_Ap_Base = "fileNameWhiteList_Ap.txt";
+
+                this.fileNameBlackList_Db_Base = "fileNameBlackList_Db.txt";
+                this.fileNameWhiteList_Db_Base = "fileNameWhiteList_Db.txt";
+
+                this.whiteimsi_md5_match = true;
+                this.blackimsi_md5_match = true;
+                this.devId = -1;
+            }
+        }
 
         public struct strLogInfo
         {
@@ -348,6 +379,8 @@ namespace ScannerBackgrdServer
         private static Dictionary<string, strCaptureQueryInfo> gDicCaptureQueryInfo = new Dictionary<string, strCaptureQueryInfo>();
 
         private strRedirection gRedirectionInfo = new strRedirection();
+
+        private clsDataAlign gClsDataAlign = new clsDataAlign();
 
         #endregion
 
@@ -568,6 +601,9 @@ namespace ScannerBackgrdServer
 
             msgInfo.mt = MessageType.MSG_JSON;
             msgInfo.mb.bJson = JsonConvert.SerializeObject(ap);
+
+            add_log_info(LogInfoType.DEBG, "Main->ApCtrl:" + msgInfo.mb.bJson, "Main", LogCategory.S);
+            Logger.Trace(LogInfoType.DEBG, "Main->ApCtrl:" + msgInfo.mb.bJson, "Main", LogCategory.S);
 
             //将消息转发给ApController
             Delegate_SendMsg_2_ApCtrl_Lower(msgInfo.mt, msgInfo.mb);
@@ -1778,6 +1814,671 @@ namespace ScannerBackgrdServer
         }
 
         /// <summary>
+        /// 获取GSM上报相关的参数
+        /// </summary>
+        /// <param name="imms"></param>
+        /// <param name="all"></param>
+        /// <returns></returns>
+        private int get_gsm_report_info(InterModuleMsgStruct imms, ref str_Gsm_All_Para all,ref string gsmReportFullString, ref string errInfo)
+        {
+            errInfo = "";
+            gsmReportFullString = "";
+
+            if (imms.Body.n_dic.Count <= 0)
+            {
+                errInfo = string.Format("n_dic的个数为0");
+                return -1;
+            }
+
+            if (!imms.Body.dic.ContainsKey("sys"))
+            {
+                errInfo = string.Format("dic不包含sys");
+                return -1;
+            }
+            else
+            {
+                all.sys = int.Parse(imms.Body.dic["sys"].ToString());
+                gsmReportFullString += all.sys.ToString();
+
+                if (all.sys != 0 && all.sys != 1)
+                {
+                    errInfo = string.Format("sys只能为0或1");
+                    return -1;
+                }
+            }
+
+            if (imms.Body.dic.ContainsKey("hardware_id"))
+            {
+                all.hardware_id = int.Parse(imms.Body.dic["hardware_id"].ToString());
+            }
+            else
+            {
+                errInfo = string.Format("dic不包含hardware_id");
+                return -1;
+            }
+
+
+            for (int i = 0; i < imms.Body.n_dic.Count; i++)
+            {
+                string name = imms.Body.n_dic[i].name;
+                switch (name)
+                {
+                    case "RECV_SYS_PARA":
+                        {
+                            #region RECV_SYS_PARA
+
+                            //					"paraMcc":移动国家码
+                            //					"paraMnc":移动网号
+                            //					"paraBsic":基站识别码
+                            //					"paraLac":位置区号
+                            //					"paraCellId":小区ID
+                            //					"paraC2":C2偏移量
+                            //					"paraPeri":周期性位置更新周期
+                            //					"paraAccPwr":接入功率
+                            //					"paraMsPwr":手机发射功率
+                            //					"paraRejCau":位置更新拒绝原因
+
+                            all.gsmSysParaFlag = true;
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraMcc"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraMcc"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraMcc = imms.Body.n_dic[i].dic["paraMcc"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraMcc;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraMcc");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraMnc"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraMnc"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraMnc = imms.Body.n_dic[i].dic["paraMnc"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraMnc;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraMnc");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraBsic"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraBsic"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraBsic = imms.Body.n_dic[i].dic["paraBsic"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraBsic;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraBsic");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraLac"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraLac"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraLac = imms.Body.n_dic[i].dic["paraLac"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraLac;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraLac");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraCellId"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraCellId"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraCellId = imms.Body.n_dic[i].dic["paraCellId"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraCellId;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraCellId");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraC2"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraC2"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraC2 = imms.Body.n_dic[i].dic["paraC2"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraC2;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraC2");
+                                return -1;
+                            }
+
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraPeri"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraPeri"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraPeri = imms.Body.n_dic[i].dic["paraPeri"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraPeri;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraPeri");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraAccPwr"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraAccPwr"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraAccPwr = imms.Body.n_dic[i].dic["paraAccPwr"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraAccPwr;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraAccPwr");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraMsPwr"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraMsPwr"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraMsPwr = imms.Body.n_dic[i].dic["paraMsPwr"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraMsPwr;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraMsPwr");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("paraRejCau"))
+                            {
+                                if (imms.Body.n_dic[i].dic["paraRejCau"].ToString() != "")
+                                {
+                                    all.gsmSysPara.paraRejCau = imms.Body.n_dic[i].dic["paraRejCau"].ToString();
+                                    gsmReportFullString += all.gsmSysPara.paraRejCau;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "paraRejCau");
+                                return -1;
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    case "RECV_SYS_OPTION":
+                        {
+                            #region RECV_SYS_OPTION
+
+                            //                  "opLuSms":登录时发送短信
+                            //					"opLuImei":登录时获取IMEI
+                            //					"opCallEn":允许用户主叫
+                            //					"opDebug":调试模式，上报信令
+                            //					"opLuType":登录类型
+                            //					"opSmsType":短信类型
+
+                            all.gsmSysOptionFlag = true;
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opLuSms"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opLuSms"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opLuSms = imms.Body.n_dic[i].dic["opLuSms"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opLuSms;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opLuSms");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opLuImei"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opLuImei"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opLuImei = imms.Body.n_dic[i].dic["opLuImei"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opLuImei;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opLuImei");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opCallEn"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opCallEn"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opCallEn = imms.Body.n_dic[i].dic["opCallEn"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opCallEn;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opCallEn");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opDebug"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opDebug"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opDebug = imms.Body.n_dic[i].dic["opDebug"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opDebug;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opDebug");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opLuType"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opLuType"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opLuType = imms.Body.n_dic[i].dic["opLuType"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opLuType;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opLuType");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("opSmsType"))
+                            {
+                                if (imms.Body.n_dic[i].dic["opSmsType"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opSmsType = imms.Body.n_dic[i].dic["opSmsType"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opSmsType;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "opSmsType");
+                                return -1;
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    case "RECV_RF_PARA":
+                        {
+                            #region RECV_RF_PARA
+
+                            //					"rfEnable":射频使能
+                            //					"rfFreq":信道号
+                            //					"rfPwr":发射功率衰减值
+
+                            all.gsmRfParaFlag = true;
+                            if (imms.Body.n_dic[i].dic.ContainsKey("rfEnable"))
+                            {
+                                if (imms.Body.n_dic[i].dic["rfEnable"].ToString() != "")
+                                {
+                                    all.gsmRfPara.rfEnable = imms.Body.n_dic[i].dic["rfEnable"].ToString();
+                                    gsmReportFullString += all.gsmRfPara.rfEnable;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "rfEnable");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("rfFreq"))
+                            {
+                                if (imms.Body.n_dic[i].dic["rfFreq"].ToString() != "")
+                                {
+                                    all.gsmRfPara.rfFreq = imms.Body.n_dic[i].dic["rfFreq"].ToString();
+                                    gsmReportFullString += all.gsmRfPara.rfFreq;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "rfFreq");
+                                return -1;
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("rfPwr"))
+                            {
+                                if (imms.Body.n_dic[i].dic["rfPwr"].ToString() != "")
+                                {
+                                    all.gsmRfPara.rfPwr = imms.Body.n_dic[i].dic["rfPwr"].ToString();
+                                    gsmReportFullString += all.gsmRfPara.rfPwr;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "rfPwr");
+                                return -1;
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    case "RECV_SMS_OPTION":
+                        {
+                            // 短信部分无需处理
+
+                            #region RECV_SMS_OPTION
+
+                            //          "gSmsRpoa":短消息中心号码
+                            //          "gSmsTpoa":短消息原叫号码
+                            //          "gSmsScts":短消息发送时间 （时间格式为年/月/日/时/分/秒各两位，不足两位前补0。如2014年4月22日15点46分47秒的消息内容为“140422154647”）
+                            //          "gSmsData":短消息内容 （编码格式为Unicode编码）
+                            //          "autoSendtiny":是否自动发送
+                            //          "autoFilterSMStiny":是否自动过滤短信
+                            //          "delayTime":发送延时时间
+                            //          "smsCodingtiny":短信的编码格式
+
+                            all.gsmMsgOptionFlag = true;
+                            if (imms.Body.n_dic[i].dic.ContainsKey("gSmsRpoa"))
+                            {
+                                if (imms.Body.n_dic[i].dic["gSmsRpoa"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.smsRPOA = imms.Body.n_dic[i].dic["gSmsRpoa"].ToString();
+                                }
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("gSmsTpoa"))
+                            {
+                                if (imms.Body.n_dic[i].dic["gSmsTpoa"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.smsTPOA = imms.Body.n_dic[i].dic["gSmsTpoa"].ToString();
+                                }
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("gSmsScts"))
+                            {
+                                if (imms.Body.n_dic[i].dic["gSmsScts"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.smsSCTS = imms.Body.n_dic[i].dic["gSmsScts"].ToString();
+                                }
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("gSmsData"))
+                            {
+                                if (imms.Body.n_dic[i].dic["gSmsData"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.smsDATA = imms.Body.n_dic[i].dic["gSmsData"].ToString();
+                                }
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("autoSendtiny"))
+                            {
+                                if (imms.Body.n_dic[i].dic["autoSendtiny"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.autoSend = imms.Body.n_dic[i].dic["autoSendtiny"].ToString();
+                                }
+                            }
+                            else
+                            {
+                                all.gsmMsgOption.autoSend = "0";
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("autoFilterSMStiny"))
+                            {
+                                if (imms.Body.n_dic[i].dic["autoFilterSMStiny"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.autoFilterSMS = imms.Body.n_dic[i].dic["autoFilterSMStiny"].ToString();
+                                }
+                            }
+                            else
+                            {
+                                all.gsmMsgOption.autoFilterSMS = "0";
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("delayTime"))
+                            {
+                                if (imms.Body.n_dic[i].dic["delayTime"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.delayTime = imms.Body.n_dic[i].dic["delayTime"].ToString();
+                                }
+                            }
+                            else
+                            {
+                                all.gsmMsgOption.delayTime = "0";
+                            }
+
+                            if (imms.Body.n_dic[i].dic.ContainsKey("smsCodingtiny"))
+                            {
+                                if (imms.Body.n_dic[i].dic["smsCodingtiny"].ToString() != "")
+                                {
+                                    all.gsmMsgOption.smsCoding = imms.Body.n_dic[i].dic["smsCodingtiny"].ToString();
+                                }
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    case "RECV_REG_MODE":
+                        {
+                            #region RECV_REG_MODE
+
+                            //          "regMode":模式0时由设备自行根据系统选项决定是否允许终端入网，是否对终端发送短信；
+                            //                    模式1时设备将终端标识发送给上位机，由上位机告知设备下一步的动作
+
+                            all.gsmSysOptionFlag = true;
+                            if (imms.Body.n_dic[i].dic.ContainsKey("regMode"))
+                            {
+                                if (imms.Body.n_dic[i].dic["regMode"].ToString() != "")
+                                {
+                                    all.gsmSysOption.opRegModel = imms.Body.n_dic[i].dic["regMode"].ToString();
+                                    gsmReportFullString += all.gsmSysOption.opRegModel;
+                                }
+                            }
+                            else
+                            {
+                                errInfo = string.Format("n_dic不包含:{0}", "regMode");
+                                return -1;
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    default:
+                        {
+                            add_log_info(LogInfoType.EROR, "get_gsm_info包含非法的ndic name\n", "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.EROR, "get_gsm_info包含非法的ndic name\n", "Main", LogCategory.I);
+                            break;
+                        }
+                }
+            }
+
+            return 0;
+        }
+
+        private string GetMD5WithString(string sDataIn)
+        {
+            string str = "";
+            byte[] data = Encoding.GetEncoding("utf-8").GetBytes(str);
+
+            MD5 md5 = new MD5CryptoServiceProvider();
+
+            byte[] bytes = md5.ComputeHash(data);
+
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                str += bytes[i].ToString("x2");
+            }
+
+            return str;
+        }
+
+        private string GetMD5WithFilePath(string filePath)
+        {
+            FileStream file = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+
+            byte[] hash_byte = md5.ComputeHash(file);
+            string str = System.BitConverter.ToString(hash_byte);
+            str = str.Replace("-", "");
+
+            return str;
+        }
+
+        /// <summary>
+        /// 获取MD5校验和
+        /// </summary>
+        /// <param name="listImsi"></param>
+        /// <param name="fromType">
+        /// 0 ： listImsi生成字符串,再生成MD5
+        /// 1 ： listImsi生成文件,再生成MD5
+        /// </param>
+        /// <param name="md5"></param>
+        /// <returns></returns>
+        private int Get_Md5_Sum(List<string> listImsi, int fromType, ref string md5)
+        {
+            if (listImsi == null)
+            {
+                return -1;
+            }
+
+            if (fromType != 0 && fromType != 1)
+            {
+                return -1;
+            }
+
+            md5 = "";
+            if (fromType == 0)
+            {
+                string tmp = listImsi.ToString();
+                md5 = GetMD5WithString(tmp);
+            }
+            else
+            {
+                string fileFullPath = Application.StartupPath + @"\\md5.txt";              
+                if (File.Exists(fileFullPath))
+                {
+                    File.Delete(fileFullPath);
+                }
+
+                try
+                {
+                    byte[] data = null;
+                    FileStream fs = new FileStream(fileFullPath, FileMode.Create);
+             
+                    foreach (string str in listImsi)
+                    {                                           
+                        data = System.Text.Encoding.Default.GetBytes(str + "\n");
+                        fs.Write(data, 0, data.Length);
+                    }
+
+                    //清空缓冲区、关闭流
+                    fs.Flush();
+                    fs.Close();
+                }
+                catch (Exception e)
+                {
+                    add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                    return -1;
+                }
+
+                md5 = GetMD5WithFilePath(fileFullPath);
+            }
+
+            return 0;
+        }
+
+        private int Get_BwList_From_File(string fileFullPath, bwType bwFlag, ref List<strBwList> bwList, ref string errInfo)
+        {
+            if (string.IsNullOrEmpty(fileFullPath))
+            {
+                errInfo = string.Format("文件名为空.");
+                return -1;
+            }
+
+            if (!File.Exists(fileFullPath))
+            {
+                errInfo = string.Format("文件:{0}不存在.",fileFullPath);
+                return -1;
+            }
+
+            if (bwFlag != bwType.BWTYPE_BLACK && bwFlag != bwType.BWTYPE_WHITE)
+            {
+                errInfo = string.Format("黑白标识:{0}有误.", bwFlag);
+                return -1;
+            }
+
+
+            bwList = new List<strBwList>();
+
+            string[] lines = System.IO.File.ReadAllLines(@fileFullPath);
+            foreach (string line in lines)
+            {
+                strBwList str = new strBwList();
+                if (string.IsNullOrEmpty(line) )
+                {
+                    continue;
+                }
+
+                if (bwFlag == bwType.BWTYPE_BLACK)
+                {                             
+                    string[] s = line.Split(new char[] { ',' });
+                    if (s.Length != 3)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            Int16.Parse(s[1]);
+                            Int16.Parse(s[2]);
+                        }
+                        catch (Exception ee)
+                        {
+                            add_log_info(LogInfoType.EROR, "RB Parse Error." + ee.Message, "Main", LogCategory.R);
+                            Logger.Trace(LogInfoType.EROR, "RB Parse Error." + ee.Message, "Main", LogCategory.R);
+                            continue;
+                        }
+
+                        str.bwFlag = bwType.BWTYPE_BLACK;
+                        str.imsi = s[0];
+                        str.rbStart = s[1];
+                        str.rbEnd = s[2];
+                    }
+                }
+                else
+                {
+                    str.bwFlag = bwType.BWTYPE_WHITE;
+                    str.imsi = line.Trim();
+                }
+
+                bwList.Add(str);
+            }
+
+            errInfo = string.Format("成功");
+            return 0;
+        }
+
+        /// <summary>
         /// 处理收到从ApController收到的消息
         /// </summary>
         /// <param name="strBody">消息体</param>
@@ -2208,245 +2909,2123 @@ namespace ScannerBackgrdServer
 
                             int rtv = 0;
                             string Fullname = "";
+                            string deviceType = "";
+
+                            string reportType = "";
+
+                            string whiteimsi_md5 = "";
+                            string blackimsi_md5 = "";
+
+                            string whiteimsi_md5_db = "";
+                            string blackimsi_md5_db = "";
+
+                            //共22项
+                            string genParaFullString = "";
+                            string genParaFullString_db = "";
+                         
+                            string gsmParaFullString = "";
+                            string gsmParaFullString_db = "";
+
+                            bool whiteimsi_md5_match = false;
+                            bool blackimsi_md5_match = false;
+
+                            bool gen_para_match = false;
+                            bool gsm_para_match = false;
+
+                            strDevice devInfo = new strDevice();
+
                             if (string.IsNullOrEmpty(gApLower.ApInfo.Fullname))
                             {
-                                //add_log_info(LogInfoType.EROR, "Fullname is NULL.");
-                                //Logger.Trace(LogInfoType.EROR, "Fullname is NULL.");
-
                                 //返回出错处理
-                                gApLower.Body.type = Main2ApControllerMsgType.ReportGenParaAck;
-                                gApLower.Body.dic = new Dictionary<string, object>();
-                                gApLower.Body.dic.Add("ReturnCode", -1);
-                                gApLower.Body.dic.Add("ReturnStr", get_debug_info() + "Fullname is NULL.");
+                                string errInfo = string.Format("{0}:Fullname is NULL.", Main2ApControllerMsgType.ReportGenPara);
 
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
                                 Send_Msg_2_ApCtrl_Lower(gApLower);
                                 break;
                             }
                             else
                             {
                                 Fullname = gApLower.ApInfo.Fullname;
-                            }
-
-                            strApGenPara apGP = new strApGenPara();
-                            if (gApLower.Body.dic.ContainsKey("mode"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["mode"].ToString()))
+                                if (!gDicDeviceId.ContainsKey(Fullname))
                                 {
-                                    apGP.mode = gApLower.Body.dic["mode"].ToString();
-                                }
-                            }
+                                    string errInfo = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", Fullname);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.R);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.R);
 
-                            if (gApLower.Body.dic.ContainsKey("primaryplmn"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["primaryplmn"].ToString()))
+                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                    break;
+                                }
+                                else
                                 {
-                                    apGP.primaryplmn = gApLower.Body.dic["primaryplmn"].ToString();
+                                    devInfo = gDicDeviceId[Fullname];
+                                    gClsDataAlign.devId = devInfo.id;
                                 }
-                            }
+                            }                          
 
-                            if (gApLower.Body.dic.ContainsKey("earfcndl"))
+                            if (string.IsNullOrEmpty(gApLower.ApInfo.Type))
                             {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcndl"].ToString()))
-                                {
-                                    apGP.earfcndl = gApLower.Body.dic["earfcndl"].ToString();
-                                }
-                            }
+                                //返回出错处理
+                                string errInfo = string.Format("{0}:ApInfo.Type is NULL.", Main2ApControllerMsgType.ReportGenPara);
 
-                            if (gApLower.Body.dic.ContainsKey("earfcnul"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcnul"].ToString()))
-                                {
-                                    apGP.earfcnul = gApLower.Body.dic["earfcnul"].ToString();
-                                }
-                            }
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                            if (gApLower.Body.dic.ContainsKey("cellid"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["cellid"].ToString()))
-                                {
-                                    apGP.cellid = gApLower.Body.dic["cellid"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("pci"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["pci"].ToString()))
-                                {
-                                    apGP.pci = gApLower.Body.dic["pci"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("bandwidth"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bandwidth"].ToString()))
-                                {
-                                    apGP.bandwidth = gApLower.Body.dic["bandwidth"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("tac"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["tac"].ToString()))
-                                {
-                                    apGP.tac = gApLower.Body.dic["tac"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("txpower"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["txpower"].ToString()))
-                                {
-                                    apGP.txpower = gApLower.Body.dic["txpower"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("periodtac"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["periodtac"].ToString()))
-                                {
-                                    apGP.periodtac = gApLower.Body.dic["periodtac"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("manualfreq"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["manualfreq"].ToString()))
-                                {
-                                    apGP.manualfreq = gApLower.Body.dic["manualfreq"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("bootMode"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bootMode"].ToString()))
-                                {
-                                    apGP.bootMode = gApLower.Body.dic["bootMode"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("Earfcnlist"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Earfcnlist"].ToString()))
-                                {
-                                    apGP.Earfcnlist = gApLower.Body.dic["Earfcnlist"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("Bandoffset"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Bandoffset"].ToString()))
-                                {
-                                    apGP.Bandoffset = gApLower.Body.dic["Bandoffset"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("NTP"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["NTP"].ToString()))
-                                {
-                                    apGP.NTP = gApLower.Body.dic["NTP"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("ntppri"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ntppri"].ToString()))
-                                {
-                                    apGP.ntppri = gApLower.Body.dic["ntppri"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("source"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["source"].ToString()))
-                                {
-                                    apGP.source = gApLower.Body.dic["source"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("ManualEnable"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEnable"].ToString()))
-                                {
-                                    apGP.ManualEnable = gApLower.Body.dic["ManualEnable"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("ManualEarfcn"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEarfcn"].ToString()))
-                                {
-                                    apGP.ManualEarfcn = gApLower.Body.dic["ManualEarfcn"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("ManualPci"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualPci"].ToString()))
-                                {
-                                    apGP.ManualPci = gApLower.Body.dic["ManualPci"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("ManualBw"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualBw"].ToString()))
-                                {
-                                    apGP.ManualBw = gApLower.Body.dic["ManualBw"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("gpsConfig"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["gpsConfig"].ToString()))
-                                {
-                                    apGP.gpsConfig = gApLower.Body.dic["gpsConfig"].ToString();
-                                }
-                            }
-
-                            if (gApLower.Body.dic.ContainsKey("timestamp"))
-                            {
-                                if (!string.IsNullOrEmpty(gApLower.Body.dic["timestamp"].ToString()))
-                                {
-                                    apGP.time = gApLower.Body.dic["timestamp"].ToString();
-                                }
-                            }
-
-                            #endregion
-
-                            #region 更新数据库
-
-                            if (!gDicDeviceId.ContainsKey(Fullname))
-                            {
-                                string info = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", Fullname);
-
-                                add_log_info(LogInfoType.EROR, info, "Main", LogCategory.R);
-                                Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.R);
-
-                                gApLower.Body.type = Main2ApControllerMsgType.ReportGenParaAck;
-                                gApLower.Body.dic = new Dictionary<string, object>();
-                                gApLower.Body.dic.Add("ReturnCode", -1);
-                                gApLower.Body.dic.Add("ReturnStr", info);
-
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
                                 Send_Msg_2_ApCtrl_Lower(gApLower);
                                 break;
                             }
                             else
                             {
-                                strDevice devInfo = gDicDeviceId[Fullname];
-                                rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+                                deviceType = gApLower.ApInfo.Type;
                             }
 
-                            gApLower.Body.type = Main2ApControllerMsgType.ReportGenParaAck;
-                            gApLower.Body.dic = new Dictionary<string, object>();
-                            gApLower.Body.dic.Add("ReturnCode", rtv);
-                            if (rtv != 0)
+                            if (gApLower.Body.dic.ContainsKey("reportType"))
                             {
-                                gApLower.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.Get_Return_String(rtv));
+                                if (!string.IsNullOrEmpty(gApLower.Body.dic["reportType"].ToString()))
+                                {
+                                    reportType = gApLower.Body.dic["reportType"].ToString();
+                                    if ("change" != reportType && "report" != reportType)
+                                    {
+                                        //返回出错处理
+                                        string errInfo = string.Format("reportType = {0}出错", reportType);
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+                                }
                             }
                             else
                             {
-                                gApLower.Body.dic.Add("ReturnStr", gDbHelper.Get_Return_String(rtv));
+                                //返回出错处理
+                                string errInfo = string.Format("{0}:没包含reportType字段.", Main2ApControllerMsgType.ReportGenPara);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                break;
+                            }
+
+                            #endregion
+
+                            #region 设置或对齐处理
+
+                            if (reportType == "change")
+                            {
+                                #region 设置处理
+
+                                switch (deviceType)
+                                {
+                                    case "GSM":
+                                        {
+                                            #region GSM处理
+                                                         
+                                            str_Gsm_All_Para gsmAllPara = new str_Gsm_All_Para();                                           
+
+                                            if (get_gsm_info(gApLower, ref gsmAllPara) != 0)
+                                            {
+                                                string errInfo = string.Format("获取GSM相关的参数出错.");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);                                                
+                                                break;
+                                            }
+
+                                            rtv = 0;
+                                            int carry = gsmAllPara.sys;                                        
+                                            
+                                            if (gsmAllPara.gsmSysParaFlag == true)
+                                            {
+                                                rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllPara.gsmSysPara);
+                                            }
+
+                                            if (gsmAllPara.gsmSysOptionFlag == true)
+                                            {
+                                                rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllPara.gsmSysOption);
+                                            }
+
+                                            if (gsmAllPara.gsmRfParaFlag == true)
+                                            {
+                                                rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllPara.gsmRfPara);
+                                            }
+
+                                            if (gsmAllPara.gsmMsgOptionFlag == true)
+                                            {
+                                                rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllPara.gsmMsgOption);
+                                            }
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);                                            
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                            break;                                                                         
+
+                                            #endregion
+                                        }
+                                    case "LTE":
+                                    case "WCDMA":
+                                    case "TD-SCDMA":
+                                        {
+                                            #region 非GSM处理
+
+                                            strApGenPara apGP = new strApGenPara();
+                                            if (gApLower.Body.dic.ContainsKey("mode"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["mode"].ToString()))
+                                                {
+                                                    apGP.mode = gApLower.Body.dic["mode"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("primaryplmn"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["primaryplmn"].ToString()))
+                                                {
+                                                    apGP.primaryplmn = gApLower.Body.dic["primaryplmn"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("earfcndl"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcndl"].ToString()))
+                                                {
+                                                    apGP.earfcndl = gApLower.Body.dic["earfcndl"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("earfcnul"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcnul"].ToString()))
+                                                {
+                                                    apGP.earfcnul = gApLower.Body.dic["earfcnul"].ToString();
+                                                }
+                                            }
+
+
+                                            if (gApLower.Body.dic.ContainsKey("cellid"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["cellid"].ToString()))
+                                                {
+                                                    apGP.cellid = gApLower.Body.dic["cellid"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("pci"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["pci"].ToString()))
+                                                {
+                                                    apGP.pci = gApLower.Body.dic["pci"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("bandwidth"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bandwidth"].ToString()))
+                                                {
+                                                    apGP.bandwidth = gApLower.Body.dic["bandwidth"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("tac"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["tac"].ToString()))
+                                                {
+                                                    apGP.tac = gApLower.Body.dic["tac"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("txpower"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["txpower"].ToString()))
+                                                {
+                                                    apGP.txpower = gApLower.Body.dic["txpower"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("periodtac"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["periodtac"].ToString()))
+                                                {
+                                                    apGP.periodtac = gApLower.Body.dic["periodtac"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("manualfreq"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["manualfreq"].ToString()))
+                                                {
+                                                    apGP.manualfreq = gApLower.Body.dic["manualfreq"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("bootMode"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bootMode"].ToString()))
+                                                {
+                                                    apGP.bootMode = gApLower.Body.dic["bootMode"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("Earfcnlist"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Earfcnlist"].ToString()))
+                                                {
+                                                    apGP.Earfcnlist = gApLower.Body.dic["Earfcnlist"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("Bandoffset"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Bandoffset"].ToString()))
+                                                {
+                                                    apGP.Bandoffset = gApLower.Body.dic["Bandoffset"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("NTP"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["NTP"].ToString()))
+                                                {
+                                                    apGP.NTP = gApLower.Body.dic["NTP"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ntppri"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ntppri"].ToString()))
+                                                {
+                                                    apGP.ntppri = gApLower.Body.dic["ntppri"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("source"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["source"].ToString()))
+                                                {
+                                                    apGP.source = gApLower.Body.dic["source"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualEnable"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEnable"].ToString()))
+                                                {
+                                                    apGP.ManualEnable = gApLower.Body.dic["ManualEnable"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualEarfcn"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEarfcn"].ToString()))
+                                                {
+                                                    apGP.ManualEarfcn = gApLower.Body.dic["ManualEarfcn"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualPci"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualPci"].ToString()))
+                                                {
+                                                    apGP.ManualPci = gApLower.Body.dic["ManualPci"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualBw"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualBw"].ToString()))
+                                                {
+                                                    apGP.ManualBw = gApLower.Body.dic["ManualBw"].ToString();
+                                                }
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("gpsConfig"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["gpsConfig"].ToString()))
+                                                {
+                                                    apGP.gpsConfig = gApLower.Body.dic["gpsConfig"].ToString();
+                                                }
+                                            }
+
+                                            rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                            break;
+                                           
+                                            #endregion
+                                        }
+                                    default:
+                                        {
+                                            #region 出错处理
+
+                                            //返回出错处理
+                                            string errInfo = string.Format("不支持的deviceType:{0}.", deviceType);
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                            break;
+
+                                            #endregion
+                                        }
+                                }
+
+                                #endregion                               
+                            }
+                            else
+                            {
+                                #region 上报处理
+
+                                #region 黑白MD5获取
+
+                                if (gApLower.Body.dic.ContainsKey("whiteimsi_md5"))
+                                {
+                                    if (!string.IsNullOrEmpty(gApLower.Body.dic["whiteimsi_md5"].ToString()))
+                                    {
+                                        whiteimsi_md5 = gApLower.Body.dic["whiteimsi_md5"].ToString();
+                                    }
+                                }
+                                else
+                                {
+                                    //返回出错处理
+                                    string errInfo = string.Format("{0}:没包含whiteimsi_md5字段.", Main2ApControllerMsgType.ReportGenPara);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                    break;
+                                }
+
+                                if (gApLower.Body.dic.ContainsKey("blackimsi_md5"))
+                                {
+                                    if (!string.IsNullOrEmpty(gApLower.Body.dic["blackimsi_md5"].ToString()))
+                                    {
+                                        blackimsi_md5 = gApLower.Body.dic["blackimsi_md5"].ToString();
+                                    }
+                                }
+                                else
+                                {
+                                    //返回出错处理
+                                    string errInfo = string.Format("{0}:没包含blackimsi_md5字段.", Main2ApControllerMsgType.ReportGenPara);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                    break;
+                                }
+
+                                if (whiteimsi_md5 == "" || blackimsi_md5 == "")
+                                {
+                                    //返回出错处理
+                                    string errInfo = string.Format("获取whiteimsi_md5或blackimsi_md5出错.");
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                    break;
+                                }
+
+                                strApGenPara apGP = new strApGenPara();                                
+                                List<string> listBlackImsi = new List<string>();
+                                List<string> listWhiteImsi = new List<string>();
+
+                                #endregion
+
+                                switch (deviceType)
+                                {
+                                    case "GSM":
+                                        {
+                                            #region GSM处理
+
+                                            string errInfo = "";
+                                            str_Gsm_All_Para gsmAllParaReport = new str_Gsm_All_Para();
+
+                                            if (get_gsm_report_info(gApLower, ref gsmAllParaReport, ref gsmParaFullString, ref errInfo) != 0)
+                                            {
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            int carry = gsmAllParaReport.sys;
+
+                                            #region 计算所有参数串
+                                            
+                                            rtv = gDbHelper.gsm_all_record_get_by_devid(carry, devInfo.id, ref gsmParaFullString_db);
+                                            if ((int)RC.SUCCESS != rtv)
+                                            {
+                                                errInfo = string.Format("gsm_all_record_get_by_devid出错.");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gsmParaFullString.Equals(gsmParaFullString_db))
+                                            {
+                                                gsm_para_match = true;
+                                            }
+                                            else
+                                            {
+                                                errInfo = string.Format("gsmParaFullString={0}\ngsmParaFullString_db={1}", gsmParaFullString, gsmParaFullString_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            #endregion
+
+                                            #region 计算黑白名单的MD5
+
+                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
+                                            if ((int)RC.SUCCESS != rtv)
+                                            {
+                                                //返回出错处理
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.Get_Return_String(rtv));
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                listBlackImsi.Sort();
+                                            }
+
+                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
+                                            if ((int)RC.SUCCESS != rtv)
+                                            {
+                                                //返回出错处理
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.Get_Return_String(rtv));
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                listWhiteImsi.Sort();
+                                            }
+
+                                            if (0 != Get_Md5_Sum(listBlackImsi, 1, ref blackimsi_md5_db))
+                                            {
+                                                //返回出错处理
+                                                errInfo = string.Format("Get_Md5_Sum出错");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (0 != Get_Md5_Sum(listWhiteImsi, 1, ref whiteimsi_md5_db))
+                                            {
+                                                //返回出错处理
+                                                errInfo = string.Format("Get_Md5_Sum出错");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (whiteimsi_md5.Equals(whiteimsi_md5_db))
+                                            {
+                                                whiteimsi_md5_match = true;                                                
+                                            }
+                                            else
+                                            {
+                                                errInfo = string.Format("whiteimsi_md5={0}\nwhiteimsi_md5_db={1}", whiteimsi_md5, whiteimsi_md5_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            if (blackimsi_md5.Equals(blackimsi_md5_db))
+                                            {
+                                                blackimsi_md5_match = true;
+                                            }
+                                            else
+                                            {
+                                                errInfo = string.Format("blackimsi_md5={0}\nblackimsi_md5_db={1}", blackimsi_md5, blackimsi_md5_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            gClsDataAlign.whiteimsi_md5_match = whiteimsi_md5_match;
+                                            gClsDataAlign.blackimsi_md5_match = blackimsi_md5_match;
+
+                                            #endregion
+
+                                            #region 回复ReportGenParaAck
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck,0,"成功", true, null, null);
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+
+                                            #endregion
+
+                                            #region 流程处理
+
+                                            if (gsm_para_match && blackimsi_md5_match && whiteimsi_md5_match)
+                                            {
+                                                //数据对齐                                        
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                            }
+                                            else
+                                            {
+                                                //数据不对齐
+                                                if (DataController.DataAlignMode == 0)
+                                                {
+                                                    #region 以数据库为准
+
+                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                    gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                    #region 白名单处理
+
+                                                    if (!whiteimsi_md5_match)
+                                                    {
+                                                        #region 上传白名单到FTP
+
+                                                        string fileName = gClsDataAlign.fileNameWhiteList_Db_Base;
+
+                                                        try
+                                                        {
+                                                            byte[] data = null;
+                                                            if (0 == generate_ftp_byte(ref data, listWhiteImsi))
+                                                            {
+                                                                rtv = gFtpHelperFile.Put(fileName, data);
+                                                                if (rtv != 0)
+                                                                {
+                                                                    //返回出错处理
+                                                                    errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错.");
+                                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                        catch (Exception e)
+                                                        {
+                                                            //返回出错处理
+                                                            errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message);
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        #endregion
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_White", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gApLower.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gApLower.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gApLower.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                            gApLower.Body.dic.Add("sys", carry.ToString());
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 黑名单处理
+
+                                                    if (!blackimsi_md5_match)
+                                                    {
+                                                        #region 上传黑名单到FTP
+
+                                                        string fileName = gClsDataAlign.fileNameBlackList_Db_Base;
+
+                                                        try
+                                                        {
+                                                            byte[] data = null;
+                                                            if (0 == generate_ftp_byte(ref data, listBlackImsi))
+                                                            {
+                                                                rtv = gFtpHelperFile.Put(fileName, data);
+                                                                if (rtv != 0)
+                                                                {
+                                                                    //返回出错处理
+                                                                    errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错.");
+                                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                        catch (Exception e)
+                                                        {
+                                                            //返回出错处理
+                                                            errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message);
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        #endregion
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_Black", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gApLower.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gApLower.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gApLower.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                            gApLower.Body.dic.Add("sys", carry.ToString());
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 通用参数处理
+
+                                                    if (!gsm_para_match)
+                                                    {
+                                                        str_Gsm_All_Para allInfo = new str_Gsm_All_Para();
+
+                                                        //(1)
+                                                        rtv = gDbHelper.gsm_sys_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysPara);
+                                                        if (rtv != 0)
+                                                        {
+                                                            errInfo = string.Format("gsm_sys_para_record_get_by_devid出错");
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        //(2)
+                                                        rtv = gDbHelper.gsm_sys_option_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysOption);
+                                                        if (rtv != 0)
+                                                        {
+                                                            errInfo = string.Format("gsm_sys_option_record_get_by_devid出错");
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        //(3)
+                                                        rtv = gDbHelper.gsm_rf_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmRfPara);
+                                                        if (rtv != 0)
+                                                        {
+                                                            errInfo = string.Format("gsm_rf_para_record_get_by_devid出错");
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        //       "name":"RECV_SYS_PARA",                 //4.1   系统参数
+                                                        //      {
+                                                        //					"paraMcc":移动国家码
+                                                        //					"paraMnc":移动网号
+                                                        //					"paraBsic":基站识别码
+                                                        //					"paraLac":位置区号
+                                                        //					"paraCellId":小区ID
+                                                        //					"paraC2":C2偏移量
+                                                        //					"paraPeri":周期性位置更新周期
+                                                        //					"paraAccPwr":接入功率
+                                                        //					"paraMsPwr":手机发射功率
+                                                        //					"paraRejCau":位置更新拒绝原因
+                                                        //       }
+                                                        Name_DIC_Struct ndic = new Name_DIC_Struct();
+                                                        ndic.name = "RECV_SYS_PARA";
+
+                                                        ndic.dic.Add("paraMcc", allInfo.gsmSysPara.paraMcc);
+                                                        ndic.dic.Add("paraMnc", allInfo.gsmSysPara.paraMnc);
+                                                        ndic.dic.Add("paraBsic", allInfo.gsmSysPara.paraBsic);
+                                                        ndic.dic.Add("paraLac", allInfo.gsmSysPara.paraLac);
+                                                        ndic.dic.Add("paraCellId", allInfo.gsmSysPara.paraCellId);
+                                                        ndic.dic.Add("paraC2", allInfo.gsmSysPara.paraC2);
+                                                        ndic.dic.Add("paraPeri", allInfo.gsmSysPara.paraPeri);
+                                                        ndic.dic.Add("paraAccPwr", allInfo.gsmSysPara.paraAccPwr);
+                                                        ndic.dic.Add("paraMsPwr", allInfo.gsmSysPara.paraMsPwr);
+                                                        ndic.dic.Add("paraRejCau", allInfo.gsmSysPara.paraRejCau);
+                                                        gApLower.Body.n_dic.Add(ndic);
+
+                                                        //       "name":"RECV_SYS_OPTION",                 //4.2  系统选项
+                                                        //      {
+                                                        //					"opLuSms":登录时发送短信
+                                                        //					"opLuImei":登录时获取IMEI
+                                                        //					"opCallEn":允许用户主叫
+                                                        //					"opDebug":调试模式，上报信令
+                                                        //					"opLuType":登录类型
+                                                        //					"opSmsType":短信类型
+                                                        //       }
+                                                        ndic = new Name_DIC_Struct();
+                                                        ndic.name = "RECV_SYS_OPTION";
+
+                                                        ndic.dic.Add("opLuSms", allInfo.gsmSysOption.opLuSms);
+                                                        ndic.dic.Add("opLuImei", allInfo.gsmSysOption.opLuImei);
+                                                        ndic.dic.Add("opCallEn", allInfo.gsmSysOption.opCallEn);
+                                                        ndic.dic.Add("opDebug", allInfo.gsmSysOption.opDebug);
+                                                        ndic.dic.Add("opLuType", allInfo.gsmSysOption.opLuType);
+                                                        ndic.dic.Add("opSmsType", allInfo.gsmSysOption.opSmsType);
+                                                        //ndic.dic.Add("opRegModel", allInfo.gsmSysOption.opRegModel);
+                                                        gApLower.Body.n_dic.Add(ndic);
+
+
+                                                        //       "name":"RECV_RF_PARA",                 //4.4	射频参数
+                                                        //      {
+                                                        //					"rfEnable":射频使能
+                                                        //					"rfFreq":信道号
+                                                        //					"rfPwr":发射功率衰减值
+                                                        //       }
+                                                        ndic = new Name_DIC_Struct();
+                                                        ndic.name = "RECV_RF_PARA";
+                                                        ndic.dic.Add("rfEnable", allInfo.gsmRfPara.rfEnable);
+                                                        ndic.dic.Add("rfFreq", allInfo.gsmRfPara.rfFreq);
+                                                        ndic.dic.Add("rfPwr", allInfo.gsmRfPara.rfPwr);
+                                                        gApLower.Body.n_dic.Add(ndic);
+
+                                                        //       "name":"RECV_REG_MODE",            //4.33	注册工作模式
+                                                        //       {
+                                                        //          "regMode":模式0时由设备自行根据系统选项决定是否允许终端入网，是否对终端发送短信；
+                                                        //                    模式1时设备将终端标识发送给上位机，由上位机告知设备下一步的动作
+                                                        //       }
+                                                        ndic = new Name_DIC_Struct();
+                                                        ndic.name = "RECV_REG_MODE";
+
+                                                        ndic.dic.Add("regMode", allInfo.gsmSysOption.opRegModel);
+                                                        gApLower.Body.n_dic.Add(ndic);
+                                                    }
+
+                                                    #endregion
+
+                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+
+                                                    break;
+
+                                                    #endregion
+                                                }
+                                                else
+                                                {
+                                                    #region 以AP为准
+
+                                                    #region 白名单处理
+
+                                                    if (!whiteimsi_md5_match)
+                                                    {
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                        gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                        //告诉AP发文件到FTP服务器上
+                                                        string fileName = gClsDataAlign.fileNameWhiteList_Ap_Base;
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_White", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gAppUpper.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 黑名单处理
+
+                                                    if (!blackimsi_md5_match)
+                                                    {
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                        gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                        //告诉AP发文件到FTP服务器上
+                                                        string fileName = gClsDataAlign.fileNameBlackList_Ap_Base;
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_Black", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gAppUpper.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 通用参数处理
+
+                                                    if (!gsm_para_match)
+                                                    {
+                                                        rtv = 0;
+                                                        if (gsmAllParaReport.gsmSysParaFlag == true)
+                                                        {
+                                                            rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysPara);
+                                                        }
+
+                                                        if (gsmAllParaReport.gsmSysOptionFlag == true)
+                                                        {
+                                                            rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysOption);
+                                                        }
+
+                                                        //if (gsmAllParaReport.gsmRfParaFlag == true)
+                                                        //{
+                                                        //    rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmRfPara);
+                                                        //}
+
+                                                        if (gsmAllParaReport.gsmMsgOptionFlag == true)
+                                                        {
+                                                            rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllParaReport.gsmMsgOption);
+                                                        }
+
+                                                        if ((int)RC.SUCCESS != rtv)
+                                                        {
+                                                            //返回出错处理
+                                                            errInfo = string.Format("对齐时gsm_sys_para_record_update等等出错.");
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+                                                        else
+                                                        {
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                    }
+
+                                                    #endregion
+
+                                                    #endregion
+                                                }
+                                            }
+
+                                            #endregion
+
+                                            break;
+
+                                            #endregion                                            
+                                        }
+                                    case "LTE":
+                                    case "WCDMA":
+                                    case "TD-SCDMA":
+                                        {
+                                            #region 非GSM处理
+
+                                            #region 计算通用参数串
+
+                                            genParaFullString = "";
+                                            if (gApLower.Body.dic.ContainsKey("mode"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["mode"].ToString()))
+                                                {
+                                                    apGP.mode = gApLower.Body.dic["mode"].ToString();
+                                                    genParaFullString += apGP.mode;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含mode字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("primaryplmn"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["primaryplmn"].ToString()))
+                                                {
+                                                    apGP.primaryplmn = gApLower.Body.dic["primaryplmn"].ToString();
+                                                    genParaFullString += apGP.primaryplmn;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含primaryplmn字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("earfcndl"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcndl"].ToString()))
+                                                {
+                                                    apGP.earfcndl = gApLower.Body.dic["earfcndl"].ToString();
+                                                    genParaFullString += apGP.earfcndl;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含earfcndl字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("earfcnul"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["earfcnul"].ToString()))
+                                                {
+                                                    apGP.earfcnul = gApLower.Body.dic["earfcnul"].ToString();
+                                                    genParaFullString += apGP.earfcnul;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含earfcnul字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("cellid"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["cellid"].ToString()))
+                                                {
+                                                    apGP.cellid = gApLower.Body.dic["cellid"].ToString();
+                                                    genParaFullString += apGP.cellid;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含cellid字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("pci"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["pci"].ToString()))
+                                                {
+                                                    apGP.pci = gApLower.Body.dic["pci"].ToString();
+                                                    genParaFullString += apGP.pci;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含pci字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("bandwidth"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bandwidth"].ToString()))
+                                                {
+                                                    apGP.bandwidth = gApLower.Body.dic["bandwidth"].ToString();
+                                                    genParaFullString += apGP.bandwidth;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含bandwidth字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("tac"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["tac"].ToString()))
+                                                {
+                                                    apGP.tac = gApLower.Body.dic["tac"].ToString();
+                                                    genParaFullString += apGP.tac;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含tac字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("txpower"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["txpower"].ToString()))
+                                                {
+                                                    apGP.txpower = gApLower.Body.dic["txpower"].ToString();
+                                                    genParaFullString += apGP.txpower;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含txpower字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("periodtac"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["periodtac"].ToString()))
+                                                {
+                                                    apGP.periodtac = gApLower.Body.dic["periodtac"].ToString();
+                                                    genParaFullString += apGP.periodtac;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含periodtac字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("manualfreq"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["manualfreq"].ToString()))
+                                                {
+                                                    apGP.manualfreq = gApLower.Body.dic["manualfreq"].ToString();
+                                                    genParaFullString += apGP.manualfreq;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含manualfreq字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("bootMode"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["bootMode"].ToString()))
+                                                {
+                                                    apGP.bootMode = gApLower.Body.dic["bootMode"].ToString();
+                                                    genParaFullString += apGP.bootMode;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含bootMode字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("Earfcnlist"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Earfcnlist"].ToString()))
+                                                {
+                                                    apGP.Earfcnlist = gApLower.Body.dic["Earfcnlist"].ToString();
+                                                    genParaFullString += apGP.Earfcnlist;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含Earfcnlist字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("Bandoffset"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["Bandoffset"].ToString()))
+                                                {
+                                                    apGP.Bandoffset = gApLower.Body.dic["Bandoffset"].ToString();
+                                                    genParaFullString += apGP.Bandoffset;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含Bandoffset字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("NTP"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["NTP"].ToString()))
+                                                {
+                                                    apGP.NTP = gApLower.Body.dic["NTP"].ToString();
+                                                    genParaFullString += apGP.NTP;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含NTP字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ntppri"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ntppri"].ToString()))
+                                                {
+                                                    apGP.ntppri = gApLower.Body.dic["ntppri"].ToString();
+                                                    genParaFullString += apGP.ntppri;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含ntppri字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("source"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["source"].ToString()))
+                                                {
+                                                    apGP.source = gApLower.Body.dic["source"].ToString();
+                                                    genParaFullString += apGP.source;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含source字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualEnable"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEnable"].ToString()))
+                                                {
+                                                    apGP.ManualEnable = gApLower.Body.dic["ManualEnable"].ToString();
+                                                    genParaFullString += apGP.ManualEnable;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含ManualEnable字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualEarfcn"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualEarfcn"].ToString()))
+                                                {
+                                                    apGP.ManualEarfcn = gApLower.Body.dic["ManualEarfcn"].ToString();
+                                                    genParaFullString += apGP.ManualEarfcn;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含ManualEarfcn字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualPci"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualPci"].ToString()))
+                                                {
+                                                    apGP.ManualPci = gApLower.Body.dic["ManualPci"].ToString();
+                                                    genParaFullString += apGP.ManualPci;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含ManualPci字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("ManualBw"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["ManualBw"].ToString()))
+                                                {
+                                                    apGP.ManualBw = gApLower.Body.dic["ManualBw"].ToString();
+                                                    genParaFullString += apGP.ManualBw;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含ManualBw字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (gApLower.Body.dic.ContainsKey("gpsConfig"))
+                                            {
+                                                if (!string.IsNullOrEmpty(gApLower.Body.dic["gpsConfig"].ToString()))
+                                                {
+                                                    apGP.gpsConfig = gApLower.Body.dic["gpsConfig"].ToString();
+                                                    genParaFullString += apGP.gpsConfig;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("{0}:没包含gpsConfig字段.", Main2ApControllerMsgType.ReportGenPara);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            rtv = gDbHelper.ap_general_para_string_get_by_devid(devInfo.id, ref genParaFullString_db);
+                                            if (rtv != 0)
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("ap_general_para_string_get_by_devid出错.");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (genParaFullString_db.Equals(genParaFullString))
+                                            {
+                                                gen_para_match = true;
+                                            }
+                                            else
+                                            {
+                                                string errInfo = string.Format("genParaFullString={0}\ngenParaFullString_db={1}", genParaFullString, genParaFullString_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            #endregion
+
+                                            #region 计算黑白名单的MD5
+
+                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
+                                            if ((int)RC.SUCCESS != rtv)
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.Get_Return_String(rtv));
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                listBlackImsi.Sort();
+                                            }
+
+                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
+                                            if ((int)RC.SUCCESS != rtv)
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.Get_Return_String(rtv));
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                listWhiteImsi.Sort();
+                                            }
+
+                                                                                       
+                                            if (0 != Get_Md5_Sum(listBlackImsi, 1, ref blackimsi_md5_db))
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("Get_Md5_Sum出错");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (0 != Get_Md5_Sum(listWhiteImsi, 1, ref whiteimsi_md5_db))
+                                            {
+                                                //返回出错处理
+                                                string errInfo = string.Format("Get_Md5_Sum出错");
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                break;
+                                            }
+
+                                            if (whiteimsi_md5.Equals(whiteimsi_md5_db))
+                                            {
+                                                whiteimsi_md5_match = true;
+                                            }
+                                            else
+                                            {
+                                                string errInfo = string.Format("whiteimsi_md5={0}\nwhiteimsi_md5_db={1}", whiteimsi_md5, whiteimsi_md5_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            if (blackimsi_md5.Equals(blackimsi_md5_db))
+                                            {
+                                                blackimsi_md5_match = true;
+                                            }
+                                            else
+                                            {
+                                                string errInfo = string.Format("blackimsi_md5={0}\nblackimsi_md5_db={1}", blackimsi_md5, blackimsi_md5_db);
+                                                add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
+                                            }
+
+                                            gClsDataAlign.whiteimsi_md5_match = whiteimsi_md5_match;
+                                            gClsDataAlign.blackimsi_md5_match = blackimsi_md5_match;
+
+                                            #endregion
+
+                                            #region 回复ReportGenParaAck
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, 0, "成功", true, null, null);
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+
+                                            #endregion
+
+                                            #region 流程处理
+
+                                            if (gen_para_match && blackimsi_md5_match && whiteimsi_md5_match)
+                                            {
+                                                //数据对齐                                        
+                                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                Send_Msg_2_ApCtrl_Lower(gApLower);                                         
+                                            }
+                                            else
+                                            {
+                                                //数据不对齐
+                                                if (DataController.DataAlignMode == 0)
+                                                {
+                                                    #region 以数据库为准
+
+                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                    gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                    #region 白名单处理
+
+                                                    if (!whiteimsi_md5_match)
+                                                    {
+                                                        #region 上传白名单到FTP
+
+                                                        string fileName = gClsDataAlign.fileNameWhiteList_Db_Base;
+
+                                                        try
+                                                        {
+                                                            byte[] data = null;
+                                                            if (0 == generate_ftp_byte(ref data, listWhiteImsi))
+                                                            {
+                                                                rtv = gFtpHelperFile.Put(fileName, data);
+                                                                if (rtv != 0)
+                                                                {
+                                                                    //返回出错处理
+                                                                    string errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错.");
+                                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                        catch (Exception e)
+                                                        {
+                                                            //返回出错处理
+                                                            string errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message);
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        #endregion
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_White", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gApLower.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gApLower.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gApLower.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 黑名单处理
+
+                                                    if (!blackimsi_md5_match)
+                                                    {
+                                                        #region 上传黑名单到FTP
+
+                                                        string fileName = gClsDataAlign.fileNameBlackList_Db_Base;
+
+                                                        try
+                                                        {
+                                                            byte[] data = null;
+                                                            if (0 == generate_ftp_byte(ref data, listBlackImsi))
+                                                            {
+                                                                rtv = gFtpHelperFile.Put(fileName, data);
+                                                                if (rtv != 0)
+                                                                {
+                                                                    //返回出错处理
+                                                                    string errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错.");
+                                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                                    Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                        catch (Exception e)
+                                                        {
+                                                            //返回出错处理
+                                                            string errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message);
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+
+                                                        #endregion
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_Black", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gApLower.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gApLower.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gApLower.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 通用参数处理
+
+                                                    if (!gen_para_match)
+                                                    {
+                                                        if (!string.IsNullOrEmpty(apGP.mode))
+                                                        {
+                                                            gApLower.Body.dic.Add("mode", apGP.mode);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.primaryplmn))
+                                                        {
+                                                            gApLower.Body.dic.Add("primaryplmn", apGP.primaryplmn);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.earfcndl))
+                                                        {
+                                                            gApLower.Body.dic.Add("earfcndl", apGP.earfcndl);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.earfcnul))
+                                                        {
+                                                            gApLower.Body.dic.Add("earfcnul", apGP.earfcnul);
+                                                        }
+
+                                                        // 2018-06-26
+                                                        if (!string.IsNullOrEmpty(apGP.cellid))
+                                                        {
+                                                            gApLower.Body.dic.Add("cellid", apGP.cellid);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.pci))
+                                                        {
+                                                            gApLower.Body.dic.Add("pci", apGP.pci);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.bandwidth))
+                                                        {
+                                                            gApLower.Body.dic.Add("bandwidth", apGP.bandwidth);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.tac))
+                                                        {
+                                                            gApLower.Body.dic.Add("tac", apGP.tac);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.txpower))
+                                                        {
+                                                            gApLower.Body.dic.Add("txpower", apGP.txpower);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.periodtac))
+                                                        {
+                                                            gApLower.Body.dic.Add("periodtac", apGP.periodtac);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.manualfreq))
+                                                        {
+                                                            gApLower.Body.dic.Add("manualfreq", apGP.manualfreq);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.bootMode))
+                                                        {
+                                                            gApLower.Body.dic.Add("bootMode", apGP.bootMode);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.Earfcnlist))
+                                                        {
+                                                            gApLower.Body.dic.Add("Earfcnlist", apGP.Earfcnlist);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.Bandoffset))
+                                                        {
+                                                            gApLower.Body.dic.Add("Bandoffset", apGP.Bandoffset);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.NTP))
+                                                        {
+                                                            gApLower.Body.dic.Add("NTP", apGP.NTP);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.ntppri))
+                                                        {
+                                                            gApLower.Body.dic.Add("ntppri", apGP.ntppri);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.source))
+                                                        {
+                                                            gApLower.Body.dic.Add("source", apGP.source);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.ManualEnable))
+                                                        {
+                                                            gApLower.Body.dic.Add("ManualEnable", apGP.ManualEnable);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.ManualEarfcn))
+                                                        {
+                                                            gApLower.Body.dic.Add("ManualEarfcn", apGP.ManualEarfcn);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.ManualPci))
+                                                        {
+                                                            gApLower.Body.dic.Add("ManualPci", apGP.ManualPci);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.ManualBw))
+                                                        {
+                                                            gApLower.Body.dic.Add("ManualBw", apGP.ManualBw);
+                                                        }
+
+                                                        if (!string.IsNullOrEmpty(apGP.gpsConfig))
+                                                        {
+                                                            gApLower.Body.dic.Add("gpsConfig", apGP.gpsConfig);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                    break;
+
+                                                    #endregion
+                                                }
+                                                else
+                                                {
+                                                    #region 以AP为准
+                                                    
+                                                    #region 白名单处理
+
+                                                    if (!whiteimsi_md5_match)
+                                                    {
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                        gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                        //告诉AP发文件到FTP服务器上
+                                                        string fileName = gClsDataAlign.fileNameWhiteList_Ap_Base;
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_White", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gAppUpper.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 黑名单处理
+
+                                                    if (!blackimsi_md5_match)
+                                                    {
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.SetGenParaReq, 0, "成功", true, null, null);
+                                                        gApLower.Body.dic.Add("ApIsBase", DataController.DataAlignMode.ToString());
+
+                                                        //告诉AP发文件到FTP服务器上
+                                                        string fileName = gClsDataAlign.fileNameBlackList_Ap_Base;
+
+                                                        string ftpUrl = string.Format("ftp://{0}:{1}@{2}:{3}/{4}/{5}",
+                                                            DataController.StrFtpUserId,
+                                                            DataController.StrFtpUserPsw,
+                                                            DataController.StrFtpIpAddr,
+                                                            DataController.StrFtpPort,
+                                                            DataController.StrFtpUpdateDir,
+                                                            fileName);
+
+                                                        gApLower.Body.dic.Add("FtpUrl_Black", ftpUrl);
+
+                                                        if (!gApLower.Body.dic.ContainsKey("FtpUser"))
+                                                        {
+                                                            gApLower.Body.dic.Add("FtpUser", DataController.StrFtpUserId);
+                                                            gApLower.Body.dic.Add("FtpPas", DataController.StrFtpUserPsw);
+                                                            gAppUpper.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
+                                                            gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
+                                                            gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
+                                                        }
+                                                    }
+
+                                                    #endregion
+
+                                                    #region 通用参数处理
+
+                                                    if (!gen_para_match)
+                                                    {
+                                                        //更新数据库
+                                                        rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+                                                        if ((int)RC.SUCCESS != rtv)
+                                                        {
+                                                            //返回出错处理
+                                                            string errInfo = string.Format("对齐时ap_general_para_record_update出错.");
+                                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                            break;
+                                                        }
+                                                        else
+                                                        {
+                                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                        }
+                                                    }
+                                                    else
+                                                    {                                                        
+                                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                                    }
+
+                                                    #endregion
+
+                                                    #endregion
+                                                }
+                                            }
+
+                                            #endregion
+
+                                            break;
+
+                                            #endregion
+                                        }
+                                    default:
+                                        {
+                                            #region 出错处理
+
+                                            //返回出错处理
+                                            string errInfo = string.Format("不支持的deviceType:{0}.", deviceType);
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, -1, errInfo, true, null, null);
+                                            Send_Msg_2_ApCtrl_Lower(gApLower);
+                                            break;
+
+                                            #endregion
+                                        }
+                                }
+
+                                #endregion
+                            }                            
+                                  
+                            break;
+
+                            #endregion
+                        }
+                        case Main2ApControllerMsgType.SetGenParaRsp:
+                        {
+                            #region 获取信息
+
+                            int rtv = -1;
+                            int ReturnCode = 0;
+
+                            if (gApLower.Body.dic.ContainsKey("ReturnCode"))
+                            {
+                                ReturnCode = int.Parse(gApLower.Body.dic["ReturnCode"].ToString());
+                            }
+                            else
+                            {
+                                string errInfo = string.Format("SetGenParaRsp没包含ReturnCode字段");                                 
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                            }
+
+                            if (ReturnCode != 0)
+                            {
+                                string errInfo = string.Format("SetGenParaRsp返回失败.");
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                Send_Msg_2_ApCtrl_Lower(gApLower);
+                            }
+
+                            #endregion
+
+                            #region 返回处理
+
+                            //数据不对齐
+                            if (DataController.DataAlignMode == 0)
+                            {
+                                #region 以数据库为准
+
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, 0, "成功", true, null, null);
+                                Send_Msg_2_ApCtrl_Lower(gApLower);
+
+                                #endregion
+                            }
+                            else
+                            {
+                                #region 以AP为准
+
+                                #region 白名单处理
+
+                                if (gClsDataAlign.whiteimsi_md5_match == false)
+                                {
+                                    //从FTP服务器上下载文件
+                                    rtv = gFtpHelperFile.Get(gClsDataAlign.fileNameWhiteList_Ap_Base, Application.StartupPath, gClsDataAlign.fileNameWhiteList_Ap_Base);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("从FTP服务器下载文件:{0}失败.",gClsDataAlign.fileNameWhiteList_Ap_Base);
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    string info = "";
+                                    List<strBwList> list = new List<strBwList>();
+                                    string fileFullPath = string.Format("{0}\\{1}", Application.StartupPath, gClsDataAlign.fileNameWhiteList_Ap_Base);
+
+                                    //更新到数据库中
+                                    rtv = Get_BwList_From_File(fileFullPath,bwType.BWTYPE_WHITE, ref list, ref info);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("解析文件:{0}失败.", fileFullPath);
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, gClsDataAlign.devId);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("bwlist_record_bwflag_delete失败.");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    rtv = gDbHelper.bwlist_record_insert_batch(list, gClsDataAlign.devId);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("bwlist_record_insert_batch失败.");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }                                   
+                                }
+
+
+                                #endregion
+
+                                #region 黑名单处理
+
+                                if (gClsDataAlign.blackimsi_md5_match == false)
+                                {
+                                    //从FTP服务器上下载文件
+                                    rtv = gFtpHelperFile.Get(gClsDataAlign.fileNameBlackList_Ap_Base, Application.StartupPath, gClsDataAlign.fileNameBlackList_Ap_Base);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("从FTP服务器下载文件:{0}失败.", gClsDataAlign.fileNameBlackList_Ap_Base);
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    string info = "";
+                                    List<strBwList> list = new List<strBwList>();
+                                    string fileFullPath = string.Format("{0}\\{1}", Application.StartupPath, gClsDataAlign.fileNameBlackList_Ap_Base);
+
+                                    //更新到数据库中
+                                    rtv = Get_BwList_From_File(fileFullPath, bwType.BWTYPE_BLACK, ref list, ref info);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("解析文件:{0}失败.", fileFullPath);
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_BLACK, gClsDataAlign.devId);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("bwlist_record_bwflag_delete失败.");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }
+
+                                    rtv = gDbHelper.bwlist_record_insert_batch(list, gClsDataAlign.devId);
+                                    if (rtv != 0)
+                                    {
+                                        string errInfo = string.Format("bwlist_record_insert_batch失败.");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, -1, errInfo, true, null, null);
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+                                    }                                   
+                                }
+
+                                #endregion
+
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, rtv,gDbHelper.Get_Return_String(rtv), true, null, null);
+                                Send_Msg_2_ApCtrl_Lower(gApLower);
+
+                                #endregion
                             }
 
                             break;
@@ -2750,7 +5329,7 @@ namespace ScannerBackgrdServer
 
                             #endregion                            
                         }
-                    case Main2ApControllerMsgType.gsm_para_change:
+                    case "Main2ApControllerMsgType.gsm_para_change":
                         {
                             #region 获取信息
 
@@ -2761,7 +5340,7 @@ namespace ScannerBackgrdServer
                             if (string.IsNullOrEmpty(gApLower.ApInfo.Fullname))
                             {
                                 //返回出错处理
-                                gApLower.Body.type = Main2ApControllerMsgType.gsm_para_change_ack;
+                                gApLower.Body.type = "Main2ApControllerMsgType.gsm_para_change_ack";
                                 gApLower.Body.dic = new Dictionary<string, object>();
                                 gApLower.Body.dic.Add("ReturnCode", -1);
                                 gApLower.Body.dic.Add("ReturnStr", get_debug_info() + "Fullname is NULL.");
@@ -2777,7 +5356,7 @@ namespace ScannerBackgrdServer
                             if (get_gsm_info(gApLower, ref gsmAllPara) != 0)
                             {
                                 //返回出错处理
-                                gApLower.Body.type = Main2ApControllerMsgType.gsm_para_change_ack;
+                                gApLower.Body.type = "Main2ApControllerMsgType.gsm_para_change_ack";
                                 gApLower.Body.dic = new Dictionary<string, object>();
                                 gApLower.Body.dic.Add("ReturnCode", -1);
                                 gApLower.Body.dic.Add("ReturnStr", get_debug_info() + "获取GSM相关的参数出错.");
@@ -2810,7 +5389,7 @@ namespace ScannerBackgrdServer
                                 add_log_info(LogInfoType.EROR, info, "Main", LogCategory.R);
                                 Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.R);
 
-                                gApLower.Body.type = Main2ApControllerMsgType.gsm_para_change_ack;
+                                gApLower.Body.type = "Main2ApControllerMsgType.gsm_para_change_ack";
                                 gApLower.Body.dic = new Dictionary<string, object>();
                                 gApLower.Body.dic.Add("ReturnCode", -1);
                                 gApLower.Body.dic.Add("ReturnStr", info);
@@ -2844,7 +5423,7 @@ namespace ScannerBackgrdServer
                                 }
                             }                                                                                         
 
-                            gApLower.Body.type = Main2ApControllerMsgType.gsm_para_change_ack;
+                            gApLower.Body.type = "Main2ApControllerMsgType.gsm_para_change_ack";
                             gApLower.Body.dic = new Dictionary<string, object>();
                             gApLower.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
@@ -2966,7 +5545,6 @@ namespace ScannerBackgrdServer
         #endregion
 
         #region 用于接收-界面-的消息线程
-
     
         /// <summary>
         /// 填充IMMS信息
@@ -3048,6 +5626,9 @@ namespace ScannerBackgrdServer
 
             msgInfo.mt = MessageType.MSG_JSON;
             msgInfo.mb.bJson = JsonConvert.SerializeObject(app);
+
+            add_log_info(LogInfoType.DEBG, "Main->AppCtrl:" + msgInfo.mb.bJson, "Main", LogCategory.S);
+            Logger.Trace(LogInfoType.DEBG, "Main->AppCtrl:" + msgInfo.mb.bJson, "Main", LogCategory.S);
 
             //将消息转发给ApController
             Delegate_SendMsg_2_AppCtrl_Upper(msgInfo.mt, msgInfo.mb);
@@ -4038,7 +6619,6 @@ namespace ScannerBackgrdServer
 
             return 0;
         }
-
 
         /// <summary>
         /// 处理收到从AppController收到的消息
@@ -5654,10 +8234,10 @@ namespace ScannerBackgrdServer
                             int rtv;
                             strDevice devInfo = new strDevice();
                             strApStatus apSts = new strApStatus();
-
-                            string parentFullPathName = "";
+                            
                             string name = "";
                             string devFullPathName = "";
+                            string parentFullPathName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
                             {
@@ -5671,79 +8251,85 @@ namespace ScannerBackgrdServer
 
                             if (parentFullPathName == "" || name == "")
                             {
-                                add_log_info(LogInfoType.EROR, "app_get_device_detail_request,参数有误", "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, "app_get_device_detail_request,参数有误", "Main", LogCategory.I);
-
                                 //返回出错处理
-                                gAppUpper.Body.type = AppMsgType.app_get_device_detail_response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "app_get_device_detail_request,参数有误.");
+                                string errInfo = get_debug_info() + string.Format("app_get_device_detail_request,参数有误");
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
 
-
                             #endregion
 
                             #region 返回消息
-
-                            string mode = "";
+                          
                             strDomian domian = new strDomian();
                             devFullPathName = string.Format("{0}.{1}", parentFullPathName, name);
 
                             if (!gDicDeviceId.ContainsKey(devFullPathName))
                             {
-                                string info = string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
-
-                                add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
-
                                 //返回出错处理    
-                                gAppUpper.Body.type = AppMsgType.app_get_device_detail_response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + info);
-
-                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                string errInfo = string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
+                                Send_Msg_2_AppCtrl_Upper(gAppUpper);               
                                 break;
                             }
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
+
+                                //通过名称全路径获取域对应记录的信息
                                 rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
-                                if (rtv == 0)
+                                if (rtv != 0)
                                 {
-                                    int id = -1;
-                                    rtv = gDbHelper.device_record_id_get_by_affdomainid_and_name(domian.id, name, ref id, ref mode);                                    
+                                    string errInfo = string.Format("{0}:domain_record_get_by_nameFullPath出错", parentFullPathName);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
+                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                    break;
                                 }
                             }
-                            
-                            gAppUpper.Body.type = AppMsgType.app_get_device_detail_response;
-                            gAppUpper.Body.dic = new Dictionary<string, object>();
-                            gAppUpper.Body.dic.Add("ReturnCode", rtv);
 
-                            if (rtv != 0)
-                            {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.Get_Return_String(rtv));
-                            }
-                            else
-                            {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.Get_Return_String(rtv));
-                            }
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);
 
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
                             gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
                             gAppUpper.Body.dic.Add("name", name);
 
-                            if (rtv == 0)
+                            switch (devInfo.devMode)
                             {
-                                if (mode == "LTE-TDD" || mode == "LTE-FDD")
-                                {
-                                    if (0 == gDbHelper.ap_status_record_get_by_devid(devInfo.id, ref apSts))
+                                case devMode.MODE_GSM:
                                     {
+                                        //待完善
+                                        break;
+                                    }
+                                case devMode.MODE_LTE_FDD:
+                                case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA:
+                                case devMode.MODE_WCDMA:
+                                    {
+                                        #region 详细信息处理
+
+                                        rtv = gDbHelper.ap_status_record_get_by_devid(devInfo.id, ref apSts);
+                                        if (rtv != 0)
+                                        {
+                                            string errInfo = string.Format("{0}:ap_status_record_get_by_devid出错", parentFullPathName);
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
                                         gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
                                         Name_DIC_Struct ndic = new Name_DIC_Struct();
 
@@ -5756,26 +8342,28 @@ namespace ScannerBackgrdServer
                                         ndic.dic.Add("RADIO", apSts.RADIO);
                                         ndic.dic.Add("time", apSts.time);
                                         gAppUpper.Body.n_dic.Add(ndic);
+
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        break;
+
+                                        #endregion
                                     }
-                                }
-                                else if(mode == "GSM")
-                                {
-                                    //待完善
-                                }
-                            }
-                            else
-                            {                                                             
-                                //返回出错处理    
-                                gAppUpper.Body.type = AppMsgType.app_get_device_detail_response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info());
+                                case devMode.MODE_UNKNOWN:
+                                    {
+                                        #region 未知mode
 
-                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;
+                                        string errInfo = string.Format("mode有误");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        break;
+
+                                        #endregion
+                                    }
                             }
 
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
                             #endregion                                         
@@ -8423,10 +11011,10 @@ namespace ScannerBackgrdServer
 
                             int rtv = -1;
                             strDevice devInfo = new strDevice();
-
-                            string parentFullPathName = "";
+                            
                             string name = "";
                             string devFullPathName = "";
+                            string parentFullPathName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
                             {
@@ -8440,15 +11028,12 @@ namespace ScannerBackgrdServer
 
                             if (parentFullPathName == "" || name == "")
                             {
-                                add_log_info(LogInfoType.EROR, "app_set_GenPara_ActiveTime_Request,参数有误", "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, "app_set_GenPara_ActiveTime_Request,参数有误", "Main", LogCategory.I);
-
                                 //返回出错处理
-                                gAppUpper.Body.type = AppMsgType.app_set_GenPara_ActiveTime_Response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "app_set_GenPara_ActiveTime_Request,参数有误.");
+                                string errInfo = string.Format("app_set_GenPara_ActiveTime_Request,参数有误,参数有误.");
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
@@ -8457,86 +11042,155 @@ namespace ScannerBackgrdServer
 
                             if (!gDicDeviceId.ContainsKey(devFullPathName))
                             {
-                                string info = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                //返回出错处理
+                                string errInfo = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
-
-                                //返回出错处理    
-                                gAppUpper.Body.type = AppMsgType.app_get_device_detail_response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", info);
-
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;
+                                break;                                
                             }
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
                             }
 
-                            strApGenPara apGP = new strApGenPara();
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
-                            {
-                                apGP.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
-                            {
-                                apGP.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
-                            {
-                                apGP.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
-                            {
-                                apGP.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
-                            {
-                                apGP.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
-                            {
-                                apGP.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
-                            {
-                                apGP.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
-                            }
-
-                            if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
-                            {
-                                apGP.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
-                            }
-
                             #endregion
 
                             #region 返回消息
 
-                            rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
-
-                            gAppUpper.Body.type = AppMsgType.app_set_GenPara_ActiveTime_Response;
-                            gAppUpper.Body.dic = new Dictionary<string, object>();
-                            gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                            if (rtv != 0)
+                            switch (devInfo.devMode)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.Get_Return_String(rtv));
-                            }
-                            else
-                            {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.Get_Return_String(rtv));
-                            }
+                                case devMode.MODE_GSM:
+                                    {
+                                        #region GSM处理
 
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        strGsmRfPara grp = new strGsmRfPara();
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
+                                        {
+                                            grp.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
+                                        {
+                                            grp.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
+                                        {
+                                            grp.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
+                                        {
+                                            grp.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
+                                        {
+                                            grp.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
+                                        {
+                                            grp.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
+                                        {
+                                            grp.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
+                                        {
+                                            grp.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                        }
+
+                                        rtv = 0;
+                                        rtv += gDbHelper.gsm_rf_para_record_update(0, devInfo.id, grp);
+                                        rtv += gDbHelper.gsm_rf_para_record_update(1, devInfo.id, grp);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_LTE_FDD:
+                                case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA:
+                                case devMode.MODE_WCDMA:
+                                    {
+                                        #region 非GSM处理
+
+                                        strApGenPara apGP = new strApGenPara();
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
+                                        {
+                                            apGP.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
+                                        {
+                                            apGP.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
+                                        {
+                                            apGP.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
+                                        {
+                                            apGP.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
+                                        {
+                                            apGP.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
+                                        {
+                                            apGP.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
+                                        {
+                                            apGP.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                        }
+
+                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
+                                        {
+                                            apGP.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                        }
+
+                                        rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);                                        
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_UNKNOWN:
+                                    {
+                                        #region 未知mode
+
+                                        string errInfo = string.Format("mode有误");
+                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        break;
+
+                                        #endregion
+                                    }
+                            }
+                                                      
                             break;
 
                             #endregion                   
@@ -8552,8 +11206,8 @@ namespace ScannerBackgrdServer
                             strDevice devInfo = new strDevice();
                             strApGenPara apGP = new strApGenPara();
 
-                            string parentFullPathName = "";
                             string name = "";
+                            string parentFullPathName = "";                            
                             string devFullPathName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
@@ -8568,19 +11222,15 @@ namespace ScannerBackgrdServer
 
                             if (parentFullPathName == "" || name == "")
                             {
-                                add_log_info(LogInfoType.EROR, "app_get_GenPara_Request,参数有误", "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, "app_get_GenPara_Request,参数有误", "Main", LogCategory.I);
-
                                 //返回出错处理
-                                gAppUpper.Body.type = AppMsgType.app_get_GenPara_Response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "app_get_GenPara_Request,参数有误.");
+                                string errInfo = string.Format("app_get_GenPara_Request,参数有误.");
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;
+                                break;                              
                             }
-
 
                             #endregion
 
@@ -8591,17 +11241,12 @@ namespace ScannerBackgrdServer
 
                             if (!gDicDeviceId.ContainsKey(devFullPathName))
                             {
-                                string info = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                //返回出错处理
+                                string errInfo = get_debug_info() + string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
-
-                                //返回出错处理    
-                                gAppUpper.Body.type = AppMsgType.app_get_GenPara_Response;
-                                gAppUpper.Body.dic = new Dictionary<string, object>();
-                                gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", info);
-
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
@@ -8610,19 +11255,16 @@ namespace ScannerBackgrdServer
                                 devInfo = gDicDeviceId[devFullPathName];
 
                                 // 2018-07-04
-                                if (devInfo.devMode != devMode.MODE_LTE_FDD && devInfo.devMode != devMode.MODE_LTE_TDD)
+                                if (devInfo.devMode == devMode.MODE_GSM || devInfo.devMode == devMode.MODE_UNKNOWN)
                                 {
-                                    add_log_info(LogInfoType.EROR, "该设备没有没有通用参数.", "Main", LogCategory.I);
-                                    Logger.Trace(LogInfoType.EROR, "该设备没有没有通用参数.", "Main", LogCategory.I);
-
                                     //返回出错处理
-                                    gAppUpper.Body.type = AppMsgType.app_get_GenPara_Response;
-                                    gAppUpper.Body.dic = new Dictionary<string, object>();
-                                    gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "该设备没有没有通用参数.");
+                                    string errInfo = get_debug_info() + string.Format("该设备没有没有通用参数.");
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                    break;
+                                    break;                                   
                                 }
 
                                 rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
@@ -8632,32 +11274,19 @@ namespace ScannerBackgrdServer
                                 }
                                 else
                                 {
+                                    //返回出错处理
+                                    string errInfo = get_debug_info() + string.Format("domain_record_get_by_nameFullPath出错.");
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                    add_log_info(LogInfoType.EROR, gDbHelper.Get_Return_String(rtv), "Main", LogCategory.I);
-                                    Logger.Trace(LogInfoType.EROR, gDbHelper.Get_Return_String(rtv), "Main", LogCategory.I);
-
-                                    //返回出错处理    
-                                    gAppUpper.Body.type = AppMsgType.app_get_GenPara_Response;
-                                    gAppUpper.Body.dic = new Dictionary<string, object>();
-                                    gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.Get_Return_String(rtv));
-
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                    break;
+                                    break;                                   
                                 }
                             }
 
-                            gAppUpper.Body.type = AppMsgType.app_get_GenPara_Response;
-                            gAppUpper.Body.dic = new Dictionary<string, object>();
-                            gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                            if (rtv != 0)
-                            {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.Get_Return_String(rtv));
-                            }
-                            else
-                            {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.Get_Return_String(rtv));
-                            }
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelper.Get_Return_String(rtv), true, null, null);
+                           
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
                             gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
@@ -10490,8 +13119,16 @@ namespace ScannerBackgrdServer
                 add_log_info(LogInfoType.INFO, "【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
                 Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
 
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
+
+                //将所有设备设置为下线           
+                if (0 == gDbHelper.device_record_clear_online())
+                {
+                    add_log_info(LogInfoType.INFO, "device_record_clear_online -> OK！", "Main", LogCategory.I);
+                }
+                else
+                {
+                    add_log_info(LogInfoType.INFO, "device_record_clear_online -> FAILED！", "Main", LogCategory.I);
+                }
 
                 //在设备(未指派)表中清空所有的记录               
                 if (0 == gDbHelper.device_unknown_record_clear())
@@ -10502,6 +13139,9 @@ namespace ScannerBackgrdServer
                 {
                     add_log_info(LogInfoType.INFO, "device_unknown_record_clear -> FAILED！", "Main", LogCategory.I);
                 }
+
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
 
                 //用于快速通过设备的全名早点设备对应的ID
                 if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
@@ -11126,6 +13766,35 @@ namespace ScannerBackgrdServer
                     #endregion
 
                     bigStr += sqlSub + "\n";
+                }
+
+                outData = System.Text.Encoding.Default.GetBytes(bigStr);
+            }
+            catch (Exception e)
+            {
+                add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                return -1;
+            }
+
+            return 0;
+        }
+
+        private int generate_ftp_byte(ref byte[] outData, List<string> strList)
+        {
+            if (strList == null)
+            {
+                add_log_info(LogInfoType.INFO, "strList is empty", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, "strList is empty", "Main", LogCategory.I);
+                return -1;
+            }
+
+            try
+            {            
+                string bigStr = "";                
+                foreach (string str in strList)
+                {
+                    bigStr += string.Format("{0)\n",str);               
                 }
 
                 outData = System.Text.Encoding.Default.GetBytes(bigStr);
@@ -12539,6 +15208,8 @@ namespace ScannerBackgrdServer
 
         private void button13_Click(object sender, EventArgs e)
         {
+            string tmp = "144430757";
+            Int32 i = Convert.ToInt32(tmp);
 
             //StringWriter sw = new StringWriter();
             //XmlTextWriter xw = new XmlTextWriter(sw);

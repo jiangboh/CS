@@ -73,7 +73,14 @@ namespace ScannerBackgrdServer
         /// </summary>
         private static int removeDupTimeLength = 120;
 
-        private static int simuTest = 0;        
+        private static int simuTest = 0;
+
+        /// <summary>
+        /// 数据对齐基准：
+        /// 0表示数据库为基准
+        /// 1表示以Ap为基准
+        /// </summary>
+        private static int dataAlignMode = 0;
 
         #endregion
 
@@ -125,6 +132,7 @@ namespace ScannerBackgrdServer
         public static int TimerTimeOutInterval { get => _timerTimeOutInterval; set => _timerTimeOutInterval = value; }
 
         public static int SimuTest { get => simuTest; set => simuTest = value; }
+        public static int DataAlignMode { get => dataAlignMode; set => dataAlignMode = value; }
 
         #endregion
 
@@ -189,7 +197,8 @@ namespace ScannerBackgrdServer
 
                 _timerTimeOutInterval = int.Parse(ConfigurationManager.AppSettings["timerTimeOutInterval"].ToString());
 
-                simuTest = int.Parse(ConfigurationManager.AppSettings["simuTest"].ToString());                
+                simuTest = int.Parse(ConfigurationManager.AppSettings["simuTest"].ToString());
+                dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());                
             }
             catch (Exception ee)
             {

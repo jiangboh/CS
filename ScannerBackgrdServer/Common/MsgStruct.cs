@@ -1355,7 +1355,7 @@ namespace ScannerBackgrdServer.Common
         public const string app_set_GenPara_ActiveTime_Response = "app_set_GenPara_ActiveTime_Response";
 
         //
-        //  app获取所有的省请求
+        //  app获取通用参数请求
         //"type":"app_get_GenPara_Request" 
         //"dic":
         //    {
@@ -1365,8 +1365,8 @@ namespace ScannerBackgrdServer.Common
         public const string app_get_GenPara_Request = "app_get_GenPara_Request";
 
         //
-        // 设置通用参数的请求(保存到数据库中)
-        //"type":"ReportGenPara"   
+        // app获取通用参数的响应
+        //"type":"app_get_GenPara_Response"   
         //"dic":
         //    {
         //   "ReturnCode": 返回码：0,成功；其它值为失败
@@ -2266,94 +2266,95 @@ namespace ScannerBackgrdServer.Common
         //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
         //}
         public const string DataAlignOver = "DataAlignOver";
+
         /// <summary>
         /// 数据对齐完成回复。(ApController-->MainController)
         /// dic为空
         /// </summary>
         public const string DataAlignOverAck = "DataAlignOverAck";
 
-        #region GSM设备特有消息类型
-        /// <summary>
-        /// GSM设备参数更改通知(ApController-->MainController) （n_dic部分可以一个或多个）
-        /// </summary>
-        /// 
-        //"dic":
-        //    {
-        //        "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
-        //        "hardware_id":硬件Id
-        //    }
-        //"n_dic":
-        //   [
-        //       "name":"RECV_SYS_PARA",                 //4.1   系统参数
-        //      {
-        //					"paraMcc":移动国家码
-        //					"paraMnc":移动网号
-        //					"paraBsic":基站识别码
-        //					"paraLac":位置区号
-        //					"paraCellId":小区ID
-        //					"paraC2":C2偏移量
-        //					"paraPeri":周期性位置更新周期
-        //					"paraAccPwr":接入功率
-        //					"paraMsPwr":手机发射功率
-        //					"paraRejCau":位置更新拒绝原因
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"RECV_SYS_OPTION",                 //4.2  系统选项
-        //      {
-        //					"opLuSms":登录时发送短信
-        //					"opLuImei":登录时获取IMEI
-        //					"opCallEn":允许用户主叫
-        //					"opDebug":调试模式，上报信令
-        //					"opLuType":登录类型
-        //					"opSmsType":短信类型
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"RECV_RF_PARA",                 //4.4	射频参数
-        //      {
-        //					"rfEnable":射频使能
-        //					"rfFreq":信道号
-        //					"rfPwr":发射功率衰减值
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"RECV_SMS_OPTION",                //4.7	短消息中心号码;4.8	短消息原叫号码;4.9 短消息发送时间;4.10  短消息内容
-        //       {
-        //          "gSmsRpoa":短消息中心号码
-        //          "gSmsTpoa":短消息原叫号码
-        //          "gSmsScts":短消息发送时间 （时间格式为年/月/日/时/分/秒各两位，不足两位前补0。如2014年4月22日15点46分47秒的消息内容为“140422154647”）
-        //          "gSmsData":短消息内容 （编码格式为Unicode编码）
-        //          "autoSendtiny":是否自动发送
-        //          "autoFilterSMStiny":是否自动过滤短信
-        //          "delayTime":发送延时时间
-        //          "smsCodingtiny":短信的编码格式
-        //         }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"RECV_REG_MODE",            //4.33	注册工作模式
-        //       {
-        //          "regMode":模式0时由设备自行根据系统选项决定是否允许终端入网，是否对终端发送短信；
-        //                    模式1时设备将终端标识发送给上位机，由上位机告知设备下一步的动作
-        //       }
-        //    ];
-        public const string gsm_para_change = "gsm_para_change";
+        //#region GSM设备特有消息类型
+        ///// <summary>
+        ///// GSM设备参数更改通知(ApController-->MainController) （n_dic部分可以一个或多个）
+        ///// </summary>
+        ///// 
+        ////"dic":
+        ////    {
+        ////        "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
+        ////        "hardware_id":硬件Id
+        ////    }
+        ////"n_dic":
+        ////   [
+        ////       "name":"RECV_SYS_PARA",                 //4.1   系统参数
+        ////      {
+        ////					"paraMcc":移动国家码
+        ////					"paraMnc":移动网号
+        ////					"paraBsic":基站识别码
+        ////					"paraLac":位置区号
+        ////					"paraCellId":小区ID
+        ////					"paraC2":C2偏移量
+        ////					"paraPeri":周期性位置更新周期
+        ////					"paraAccPwr":接入功率
+        ////					"paraMsPwr":手机发射功率
+        ////					"paraRejCau":位置更新拒绝原因
+        ////       }
+        ////    ],
+        ////"n_dic":
+        ////   [
+        ////       "name":"RECV_SYS_OPTION",                 //4.2  系统选项
+        ////      {
+        ////					"opLuSms":登录时发送短信
+        ////					"opLuImei":登录时获取IMEI
+        ////					"opCallEn":允许用户主叫
+        ////					"opDebug":调试模式，上报信令
+        ////					"opLuType":登录类型
+        ////					"opSmsType":短信类型
+        ////       }
+        ////    ],
+        ////"n_dic":
+        ////   [
+        ////       "name":"RECV_RF_PARA",                 //4.4	射频参数
+        ////      {
+        ////					"rfEnable":射频使能
+        ////					"rfFreq":信道号
+        ////					"rfPwr":发射功率衰减值
+        ////       }
+        ////    ],
+        ////"n_dic":
+        ////   [
+        ////       "name":"RECV_SMS_OPTION",                //4.7	短消息中心号码;4.8	短消息原叫号码;4.9 短消息发送时间;4.10  短消息内容
+        ////       {
+        ////          "gSmsRpoa":短消息中心号码
+        ////          "gSmsTpoa":短消息原叫号码
+        ////          "gSmsScts":短消息发送时间 （时间格式为年/月/日/时/分/秒各两位，不足两位前补0。如2014年4月22日15点46分47秒的消息内容为“140422154647”）
+        ////          "gSmsData":短消息内容 （编码格式为Unicode编码）
+        ////          "autoSendtiny":是否自动发送
+        ////          "autoFilterSMStiny":是否自动过滤短信
+        ////          "delayTime":发送延时时间
+        ////          "smsCodingtiny":短信的编码格式
+        ////         }
+        ////    ],
+        ////"n_dic":
+        ////   [
+        ////       "name":"RECV_REG_MODE",            //4.33	注册工作模式
+        ////       {
+        ////          "regMode":模式0时由设备自行根据系统选项决定是否允许终端入网，是否对终端发送短信；
+        ////                    模式1时设备将终端标识发送给上位机，由上位机告知设备下一步的动作
+        ////       }
+        ////    ];
+        //public const string gsm_para_change = "gsm_para_change";
 
-        /// <summary>
-        /// GSM设备参数更改通知回复 (MainController-->ApController)
-        /// </summary>
-        //"dic":
-        //{
-        //    "ReturnCode": 返回码：0,成功；其它值为失败
-        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
-        //}
-        public const string gsm_para_change_ack = "gsm_para_change_ack";
+        ///// <summary>
+        ///// GSM设备参数更改通知回复 (MainController-->ApController)
+        ///// </summary>
+        ////"dic":
+        ////{
+        ////    "ReturnCode": 返回码：0,成功；其它值为失败
+        ////    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        ////}
+        //public const string gsm_para_change_ack = "gsm_para_change_ack";
 
-        #endregion
+        //#endregion
     }
 
     public class MsgStruct
