@@ -282,7 +282,7 @@ namespace ScannerBackgrdServer.AppController
             msg.ApInfo = ApInfo;
 
             string sData = GetMsgStringValueInList("transparent_msg", TypeKeyValue);
-            sData = Regex.Replace(sData, "<\\s*id\\s*>.+<\\s*/\\s*id\\s*>", string.Format("<id>{0}</id>", ApBase.APP_TRANSPARENT_MSG));
+            //sData = Regex.Replace(sData, "<\\s*id\\s*>.+<\\s*/\\s*id\\s*>", string.Format("<id>{0}</id>", ApMsgIdClass.addTransparentMsgId()));
             Dictionary<string, object> dic = new Dictionary<string, object>();
             dic.Add("transparent_msg", sData);
 

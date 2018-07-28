@@ -235,6 +235,7 @@ namespace ScannerBackgrdServer.ApController
                         (String.Compare(x.Port.ToString(),port.ToString(), true) == 0))
                     {
                         x.MainControllerStatus = status;
+                        x.Detail = 0;
                         return true;
                     }
                 }

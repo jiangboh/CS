@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -85,11 +86,14 @@ namespace ScannerBackgrdServer.ApController
             }
 
             //处理透传消息
-            if (msgId == APP_TRANSPARENT_MSG)
+            if (msgId >= ApMsgIdClass.MIN_TRANSPARENT_MSG_ID && msgId <= ApMsgIdClass.MAX_TRANSPARENT_MSG_ID)
             {
-                Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.transparent_msg_response, "transparent_msg", msg);
-                OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToken, body);
-                return;
+                if (msgBody.type != ApMsgType.get_general_para_response) //参数上报消息不透传
+                {
+                    Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.transparent_msg_response, "transparent_msg", msg);
+                    OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToken, body);
+                    return;
+                }
             }
 
             //心跳消息处理
@@ -348,7 +352,7 @@ namespace ScannerBackgrdServer.ApController
             }
 
             MsgId2App msgId2App = new MsgId2App();
-            msgId2App.id = addMsgId();
+            msgId2App.id = ApMsgIdClass.addNormalMsgId();
             msgId2App.AppInfo = msgBody.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
@@ -367,6 +371,7 @@ namespace ScannerBackgrdServer.ApController
                     string.Format("封装向AP发送的XML消息出错！"));
                 return;
             }
+
             SendMsg2Ap(apToKen, sendMsg);
 
         }
@@ -395,8 +400,28 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
+            string sendMsg = GetMsgStringValueInList("transparent_msg", msgBody.Body);
+            if (string.IsNullOrEmpty(sendMsg))
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("透传XML消息为空！"));
+                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                    string.Format("透传XML消息为空！"));
+                return;
+            }
+
+            if (!Regex.IsMatch(sendMsg, "<\\s*id\\s*>.+<\\s*/\\s*id\\s*>"))
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("透传的XML消息中没有id项！"));
+                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                    string.Format("透传的XML消息中没有id项！"));
+                return;
+            }
+
+            UInt16 id = ApMsgIdClass.addTransparentMsgId();
+            sendMsg = Regex.Replace(sendMsg, "<\\s*id\\s*>.+<\\s*/\\s*id\\s*>", string.Format("<id>{0}</id>", id));
+
             MsgId2App msgId2App = new MsgId2App();
-            msgId2App.id = APP_TRANSPARENT_MSG;
+            msgId2App.id = id;
             msgId2App.AppInfo = msgBody.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
@@ -407,14 +432,6 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
-            string sendMsg = GetMsgStringValueInList("transparent_msg", msgBody.Body);
-            if (string.IsNullOrEmpty(sendMsg))
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(RecvMainMsg)出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
-                    string.Format("封装向AP发送的XML消息出错！"));
-                return;
-            }
             SendMsg2Ap(apToKen, sendMsg);
 
         }

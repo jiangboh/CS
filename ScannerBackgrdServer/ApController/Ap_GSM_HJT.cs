@@ -13,7 +13,7 @@ using static ScannerBackgrdServer.Common.Xml_codec;
 
 namespace ScannerBackgrdServer.ApController
 {
-    class Ap_GSM : ApBase
+    class Ap_GSM_HJT : ApBase
     {
         #region 消息类型及结据结构定义
 
@@ -105,7 +105,7 @@ namespace ScannerBackgrdServer.ApController
                 this.addr = "01";
                 this.sys = sys;
                 this.type = type;
-                this.message_id = addMsgId();
+                this.message_id = ApMsgIdClass.addNormalMsgId();
                 this.data_length = (byte)(2 + (data.Replace(" ", "").Length / 2));
                 this.data = data;
             }
@@ -300,9 +300,9 @@ namespace ScannerBackgrdServer.ApController
         public static uint heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
-        private const string MODE_NAME = "GSM";
+        private const string MODE_NAME = "GSM_HJT";
 
-        public Ap_GSM()
+        public Ap_GSM_HJT()
         {
             DeviceType = MODE_NAME;
             ApBase.ReceiveMainData += OnReceiveMainMsg;
@@ -464,11 +464,14 @@ namespace ScannerBackgrdServer.ApController
 
 
             //处理透传消息
-            if (msgId == APP_TRANSPARENT_MSG)
+            if (msgId >= ApMsgIdClass.MIN_TRANSPARENT_MSG_ID && msgId <= ApMsgIdClass.MAX_TRANSPARENT_MSG_ID)
             {
-                Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.transparent_msg_response, "transparent_msg", msg);
-                OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToKen, body);
-                return;
+                if (msgBody.type != ApMsgType.agent_transmit_ack_msg) //参数上报消息不透传
+                {
+                    Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.transparent_msg_response, "transparent_msg", msg);
+                    OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToKen, body);
+                    return;
+                }
             }
 
             //心跳消息处理
@@ -1171,7 +1174,7 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
             MsgId2App msgId2App = new MsgId2App();
-            msgId2App.id = addMsgId();
+            msgId2App.id = ApMsgIdClass.addNormalMsgId();
             msgId2App.AppInfo = msgBody.AppInfo;
 
             if (MyDeviceList.AddMsgId2App(apToKen, msgId2App))
@@ -1212,8 +1215,10 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
+            UInt16 msgId = ApMsgIdClass.addTransparentMsgId();
+
             MsgId2App msgId2App = new MsgId2App();
-            msgId2App.id = APP_TRANSPARENT_MSG;
+            msgId2App.id = msgId;
             msgId2App.AppInfo = msgBody.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
@@ -1234,7 +1239,7 @@ namespace ScannerBackgrdServer.ApController
             }
             sendMsg = sendMsg.Replace(" ","");
             sendMsg = sendMsg.Remove(12, 4);
-            sendMsg = sendMsg.Insert(12, string.Format("{0}",APP_TRANSPARENT_MSG.ToString("X").PadLeft(4, '0')));
+            sendMsg = sendMsg.Insert(12, string.Format("{0}", msgId.ToString("X").PadLeft(4, '0')));
             sendMsg = Regex.Replace(sendMsg, @".{2}", "$0 ");
 
             Msg_Body_Struct TypeKeyValue =
@@ -1478,7 +1483,7 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
-            UInt16 msgId = addMsgId();
+            UInt16 msgId = ApMsgIdClass.addNormalMsgId();
 
             //发送编码方式
             Send2ap_GSM(apToken, AppInfo, new gsm_msg_send(Gsm_Send_Msg_Type.RECV_TEST_CMD, sys, msgId,
@@ -1538,7 +1543,7 @@ namespace ScannerBackgrdServer.ApController
         private void Send2ap_SET_PARA_REQ(AsyncUserToken ApToken, App_Info_Struct AppInfo, Gsm_Device_Sys sys, int Flag,
             RecvSysPara para, RecvSysOption option, RecvRfOption rf,byte mode)
         {
-            UInt16 msgId = addMsgId();
+            UInt16 msgId = ApMsgIdClass.addNormalMsgId();
 
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.set_general_para_request);
 

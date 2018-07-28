@@ -83,6 +83,7 @@ namespace ScannerBackgrdServer.ApController
             public static UInt32 LICENSE = 0x4000000;
             public static UInt32 RADIO = 0x2000000;
             public static UInt32 OnLine = 0x1000000;
+            public static UInt32 wSelfStudy = 0x800000;
         }
 
         /// <summary>
@@ -346,56 +347,6 @@ namespace ScannerBackgrdServer.ApController
 
         #endregion
 
-        #region 消息Id处理
-
-        /// <summary>
-        /// 当前发送消息ID号（每发一条，消息Id加1，最大值从1再开始）
-        /// </summary>
-        static private UInt16 SendApMsgId = 0;
-        public static readonly object mutex_SendApMsgId = new object();
-
-        /// <summary>
-        /// LTE AGENT主动发消息id；
-        /// </summary>
-        public const UInt16 LTE_AUTO_SEND = 0;
-        /// <summary>
-        /// GSM AGENT主动发消息id；
-        /// </summary>
-        public const UInt16 GSM_AUTO_SEND = 0xFFFF;
-        /// <summary>
-        /// 为透传APP消息
-        /// </summary>
-        public const UInt16 APP_TRANSPARENT_MSG = 0xFFF0;
-
-        public static UInt16 getMsgId()
-        {
-            lock (mutex_SendApMsgId)
-            {
-                return SendApMsgId;
-            }
-        }
-        /// <summary>
-        /// 消息Id自增(65535(0xFFFF)为LTE自发消息；65534(0xFFFE))
-        /// </summary>
-        public static UInt16 addMsgId()
-        {
-            lock (mutex_SendApMsgId)
-            {
-                //id 0 和 0xfff0~0xffff保留为其它用途，后台发消息时去掉这几个id。
-                if ((SendApMsgId >= System.UInt16.MaxValue - 16) || (SendApMsgId <= 0))
-                {
-                    SendApMsgId = 1;
-                }
-                else
-                {
-                    SendApMsgId++;
-                }
-                return SendApMsgId;
-            }
-        }
-
-        #endregion
-
         #region 向AP发送消息
         /// <summary>
         /// 发送消息到AP
@@ -613,6 +564,7 @@ namespace ScannerBackgrdServer.ApController
                 "SYNC", ((detail & AP_STATUS.SYNC) > 0) ? 1 : 0,
                 "LICENSE", ((detail & AP_STATUS.LICENSE) > 0) ? 1 : 0,
                 "RADIO", ((detail & AP_STATUS.RADIO) > 0) ? 1 : 0,
+                "wSelfStudy", ((detail & AP_STATUS.wSelfStudy) > 0) ? 1 : 0,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
             //向Main模块发消息

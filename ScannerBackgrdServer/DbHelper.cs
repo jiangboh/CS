@@ -52,6 +52,13 @@ namespace ScannerBackgrdServer
         public string isActive;      //标识该设备是否生效，0：无效；1：生效
         public string innerType;     //用于软件内部处理
         public string affDomainId;   //标识设备的从属于那个域，FK
+                       
+        //以下字段不保存在库中
+        public string wSelfStudy;      //0:正常状态，1:自学习状态，2018-07-20
+        public string command;         //0:停止 1:开机执行 2:立即执行
+        public string txpower;         //Relative to maximum output power
+        public string duration;        //白名单自学习时长,单位秒
+        public string clearWhiteList;  //0：否   1：是
     };
 
 
@@ -97,6 +104,12 @@ namespace ScannerBackgrdServer
         public string ManualPci;         //手动设置同步pci
         public string ManualBw;          //手动设置同步带宽
         public string gpsConfig;         //GPS配置，0表示NOGPS，1表示GPS
+      
+        public string otherplmn;         //多PLMN选项，多个之间用逗号隔开
+        public string periodFreq;        //{周期:freq1,freq2,freq3}
+        public string res1;              //保留字段1
+        public string res2;              //保留字段2
+        public string res3;              //保留字段3 
 
         public string activeTime1Start;  //生效时间1的起始时间
         public string activeTime1Ended;  //生效时间1的结束时间
@@ -124,6 +137,8 @@ namespace ScannerBackgrdServer
         public string time;          //感知时间
         public string sn;            //SN号
         public string affDeviceId;   //所属设备ID
+
+        public string name;
 
         //2018-07-16，for GSM
         public string regType;        //更新类型
@@ -248,6 +263,11 @@ namespace ScannerBackgrdServer
         public string rfFreq;            //信道号
         public string rfPwr;             //发射功率衰减值    
         public string bindingDevId;      //绑定的设备ID
+
+        // 2018-07-23
+        public string res1;              //保留字段1
+        public string res2;              //保留字段2
+        public string res3;              //保留字段3
 
         // 2018-07-18
         public string activeTime1Start;  //生效时间1的起始时间
@@ -703,7 +723,7 @@ namespace ScannerBackgrdServer
         /// 成功 ： 非null
         /// 失败 ： null
         /// </returns>
-        public string Get_Return_String(int rtCode)
+        public string get_rtv_str(int rtCode)
         {
             if (dicRTV.ContainsKey(rtCode))
             {
@@ -4601,7 +4621,11 @@ namespace ScannerBackgrdServer
                             if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()) && !string.IsNullOrEmpty(dr["name"].ToString()))
                             {
                                 string completeName = string.Format("{0}.{1}", dr["nameFullPath"].ToString(), dr["name"].ToString());
+
                                 strDevice strDev = new strDevice();
+
+                                //2018-07-20
+                                strDev.wSelfStudy = "0";
 
                                 if (!string.IsNullOrEmpty(dr["id"].ToString()))
                                 {
@@ -7663,8 +7687,14 @@ namespace ScannerBackgrdServer
             if (sqlBig != "")
             {
                 //去掉最后一个字符
-                sqlBig = sqlBig.Remove(sqlBig.Length - 1, 1);                
+                sqlBig = sqlBig.Remove(sqlBig.Length - 1, 1);
             }
+            else
+            {
+                Logger.Trace(LogInfoType.EROR, "sqlBig is NULL:" + dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
 
             string sql = string.Format("insert into capture values{0}", sqlBig);
             try
@@ -7687,12 +7717,11 @@ namespace ScannerBackgrdServer
             return (int)RC.SUCCESS;
         }
 
-
         /// <summary>
         /// 获取满足条件的捕号记录
         /// </summary>
         /// <param name="dt">
-        /// 返回的DataTable，包含的列为：imsi,imei,name,time,bwFlag,sn
+        /// 返回的DataTable，包含的列为：imsi,imei,name,tmsi,time,bwFlag,sn
         /// </param>
         /// <returns>
         ///   RC.NO_OPEN            ：数据库尚未打开
@@ -7838,8 +7867,6 @@ namespace ScannerBackgrdServer
                 topCountString = string.Format("Limit {0}", cq.topCount);
             }
 
-            string sql = string.Format("Select * from (SELECT a.imsi, a.imei, a.bwFlag, a.time, b.name,b.sn FROM(select imsi,imei,bwFlag,time,affDeviceId from capture where {0}) AS a INNER JOIN device As b ON a.affDeviceId=b.id) As c {1}",sqlSub,RmDupFlagString);
-
             //处理imsi的检索               
             //string sql = string.Format("SELECT * FROM(SELECT c.*,d.name,d.sn from(SELECT a.imsi, a.imei, b.bwFlag, a.time, a.affDeviceId FROM(select imsi,imei,time,affDeviceId from capture where {0}) AS a INNER JOIN bwlist As b ON {1}) As c INNER JOIN device As d ON c.affDeviceId = d.id) As e {2}",
             //    sqlSub,sqlSub1,RmDupFlagString);
@@ -7861,38 +7888,27 @@ namespace ScannerBackgrdServer
             //    return (int)RC.CAP_QUERY_INFO_ERR;
             //}
 
+            // 6 + 2 = 8项
+            string sql = string.Format("Select * from (SELECT a.*, b.name,b.sn FROM(select imsi,imei,bwFlag,bsPwr,tmsi,time,affDeviceId from capture where {0}) AS a INNER JOIN device As b ON a.affDeviceId=b.id) As c {1}", sqlSub, RmDupFlagString);
             dt = new DataTable("capturequery");
 
-            DataColumn column0 = new DataColumn();
-            column0.DataType = System.Type.GetType("System.String");
-            column0.ColumnName = "imsi";
-
-            DataColumn column1 = new DataColumn();
-            column1.DataType = System.Type.GetType("System.String");
-            column1.ColumnName = "imei";
-
-            DataColumn column2 = new DataColumn();
-            column2.DataType = System.Type.GetType("System.String");
-            column2.ColumnName = "name";
-
-            DataColumn column3 = new DataColumn();
-            column3.DataType = System.Type.GetType("System.String");
-            column3.ColumnName = "time";
-
-            DataColumn column4 = new DataColumn();
-            column4.DataType = System.Type.GetType("System.String");
-            column4.ColumnName = "bwFlag";
-
-            DataColumn column5 = new DataColumn();
-            column5.DataType = System.Type.GetType("System.String");
-            column5.ColumnName = "sn";
+            DataColumn column0 = new DataColumn("imsi",   System.Type.GetType("System.String"));
+            DataColumn column1 = new DataColumn("imei",   System.Type.GetType("System.String"));
+            DataColumn column2 = new DataColumn("name",   System.Type.GetType("System.String"));
+            DataColumn column3 = new DataColumn("tmsi",   System.Type.GetType("System.String"));
+            DataColumn column4 = new DataColumn("bsPwr",  System.Type.GetType("System.String"));
+            DataColumn column5 = new DataColumn("time",   System.Type.GetType("System.String"));
+            DataColumn column6 = new DataColumn("bwFlag", System.Type.GetType("System.String"));
+            DataColumn column7 = new DataColumn("sn",     System.Type.GetType("System.String"));   
 
             dt.Columns.Add(column0);
             dt.Columns.Add(column1);
             dt.Columns.Add(column2);
             dt.Columns.Add(column3);
             dt.Columns.Add(column4);
-            dt.Columns.Add(column5);                    
+            dt.Columns.Add(column5);
+            dt.Columns.Add(column6);
+            dt.Columns.Add(column7);
 
             try
             {
@@ -7905,9 +7921,23 @@ namespace ScannerBackgrdServer
                             DataRow row = dt.NewRow();
 
                             row["imsi"] = dr["imsi"].ToString();
-                            row["imei"] = dr["imei"].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["imei"].ToString()))
+                            {
+                                row["imei"] = dr["imei"].ToString();
+                            }                            
+
+
                             row["name"] = dr["name"].ToString();
                             row["time"] = dr["time"].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["tmsi"].ToString()))
+                            {
+                                row["tmsi"] = dr["tmsi"].ToString();
+                            }
+
+                            row["bsPwr"] = dr["bsPwr"].ToString();
+
                             row["bwFlag"] = dr["bwFlag"].ToString();
                             row["sn"] = dr["sn"].ToString();
 
@@ -7925,7 +7955,6 @@ namespace ScannerBackgrdServer
 
             return (int)RC.SUCCESS;
         }
-
 
         #endregion
 
@@ -8954,7 +8983,7 @@ namespace ScannerBackgrdServer
             }
             else
             {
-                sqlSub += string.Format("'NULL',");
+                sqlSub += string.Format("NULL,");
             }
 
             if (!string.IsNullOrEmpty(list.imei))
@@ -8963,7 +8992,7 @@ namespace ScannerBackgrdServer
             }
             else
             {
-                sqlSub += string.Format("'NULL',");
+                sqlSub += string.Format("NULL,");
             }            
 
             if (list.bwFlag == bwType.BWTYPE_BLACK)
@@ -9074,6 +9103,134 @@ namespace ScannerBackgrdServer
                 //去掉最后一个字符
                 sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
             }           
+
+            sql = string.Format("insert into bwlist values(NULL,{0})", sqlSub);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(e);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 2018-07-20
+        /// 在白名单自学习中，将捕号记录保存成白名单
+        /// </summary>
+        /// <param name="cap">捕号记录的信息</param>
+        /// <param name="affDeviceId">所属的设备Id</param>
+        /// <returns>
+        ///   RC.NO_OPEN             ：数据库尚未打开
+        ///   RC.PAR_NULL            ：参数为空
+        ///   PAR_LEN_ERR            ：参数长度有误
+        ///   RC.OP_FAIL             ：数据库操作失败 
+        ///   EXIST                  ：记录已经存在
+        ///   IMSI_IMEI_BOTH_NULL    ：IMSI和IMEI都为空
+        ///   RC.DEV_NO_EXIST        ：设备不存在
+        ///   RC.SUCCESS             ：成功 
+        /// </returns>
+        public int bwlist_record_insert(strCapture cap, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(cap.imsi) && string.IsNullOrEmpty(cap.imei))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.IMSI_IMEI_BOTH_NULL], "DB", LogCategory.I);
+                return (int)RC.IMSI_IMEI_BOTH_NULL;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            if (!string.IsNullOrEmpty(cap.imsi))
+            {
+                //检查IMSI是否存在(固定为白名单)
+                if ((int)RC.EXIST == bwlist_record_imsi_exist(cap.imsi,bwType.BWTYPE_WHITE, affDeviceId))
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                    return (int)RC.EXIST;
+                }
+            }
+
+            //
+            // 对于GSW和WCDMA，imsi和imei都为非空
+            //           
+
+            string sql = "";
+            string sqlSub = "";            
+
+            if (!string.IsNullOrEmpty(cap.imsi))
+            {
+                sqlSub += string.Format("'{0}',", cap.imsi);
+            }           
+
+           
+            //imei
+            sqlSub += string.Format("NULL,");
+            
+
+            //固定为白名单
+            sqlSub += string.Format("'white',");
+            
+            //rbStart
+            sqlSub += string.Format("NULL,");
+            
+            //rbEnd
+            sqlSub += string.Format("NULL,");
+        
+            //time
+            if (!string.IsNullOrEmpty(cap.time))
+            {
+                try
+                {
+                    DateTime.Parse(cap.time);
+                    sqlSub += string.Format("'{0}',", cap.time);
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message, "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("Now(),");
+            }
+
+            //des(固定为wSelfStudy)
+            sqlSub += string.Format("'{0}',", "wSelfStudy");
+       
+            ///
+            /// linkFlag affDeviceId affDomainId
+            /// 总是链接到DeviceId                
+            /// 
+            sqlSub += string.Format("0,{0},NULL,", affDeviceId);
+
+            if (sqlSub != "")
+            {
+                //去掉最后一个字符
+                sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+            }
 
             sql = string.Format("insert into bwlist values(NULL,{0})", sqlSub);
             try
@@ -9310,7 +9467,7 @@ namespace ScannerBackgrdServer
                 }
                 else
                 {
-                    sqlSub += string.Format("NULL,");
+                    sqlSub += string.Format("{0},",affDeviceId);
                 }
 
                 //(11)-affDomainId
@@ -10785,7 +10942,13 @@ namespace ScannerBackgrdServer
                 return (int)RC.EXIST;
             }
 
-            string sql = string.Format("insert into ap_general_para values(NULL,'{0}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Now(),{1})", mode,affDeviceId);
+            // string sql = string.Format("insert into ap_general_para values(NULL,'{0}',NULL,NULL,NULL,
+            // NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+            // NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Now(),{1})", mode,affDeviceId);
+
+            // 2018-07-23
+            string sql = string.Format("insert into ap_general_para(id,mode,time,affDeviceId) values(NULL,'{0}',Now(),{1})", mode, affDeviceId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -10849,11 +11012,15 @@ namespace ScannerBackgrdServer
                 }
                 else
                 {
-                    if ((apGP.mode != "GSM") &&
-                        (apGP.mode != "TD-SCDMA") &&
-                        (apGP.mode != "WCDMA") &&
-                        (apGP.mode != "LTE-TDD") &&
-                        (apGP.mode != "LTE-FDD"))
+                    devMode dm = get_device_mode(apGP.mode);
+
+                    //if ((apGP.mode != "GSM") &&
+                    //    (apGP.mode != "TD-SCDMA") &&
+                    //    (apGP.mode != "WCDMA") &&
+                    //    (apGP.mode != "LTE-TDD") &&
+                    //    (apGP.mode != "LTE-FDD"))
+
+                    if(dm == devMode.MODE_UNKNOWN)
                     {
                         Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + "mode不支持.", "DB", LogCategory.I);
                         return (int)RC.PAR_FMT_ERR;
@@ -10954,7 +11121,7 @@ namespace ScannerBackgrdServer
             {
                 try
                 {
-                    int.Parse(apGP.tac);
+                    UInt16.Parse(apGP.tac);
                     sqlSub += string.Format("tac = {0},", apGP.tac);
                 }
                 catch (Exception ex)
@@ -11185,6 +11352,83 @@ namespace ScannerBackgrdServer
                 {
                     sqlSub += string.Format("gpsConfig = {0},", apGP.gpsConfig);
                 }              
+            }
+
+
+
+            // 2108-07-23
+            if (!string.IsNullOrEmpty(apGP.otherplmn))
+            {
+                if (apGP.otherplmn.Length > 256)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    if (false == check_id_set(apGP.otherplmn))
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + "otherplmn格式有误", "DB", LogCategory.I);
+                        return (int)RC.PAR_FMT_ERR;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("otherplmn = '{0}',", apGP.otherplmn);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(apGP.periodFreq))
+            {
+                if (apGP.periodFreq.Length > 256)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("periodFreq = '{0}',", apGP.periodFreq);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(apGP.res1))
+            {
+                if (apGP.res1.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res1 = '{0}',", apGP.res1);
+                }
+            }
+         
+
+            if (!string.IsNullOrEmpty(apGP.res2))
+            {
+                if (apGP.res2.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res2 = '{0}',", apGP.res2);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(apGP.res3))
+            {
+                if (apGP.res3.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res3 = '{0}',", apGP.res3);
+                }
             }
 
             //(23,24)
@@ -11497,6 +11741,36 @@ namespace ScannerBackgrdServer
                                 apGP.gpsConfig = "0";
                             }
 
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["otherplmn"].ToString()))
+                            {
+                                apGP.otherplmn = dr["otherplmn"].ToString();
+                            }
+
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["periodFreq"].ToString()))
+                            {
+                                apGP.periodFreq = dr["periodFreq"].ToString();
+                            }
+
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["res1"].ToString()))
+                            {
+                                apGP.res1 = dr["res1"].ToString();
+                            }
+
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["res2"].ToString()))
+                            {
+                                apGP.res2 = dr["res2"].ToString();
+                            }
+
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["res3"].ToString()))
+                            {
+                                apGP.res3 = dr["res3"].ToString();
+                            }
+
                             if (!string.IsNullOrEmpty(dr["activeTime1Start"].ToString()))
                             {
                                 apGP.activeTime1Start = dr["activeTime1Start"].ToString();
@@ -11608,29 +11882,35 @@ namespace ScannerBackgrdServer
             //public string ManualBw;          //手动设置同步带宽
             //public string gpsConfig;         //GPS配置，0表示NOGPS，1表示GPS
 
-            genParaString += apGP.mode;
-            genParaString += apGP.primaryplmn;
-            genParaString += apGP.earfcndl;
-            genParaString += apGP.earfcnul;
-            genParaString += apGP.cellid;
-            genParaString += apGP.pci;
-            genParaString += apGP.bandwidth;
-            genParaString += apGP.tac;
-            genParaString += apGP.txpower;
-            genParaString += apGP.periodtac;
-            genParaString += apGP.manualfreq;
-            genParaString += apGP.bootMode;
-            genParaString += apGP.Earfcnlist;
-            genParaString += apGP.Bandoffset;
-            genParaString += apGP.NTP;
-            genParaString += apGP.ntppri;
-            genParaString += apGP.source;
-            genParaString += apGP.ManualEnable;
-            genParaString += apGP.ManualEarfcn;
-            genParaString += apGP.ManualPci;
-            genParaString += apGP.ManualBw;
-            genParaString += apGP.gpsConfig;
-      
+            //public string otherplmn;         //多PLMN选项，多个之间用逗号隔开
+            //public string periodFreq;        //{周期:freq1,freq2,freq3}
+
+            genParaString += string.Format("[{0}]", apGP.mode);
+            genParaString += string.Format("[{0}]", apGP.primaryplmn);
+            genParaString += string.Format("[{0}]", apGP.earfcndl);
+            genParaString += string.Format("[{0}]", apGP.earfcnul);
+            genParaString += string.Format("[{0}]", apGP.cellid);
+            genParaString += string.Format("[{0}]", apGP.pci);
+            genParaString += string.Format("[{0}]", apGP.bandwidth);
+            genParaString += string.Format("[{0}]", apGP.tac);
+            genParaString += string.Format("[{0}]", apGP.txpower);
+            genParaString += string.Format("[{0}]", apGP.periodtac);
+            genParaString += string.Format("[{0}]", apGP.manualfreq);
+            genParaString += string.Format("[{0}]", apGP.bootMode);
+            genParaString += string.Format("[{0}]", apGP.Earfcnlist);
+            genParaString += string.Format("[{0}]", apGP.Bandoffset);
+            genParaString += string.Format("[{0}]", apGP.NTP);
+            genParaString += string.Format("[{0}]", apGP.ntppri);
+            genParaString += string.Format("[{0}]", apGP.source);
+            genParaString += string.Format("[{0}]", apGP.ManualEnable);
+            genParaString += string.Format("[{0}]", apGP.ManualEarfcn);
+            genParaString += string.Format("[{0}]", apGP.ManualPci);
+            genParaString += string.Format("[{0}]", apGP.ManualBw);
+            genParaString += string.Format("[{0}]", apGP.gpsConfig);
+
+            genParaString += string.Format("[{0}]", apGP.otherplmn);
+            genParaString += string.Format("[{0}]", apGP.periodFreq);
+
             return (int)RC.SUCCESS;
         }
 
@@ -13933,6 +14213,47 @@ namespace ScannerBackgrdServer
             }
 
 
+            // 2018-07-23
+            if (!string.IsNullOrEmpty(grp.res1))
+            {
+                if (grp.res1.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res1 = '{0}',", grp.res1);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(grp.res2))
+            {
+                if (grp.res2.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res2 = '{0}',", grp.res2);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(grp.res3))
+            {
+                if (grp.res3.Length > 128)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res3 = '{0}',", grp.res3);
+                }
+            }
+
+
             //(5,6)
             if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
             {
@@ -14127,6 +14448,22 @@ namespace ScannerBackgrdServer
                                 grp.bindingDevId = dr["bindingDevId"].ToString();
                             }
 
+                            // 2018-07-23
+                            if (!string.IsNullOrEmpty(dr["res1"].ToString()))
+                            {
+                                grp.res1 = dr["res1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res2"].ToString()))
+                            {
+                                grp.res2 = dr["res2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res3"].ToString()))
+                            {
+                                grp.res3 = dr["res3"].ToString();
+                            }
+
                             if (!string.IsNullOrEmpty(dr["activeTime1Start"].ToString()))
                             {
                                 grp.activeTime1Start = dr["activeTime1Start"].ToString();
@@ -14286,16 +14623,16 @@ namespace ScannerBackgrdServer
             }
 
             gsmAllParaString = "";
-            gsmAllParaString += gsp.paraMcc;
-            gsmAllParaString += gsp.paraMnc;
-            gsmAllParaString += gsp.paraBsic;
-            gsmAllParaString += gsp.paraLac;
-            gsmAllParaString += gsp.paraCellId;
-            gsmAllParaString += gsp.paraC2;
-            gsmAllParaString += gsp.paraPeri;
-            gsmAllParaString += gsp.paraAccPwr;
-            gsmAllParaString += gsp.paraMsPwr;
-            gsmAllParaString += gsp.paraRejCau;
+            gsmAllParaString += string.Format("[{0}]", gsp.paraMcc);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraMnc);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraBsic);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraLac);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraCellId);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraC2);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraPeri);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraAccPwr);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraMsPwr);
+            gsmAllParaString += string.Format("[{0}]", gsp.paraRejCau);
 
             strGsmSysOption gso = new strGsmSysOption();
             rtv = gsm_sys_option_record_get_by_devid(carry, affDeviceId, ref gso);
@@ -14303,14 +14640,13 @@ namespace ScannerBackgrdServer
             {
                 return rtv;
             }
-
-            gsmAllParaString = "";
-            gsmAllParaString += gso.opLuSms;
-            gsmAllParaString += gso.opLuImei;
-            gsmAllParaString += gso.opCallEn;
-            gsmAllParaString += gso.opDebug;
-            gsmAllParaString += gso.opLuType;
-            gsmAllParaString += gso.opSmsType;
+           
+            gsmAllParaString += string.Format("[{0}]", gso.opLuSms);
+            gsmAllParaString += string.Format("[{0}]", gso.opLuImei);
+            gsmAllParaString += string.Format("[{0}]", gso.opCallEn);
+            gsmAllParaString += string.Format("[{0}]", gso.opDebug);
+            gsmAllParaString += string.Format("[{0}]", gso.opLuType);
+            gsmAllParaString += string.Format("[{0}]", gso.opSmsType);
 
             strGsmRfPara grp = new strGsmRfPara();
             rtv = gsm_rf_para_record_get_by_devid(carry, affDeviceId, ref grp);
@@ -14319,13 +14655,13 @@ namespace ScannerBackgrdServer
                 return rtv;
             }
 
-            gsmAllParaString = "";
-            gsmAllParaString += grp.rfEnable;
-            gsmAllParaString += grp.rfFreq;
-            gsmAllParaString += grp.rfPwr;
+
+            gsmAllParaString += string.Format("[{0}]", grp.rfEnable);
+            gsmAllParaString += string.Format("[{0}]", grp.rfFreq);
+            gsmAllParaString += string.Format("[{0}]", grp.rfPwr);
 
             //RECV_REG_MODE
-            gsmAllParaString += gso.opRegModel;
+            gsmAllParaString += string.Format("[{0}]", gso.opRegModel);
 
             return (int)RC.SUCCESS;
         }

@@ -34,10 +34,14 @@ namespace ScannerBackgrdServer
         private static string strFtpBatchUpdateRecordsLevel = "6";
         private static string strFtpMaxIdleSeconds = "60";
 
-        private static string strStartPortGSM = "8060";
-        private static string strStartPortLTE = "8080";
-        private static string strStartPortTDS = "8084";
-        private static string strStartPortWCDMA = "8088";
+        // 2018-07-25
+        private static string strStartPortCDMA_ZYF = "14783";
+        private static string strStartPortGSM_ZYF = "14784";
+        private static string strStartPortGSM_HJT = "14785";
+
+        private static string strStartPortLTE = "14786";
+        private static string strStartPortTDS = "14787";
+        private static string strStartPortWCDMA = "14788";
 
         private static string strStartPortAppWindows = "14789";
         private static string strStartPortAppLinux = "14790";
@@ -82,6 +86,12 @@ namespace ScannerBackgrdServer
         /// </summary>
         private static int dataAlignMode = 0;
 
+        /// <summary>
+        /// 号码归属地计算方式：
+        /// 0直接从接口，1接口加哈希
+        /// </summary>
+        private static int imsiParseMode = 1;
+        
         #endregion
 
         #region 属性定义
@@ -102,13 +112,14 @@ namespace ScannerBackgrdServer
         public static string StrFtpImsiDir { get => strFtpImsiDir; set => strFtpImsiDir = value; }
         public static string StrFtpUpdateDir { get => strFtpUpdateDir; set => strFtpUpdateDir = value; }
 
-       // public static string StrDbBatchUpdateRecords { get => strDbBatchUpdateRecords; set => strDbBatchUpdateRecords = value; }
+       
         public static string StrDbMaxIdleSeconds { get => strDbMaxIdleSeconds; set => strDbMaxIdleSeconds = value; }
-
-       // public static string StrFtpBatchUpdateRecords { get => strFtpBatchUpdateRecords; set => strFtpBatchUpdateRecords = value; }
         public static string StrFtpMaxIdleSeconds { get => strFtpMaxIdleSeconds; set => strFtpMaxIdleSeconds = value; }
 
-        public static string StrStartPortGSM { get => strStartPortGSM; set => strStartPortGSM = value; }
+        public static string StrStartPortCDMA_ZYF { get => strStartPortCDMA_ZYF; set => strStartPortCDMA_ZYF = value; }
+        public static string StrStartPortGSM_ZYF { get => strStartPortGSM_ZYF; set => strStartPortGSM_ZYF = value; }
+        public static string StrStartPortGSM_HJT { get => strStartPortGSM_HJT; set => strStartPortGSM_HJT = value; }
+
         public static string StrStartPortLTE { get => strStartPortLTE; set => strStartPortLTE = value; }
         public static string StrStartPortTDS { get => strStartPortTDS; set => strStartPortTDS = value; }
         public static string StrStartPortWCDMA { get => strStartPortWCDMA; set => strStartPortWCDMA = value; }
@@ -133,6 +144,7 @@ namespace ScannerBackgrdServer
 
         public static int SimuTest { get => simuTest; set => simuTest = value; }
         public static int DataAlignMode { get => dataAlignMode; set => dataAlignMode = value; }
+        public static int ImsiParseMode { get => imsiParseMode; set => imsiParseMode = value; }
 
         #endregion
 
@@ -165,7 +177,10 @@ namespace ScannerBackgrdServer
                 strFtpBatchUpdateRecordsLevel = ConfigurationManager.AppSettings["strFtpBatchUpdateRecordsLevel"].ToString();
                 strFtpMaxIdleSeconds = ConfigurationManager.AppSettings["strFtpMaxIdleSeconds"].ToString();
 
-                strStartPortGSM = ConfigurationManager.AppSettings["strStartPortGSM"].ToString();
+                strStartPortCDMA_ZYF = ConfigurationManager.AppSettings["strStartPortCDMA_ZYF"].ToString();
+                strStartPortGSM_ZYF = ConfigurationManager.AppSettings["strStartPortGSM_ZYF"].ToString();
+                strStartPortGSM_HJT = ConfigurationManager.AppSettings["strStartPortGSM_HJT"].ToString();
+
                 strStartPortLTE = ConfigurationManager.AppSettings["strStartPortLTE"].ToString();
                 strStartPortTDS = ConfigurationManager.AppSettings["strStartPortTDS"].ToString();
                 strStartPortWCDMA = ConfigurationManager.AppSettings["strStartPortWCDMA"].ToString();
@@ -198,7 +213,8 @@ namespace ScannerBackgrdServer
                 _timerTimeOutInterval = int.Parse(ConfigurationManager.AppSettings["timerTimeOutInterval"].ToString());
 
                 simuTest = int.Parse(ConfigurationManager.AppSettings["simuTest"].ToString());
-                dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());                
+                dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());
+                imsiParseMode = int.Parse(ConfigurationManager.AppSettings["imsiParseMode"].ToString());
             }
             catch (Exception ee)
             {
