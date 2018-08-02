@@ -21,7 +21,7 @@ namespace ScannerBackgrdServer.ApController
         public static uint heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
-        private const string MODE_NAME = "WCDMA";
+        private string MODE_NAME = ApInnerType.WCDMA.ToString();
 
         public Ap_WCDMA()
         {
@@ -99,7 +99,7 @@ namespace ScannerBackgrdServer.ApController
             //心跳消息处理
             if (msgBody.type == ApMsgType.status_response)
             {
-                OnOutputLog(LogInfoType.INFO, "收到心跳消息");
+                //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
                 if (heartbeatMsgNum == System.UInt32.MaxValue)
                     heartbeatMsgNum = 0;
                 else
@@ -126,7 +126,7 @@ namespace ScannerBackgrdServer.ApController
                 Send2main_OnOffLine("OnLine", i, apToken);
 
                 //判断是周期心跳，还是上线心跳
-                if ((detail & (int)AP_STATUS.OnLine) > 0) //上线
+                if ((detail & (int)AP_STATUS_LTE.OnLine) > 0) //上线
                 {
                     //OnOutputLog(LogInfoType.DEBG, "上线消息");
                     if ("OnLine".Equals(MyDeviceList.GetMainControllerStatus(apToken)))
@@ -145,7 +145,7 @@ namespace ScannerBackgrdServer.ApController
                     //OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
                 }
                 //发送状态改变
-                Send2ap_ApStatusChange(apToken, oldDetail);
+                Send2ap_ApStatusChange_LTE(apToken, oldDetail);
             }
             else if (msgBody.type == ApMsgType.get_general_para_response)
             {

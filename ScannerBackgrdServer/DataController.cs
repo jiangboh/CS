@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using ScannerBackgrdServer.Common;
 
 namespace ScannerBackgrdServer
@@ -57,7 +58,7 @@ namespace ScannerBackgrdServer
         /// <summary>
         /// 配置Log输出级别，大于等于该级别的都输出，否则不输出
         /// </summary>
-        private static LogInfoType logOutputLevel = LogInfoType.DEBG;
+        private static LogInfoType logOutputLevel = LogInfoType.INFO;
 
         /// <summary>
         /// 检查FTP Server的连接状态的频率，秒数
@@ -91,7 +92,30 @@ namespace ScannerBackgrdServer
         /// 0直接从接口，1接口加哈希
         /// </summary>
         private static int imsiParseMode = 1;
-        
+
+        /// <summary>
+        /// 每个Log文件存放多少条记录
+        /// </summary>
+        private static int logLinesPerFils = 50000;
+
+        /// <summary>
+        /// Log的输出类型
+        /// File = 0 
+        /// Net  = 1
+        /// Both = 2
+        /// </summary>
+        private static LogOutType logOutputType = LogOutType.OT_File;
+
+        /// <summary>
+        /// Log接收的服务器IP地址
+        /// </summary>
+        private static string strLogIpAddr = "127.0.0.1";
+
+        /// <summary>
+        /// Log接收的服务器端口
+        /// </summary>
+        private static string strLogPort = "23456";
+
         #endregion
 
         #region 属性定义
@@ -145,13 +169,18 @@ namespace ScannerBackgrdServer
         public static int SimuTest { get => simuTest; set => simuTest = value; }
         public static int DataAlignMode { get => dataAlignMode; set => dataAlignMode = value; }
         public static int ImsiParseMode { get => imsiParseMode; set => imsiParseMode = value; }
+        public static int LogLinesPerFils { get => logLinesPerFils; set => logLinesPerFils = value; }
+
+        public static string StrLogIpAddr { get => strLogIpAddr; set => strLogIpAddr = value; }
+        public static string StrLogPort { get => strLogPort; set => strLogPort = value; }
+        public static LogOutType LogOutputType { get => logOutputType; set => logOutputType = value; }
 
         #endregion
 
         static DataController()
         {
             try
-            {
+            {              
                 strAppDebugMode = ConfigurationManager.AppSettings["strAppDebugMode"].ToString();
 
                 strDbSwitch = ConfigurationManager.AppSettings["strDbSwitch"].ToString();
@@ -163,7 +192,7 @@ namespace ScannerBackgrdServer
                 strDbPort = ConfigurationManager.AppSettings["strDbPort"].ToString();
 
                 strFtpSwitch = ConfigurationManager.AppSettings["strFtpSwitch"].ToString();
-                StrFtpIpAddr = ConfigurationManager.AppSettings["strFtpIpAddr"].ToString();
+                strFtpIpAddr = ConfigurationManager.AppSettings["strFtpIpAddr"].ToString();
                 strFtpUserId = ConfigurationManager.AppSettings["strFtpUserId"].ToString();
                 strFtpUserPsw = ConfigurationManager.AppSettings["strFtpUserPsw"].ToString();
                 strFtpUserPsw = Common.Common.Decode(StrFtpUserPsw);
@@ -194,7 +223,6 @@ namespace ScannerBackgrdServer
                 recordsOfPageSize = int.Parse(ConfigurationManager.AppSettings["recordsOfPageSize"].ToString());
 
                 logOutputLevel = (LogInfoType)int.Parse(ConfigurationManager.AppSettings["logOutputLevel"].ToString());
-
                 if (logOutputLevel > LogInfoType.EROR)
                 {
                     logOutputLevel = LogInfoType.EROR;
@@ -215,10 +243,27 @@ namespace ScannerBackgrdServer
                 simuTest = int.Parse(ConfigurationManager.AppSettings["simuTest"].ToString());
                 dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());
                 imsiParseMode = int.Parse(ConfigurationManager.AppSettings["imsiParseMode"].ToString());
+
+                logLinesPerFils = int.Parse(ConfigurationManager.AppSettings["logLinesPerFils"].ToString());
+
+                strLogIpAddr = ConfigurationManager.AppSettings["strLogIpAddr"].ToString();
+                strLogPort = ConfigurationManager.AppSettings["strLogPort"].ToString();
+
+                logOutputType = (LogOutType)int.Parse(ConfigurationManager.AppSettings["logOutputType"].ToString());
+                if (logOutputType > LogOutType.OT_Both)
+                {
+                    logOutputType = LogOutType.OT_Both;
+                }
+
+                if (logOutputType < LogOutType.OT_File)
+                {
+                    logOutputType = LogOutType.OT_File;
+                }              
             }
             catch (Exception ee)
             {
-                Logger.Trace(ee);
+                Logger.Trace(LogInfoType.EROR, ee.Message, "DC", LogCategory.I);
+                MessageBox.Show(ee.Message, "DC出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
             }
         }
     }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -12,6 +13,27 @@ namespace ScannerBackgrdServer.Common
 {
     class Xml_codec
     {
+        /// <summary>
+        /// 日志打印。
+        /// </summary>
+        /// <param name="str"></param>
+        public static void StaticOutputLog(LogInfoType type, string str, string modeName,
+                                LogCategory category = LogCategory.I,
+                                [CallerMemberName] string memberName = "",
+                                [CallerFilePath] string filePath = "",
+                                [CallerLineNumber] int lineNumber = 0)
+        {
+            if (type < DataController.LogOutputLevel) return;
+
+            string outStr = string.Format("{0}", str);
+            Console.WriteLine(outStr);
+
+            FrmMainController.add_log_info(type, outStr, modeName, category, filePath, memberName,lineNumber);
+            Logger.Trace(type, outStr, modeName, category, memberName, filePath, lineNumber);
+
+            outStr = null;
+        }
+
         static private string[] ErrorCode = {
             "XML解析/封装成功！",
             "收到的数据不是XML格式！",

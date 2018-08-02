@@ -206,7 +206,10 @@ namespace ScannerBackgrdServer.Common
 
         public const string set_whitelist_study_request = "set_whitelist_study_request";
         public const string set_whitelist_study_result = "set_whitelist_study_result";
-        
+      
+        public const string get_whitelist_study_request = "get_whitelist_study_request";
+        public const string get_whitelist_study_result = "get_whitelist_study_result";
+
         public const string get_general_para_request = "get_general_para_request";
         public const string get_general_para_response = "get_general_para_response";
 
@@ -231,6 +234,8 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         public const string agent_transmit_ack_msg_ms = "ack_msg_ms";
 
+        public const string agent_straight_msg = "straight_msg";
+       
         #endregion
     }
 
@@ -1063,7 +1068,8 @@ namespace ScannerBackgrdServer.Common
         //    {
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
         //   "name":"电信FDD",
-        //   "mode":"LTE-TDD",    //GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD     
+        //   "mode":"LTE-TDD",    //GSM,GSM-V2,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD   
+        //                        //GSM-V2,2018-07-29
         //}
         //   "n_dic":[     //2018-07-04
         //      {
@@ -1175,6 +1181,7 @@ namespace ScannerBackgrdServer.Common
         public const string app_get_device_detail_request = "app_get_device_detail_request";
 
         //
+        //  用于LTE/GSM-V2/CDMA，2018-07-31
         //  获取设备详细信息的响应
         //  1,正常；0，不正常
         //  "dic":
@@ -1187,7 +1194,21 @@ namespace ScannerBackgrdServer.Common
         //    "name":"电信FDD",
         //    "n_dic":[
         //      {
-        //         "name":"",
+        //         "name":"carry0",
+        //         "dic":{
+        //         "SCTP":"1",                    //SCTP连接状态 ：1,正常；0，不正常
+        //         "S1":"0",                      //S1连接状态   ：1,正常；0，不正常
+        //         "GPS":"1",                     //GPS连接状态  ：1,正常；0，不正常
+        //         "CELL":"0",                    //CELL状态     :1,正常；0，不正常
+        //         "SYNC":"0",                    //同步状态     ：1,正常；0，不正常
+        //         "LICENSE":"1",                 //LICENSE状态 ：1,正常；0，不正常
+        //         "RADIO":"1",                   //射频状态     ：1,正常；0，不正常
+        //         "wSelfStudy"  "0"              //"0"正常状态，"1"自学习状态 ，2018-07-19
+        //         "time":"2018-05-24 15:38:55"   //时间戳
+        //       }
+        //    "n_dic":[
+        //      {
+        //         "name":"carry1",
         //         "dic":{
         //         "SCTP":"1",                    //SCTP连接状态 ：1,正常；0，不正常
         //         "S1":"0",                      //S1连接状态   ：1,正常；0，不正常
@@ -1443,11 +1464,17 @@ namespace ScannerBackgrdServer.Common
 
         //
         //  app设置生效时间段的请求
+        //
+        //   可用于设置LTE/GSM/GSM-V2/CDMA，2018-07-31
+        //
         //"type":"app_set_GenPara_ActiveTime_Request"  
         //"dic":
         //    {
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
         //   "name":"电信FDD"
+        //   "carry":"0/1/2"     //有载波时包含该字段，2018-07-31
+        //                       //0表示载波1，1表示载波2，2表示两个载波都设置
+        //
         //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
         //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
         //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
@@ -1798,8 +1825,7 @@ namespace ScannerBackgrdServer.Common
         //       {
         //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
         //					"bC":XXX		            是否自动切换模式。保留
-        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
-        //					"dwDateTime":XXX			当前时间	
+        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点	
         //					"bPLMNId":XXX		    PLMN标志
         //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
         //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
@@ -1818,10 +1844,12 @@ namespace ScannerBackgrdServer.Common
         //    ];
         //"n_dic":
         //   [
-        //       "name":"CONTROL_FAP_RF_MSG",            //控制FAP射频的消息（暂未定义）
-        //       {
+        //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
+        //      {
+        //					"bSMSOriginalNum":XXX	    	主叫号码
+        //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
         //       }
-        //    ];
+        //    ],
         //"n_dic":
         //   [
         //       "name":"CONTROL_FAP_RADIO_ON_MSG",            //4.11  GUI 控制FAP开启射频
@@ -1872,10 +1900,7 @@ namespace ScannerBackgrdServer.Common
         //   [
         //       "name":"CONFIG_IMSI_MSG_V3_ID",                 //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
         //      {
-        //					"wTotalImsi":XXX		总的IMSI数
-        //					"bIMSINum":n		    本条消息中的IMSI(n<=50)
-        //					"bSegmentType":XXX		分段类型。1=First, 2=SubSq, 3=Last, 4=Complete(如果配置/查询的IMSI超过50，使用多个消息来配置， 此时需要填写分段类型)
-        //					"bSegmentID":XXX		分段ID
+        //					"wTotalImsi":n		    本条消息中的IMSI(n<=1000)
         //					"bActionType":XXX		动作类型。1 = Delete All IMSI；2 = Delete Special IMSI；3 = Add IMSI；4 = Query IMSI
         //					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
         //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
@@ -2022,6 +2047,14 @@ namespace ScannerBackgrdServer.Common
         #region GSM_ZYF/CDMA_ZYF消息
         //"n_dic":
         //   [
+        //       "name":"SEND_REQ_CNF",                 // 	请求确认
+        //      {
+        //					"cnfType;":确认的请求类型 //同enum RecvPktType
+        //					"cnfInd":0表示正确接收，1表示参数错误
+        //       }
+        //    ],
+        //"n_dic":
+        //   [
         //       "name":"FAP_NB_CELL_INFO_MSG",                 //4.3  FAP上报邻区信息
         //      {
         //					"bFapNbCellNum":n	         邻小区个数。最多16个(n<=16)
@@ -2045,43 +2078,6 @@ namespace ScannerBackgrdServer.Common
         //    ],
         //"n_dic":
         //   [
-        //       "name":"CONFIG_FAP_MSG",            //4.4  GUI配置FAP的启动参数
-        //       {
-        //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
-        //					"bC":XXX		            是否自动切换模式。保留
-        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
-        //					"dwDateTime":XXX			当前时间	
-        //					"bPLMNId":XXX		    PLMN标志
-        //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
-        //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
-        //					"wPhyCellId":XXX		物理小区ID.
-        //					"wLAC":XXX			    追踪区域码。GSM：LAC;CDMA：REG_ZONE
-        //					"wUARFCN":XXX			小区频点. CDMA 制式为BSID
-        //					"dwCellId":XXX			小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONTROL_FAP_REBOOT_MSG",            //4.5  GUI控制FAP的重启
-        //       {
-        //          "bRebootFlag":0/1	FAP重启标志。1表示FAP需要立即重启。
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONTROL_FAP_RF_MSG",            //控制FAP射频的消息(暂未定义)
-        //       {
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"FAP_HEARTBEAT_MSG",                 //4.6  FAP心跳消息，FAP启动成功后，每10秒发送一次该消息给GUI
-        //      {
-        //            该消息不用。
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
         //       "name":"FAP_TRACE_MSG",                 //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
         //      {
         //					"wTraceLen":XXX	      Trace长度
@@ -2092,16 +2088,12 @@ namespace ScannerBackgrdServer.Common
         //   [
         //       "name":"UE_STATUS_REPORT_MSG",                 //4.8  FAP上报UE相关状态
         //      {
-        //					"bUeIdType1":XXX	    UeId类型。1=IMSI, 2=TMSI, 3=IMEI/ESN
-        //					"bUeId1":XXX            用户号
-        //					"cRSRP":XXX	            接收信号强度	
-        //					"bUeIdLen1":XXX	        UeId的有效字节数
-        //					"bUeIdType2":XXX	    UeId类型。1=IMSI, 2=TMSI, 3=IMEI/ESN，其他=后续UeId无效
-        //					"bUeId2":XXX            用户号
-        //					"bUeIdLen2":XXX	        UeId的有效字节数
-        //					"bUeIdType3":XXX	    UeId类型。1=IMSI, 2=TMSI,3=IMEI/ESN，其他=后续UeId无效
-        //					"bUeId3":XXX            用户号
-        //					"bUeIdLen3":XXX          UeId的有效字节数
+        //					"imsi":XXX	    //上报imsi，如果没有为空
+        //					"imei":XXX      //上报imsi，如果没有为空      
+        //					"tmsi":XXX	    //上报imsi，如果没有为空       
+        //					"rsrp":XXX	    //上报imsi，如果没有为空
+        //                  "sn":XXX        //上报ap的Sn
+        //                  "userType":XXX  //用户类型，该版本一直为空
         //       }
         //    ],
         //"n_dic":
@@ -2113,16 +2105,6 @@ namespace ScannerBackgrdServer.Common
         //					"cRSRP":XXX	    	    接收信号强度。寻呼测量时，-128表示寻呼失败
         //					"bUeContentLen":XXX	    Ue主叫内容长度
         //					"bUeContent":XXX	    Ue主叫内容。最大249字节。
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"CONFIG_SMS_CONTENT_MSG_I",                 //4.10  FAP 配置下发短信号码和内容
-        //      {
-        //					"bSMSOriginalNumLen":XXX	    主叫号码长度
-        //					"bSMSOriginalNum":XXX	    	主叫号码
-        //					"bSMSContentLen":XXX	    	短信内容字数
-        //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
         //       }
         //    ],
         //"n_dic":
@@ -2155,62 +2137,7 @@ namespace ScannerBackgrdServer.Common
         //					"wARFCN4Duration":XXX	工作频点4扫描时长
         //					"wARFCN4Period":XXX	    工作频点4扫描间隔
         //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"CONTROL_FAP_RADIO_ON_MSG",            //4.11  GUI 控制FAP开启射频
-        //       {
-        //                  "rfStatus":XXX          射频状态。0：关闭；1：开启
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONTROL_FAP_RADIO_OFF_MSG",            //4.12  GUI 控制FA关闭射频
-        //       {
-        //                  "rfStatus":XXX          射频状态。0：关闭；1：开启
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONTROL_FAP_RESET_MSG",            //4.13  GUI 控制FAP的软复位
-        //       {
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONFIG_CDMA_CARRIER_MSG",            //4.14  GUI 配置CDMA多载波参数
-        //       {
-        //					"wARFCN1":XXX	        工作频点1	
-        //					"bARFCN1Mode":XXX	    工作频点1模式。0表示扫描，1表示常开,2表示关闭。
-        //					"wARFCN1Duration":XXX	工作频点1扫描时长
-        //					"wARFCN1Period":XXX	    工作频点1扫描间隔
-        //					"wARFCN2":XXX	        工作频点2
-        //					"bARFCN2Mode":XXX	    工作频点2模式。 0表示扫描，1表示常开,2表示关闭。
-        //					"wARFCN2Duration":XXX	工作频点2扫描时长
-        //					"wARFCN2Period":XXX	    工作频点2扫描间隔
-        //					"wARFCN3":XXX	        工作频点3	
-        //					"bARFCN3Mode":XXX	    工作频点3模式。 0表示扫描，1表示常开,2表示关闭。
-        //					"wARFCN3Duration":XXX	工作频点3扫描时长	
-        //					"wARFCN3Period":XXX	    工作频点3扫描间隔
-        //					"wARFCN4":XXX	        工作频点4	
-        //					"bARFCN4Mode":XXX	    工作频点4模式。	0表示扫描，1表示常开,2表示关闭。
-        //					"wARFCN4Duration":XXX	工作频点4扫描时长
-        //					"wARFCN4Period":XXX	    工作频点4扫描间隔
-        //       }
-        //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONFIG_IMSI_MSG_V3_ID",                 //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
-        //      {
-        //					"wTotalImsi":XXX		总的IMSI数
-        //					"bIMSINum":n		    本条消息中的IMSI(n<=50)
-        //					"bSegmentType":XXX		分段类型。1=First, 2=SubSq, 3=Last, 4=Complete(如果配置/查询的IMSI超过50，使用多个消息来配置， 此时需要填写分段类型)
-        //					"bSegmentID":XXX		分段ID
-        //					"bActionType":XXX		动作类型。1 = Delete All IMSI；2 = Delete Special IMSI；3 = Add IMSI；4 = Query IMSI
-        //					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
-        //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
-        //       }
-        //    ],
+        //    ], 
         #endregion
         public const string gsm_msg_recv = "gsm_msg_recv"; 
 
@@ -2285,6 +2212,109 @@ namespace ScannerBackgrdServer.Common
         //       ...
         //}
         public const string app_get_GsmInfo_Response = "app_get_GsmInfo_Response";
+
+        //
+        //  app获取GSM-V2或CDMA设备的信息
+        //"type":"app_get_GCInfo_Request" 
+        //"dic":
+        //    {
+        //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
+        //   "name":"GCname"         //GSM-V2/CDMA的名称
+        //   "carry":"x"             //GSM-V2的载波标识，"0"或者"1" ; CDMA时为"-1"
+        //}
+        public const string app_get_GCInfo_Request = "app_get_GCInfo_Request";
+
+        //
+        //  app获取GSM设备的信息
+        //"type":"app_get_GsmInfo_Response" 
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr":  失败原因值。ReturnCode不为0时有意义
+        //    "domainId":"2",       
+        //    "domainParentId":"1",
+        //    "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
+        //    "name":"GCname",
+        //    "carry":"0"          
+        //"n_dic":
+        //   [
+        //       "name":"CONFIG_FAP_MSG",            //4.4  GUI配置FAP的启动参数
+        //       {
+        //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
+        //					"bC":XXX		            是否自动切换模式。保留
+        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
+        //					"dwDateTime":XXX			当前时间	
+        //					"bPLMNId":XXX		    PLMN标志
+        //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
+        //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
+        //					"wPhyCellId":XXX		物理小区ID.
+        //					"wLAC":XXX			    追踪区域码。GSM：LAC;CDMA：REG_ZONE
+        //					"wUARFCN":XXX			小区频点. CDMA 制式为BSID
+        //					"dwCellId":XXX			小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
+        //       }
+        //    ]; 
+        //"n_dic":
+        //   [
+        //       "name":"FAP_TRACE_MSG",     //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
+        //      {
+        //					"wTraceLen":XXX	      Trace长度
+        //                  "cTrace":XXX          Trace内容
+        //       }
+        //    ],
+        //"n_dic":
+        //   [
+        //       "name":"UE_ORM_REPORT_MSG",                 //4.9  FAP上报UE主叫信息，只用于GSM和CDMA
+        //      {
+        //					"bOrmType":XXX	    	主叫类型。1=呼叫号码, 2=短消息PDU,3=寻呼测量
+        //					"bUeId":XXX	     	    IMSI
+        //					"cRSRP":XXX	    	    接收信号强度。寻呼测量时，-128表示寻呼失败
+        //					"bUeContentLen":XXX	    Ue主叫内容长度
+        //					"bUeContent":XXX	    Ue主叫内容。最大249字节。
+        //       }
+        //    ],
+        //"n_dic":
+        //   [
+        //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
+        //      {
+        //					"bSMSOriginalNumLen":XXX	    主叫号码长度
+        //					"bSMSOriginalNum":XXX	    	主叫号码
+        //					"bSMSContentLen":XXX	    	短信内容字数
+        //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
+        //       }
+        //    ],
+        //"n_dic":
+        //   [
+        //       "name":"CONFIG_CDMA_CARRIER_MSG",            //4.14  GUI 配置CDMA多载波参数
+        //       {
+        //					"wARFCN1":XXX	        工作频点1	
+        //					"bARFCN1Mode":XXX	    工作频点1模式。0表示扫描，1表示常开,2表示关闭。
+        //					"wARFCN1Duration":XXX	工作频点1扫描时长
+        //					"wARFCN1Period":XXX	    工作频点1扫描间隔
+        //					"wARFCN2":XXX	        工作频点2
+        //					"bARFCN2Mode":XXX	    工作频点2模式。 0表示扫描，1表示常开,2表示关闭。
+        //					"wARFCN2Duration":XXX	工作频点2扫描时长
+        //					"wARFCN2Period":XXX	    工作频点2扫描间隔
+        //					"wARFCN3":XXX	        工作频点3	
+        //					"bARFCN3Mode":XXX	    工作频点3模式。 0表示扫描，1表示常开,2表示关闭。
+        //					"wARFCN3Duration":XXX	工作频点3扫描时长	
+        //					"wARFCN3Period":XXX	    工作频点3扫描间隔
+        //					"wARFCN4":XXX	        工作频点4	
+        //					"bARFCN4Mode":XXX	    工作频点4模式。	0表示扫描，1表示常开,2表示关闭。
+        //					"wARFCN4Duration":XXX	工作频点4扫描时长
+        //					"wARFCN4Period":XXX	    工作频点4扫描间隔
+        //       }
+        //    ];
+        //"n_dic":
+        //   [
+        //       "name":"CONFIG_IMSI_MSG_V3_ID",    //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
+        //      {
+        //					"wTotalImsi":XXX		总的IMSI数（此版本忽略）				
+        //					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
+        //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
+        //       }
+        //    ],
+        //}
+        public const string app_get_GCInfo_Response = "app_get_GCInfo_Response";
 
         #endregion
 
@@ -2380,7 +2410,6 @@ namespace ScannerBackgrdServer.Common
         public const string transparent_msg_response = "transparent_msg_response";
 
         #endregion
-  
     }
 
     class Main2ApControllerMsgType : AppMsgType
@@ -2566,34 +2595,21 @@ namespace ScannerBackgrdServer.Common
         //    }
         //"n_dic":
         //   [
-        //       "name":"FAP_NB_CELL_INFO_MSG",                 //4.3  FAP上报邻区信息
-        //      {
-        //					"bFapNbCellNum":n	         邻小区个数。最多16个(n<=16)
-        //					"Cell_#n#/bGCId":XXX         小区ID。注意在CDMA制式没有小区ID，高位WORD是SID，低位WORD是NID
-        //					"Cell_#n#/bPLMNId":XXX       邻小区PLMN标志。
-        //					"Cell_#n#/cRSRP":XXX	     信号功率
-        //					"Cell_#n#/wTac":XXX	         追踪区域码。GSM：LAC；CDMA：REG_ZONE
-        //					"Cell_#n#/wPhyCellId":XXX	 物理小区ID。GSM：BSIC；CDMA：PN
-        //					"Cell_#n#/wUARFCN":XXX	     小区频点
-        //					"Cell_#n#/cRefTxPower":XXX	 参考发射功率。GSM制式时为C1测量值
-        //					"Cell_#n#/bNbCellNum":XXX	 邻小区的令小区个数
-        //					"Cell_#n#/bC2":XXX	         C2测量值。GSM,其他制式保留
-        //					"Cell_#n#/bReserved1":XXX	 只用于LTE,其它保留
-        //					"Cell_#n#/stNbCell":m		 邻小区的邻小区个数，最多32个（m<=32）
-        //					"Cell_#n#/NeighCell_#m#/wUarfcn":XXX	    小区频点
-        //					"Cell_#n#/NeighCell_#m#/wPhyCellId":XXX	    物理小区ID。GSM:BSIC；CDMA：PN
-        //					"Cell_#n#/NeighCell_#m#/cRSRP":XXX	        信号功率
-        //					"Cell_#n#/NeighCell_#m#/cC1":XXX	        C1测量值。只用于GSM制式
-        //					"Cell_#n#/NeighCell_#m#/bC2":XXX	        C2测量值。只用于GSM制式
+        //       "name":"CONFIG_FAP_MSG",            //4.4  GUI配置FAP的启动参数
+        //       {
+        //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
+        //					"bC":XXX		            是否自动切换模式。保留
+        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
+        //					"dwDateTime":XXX			当前时间	
+        //					"bPLMNId":XXX		    PLMN标志
+        //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
+        //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
+        //					"wPhyCellId":XXX		物理小区ID.
+        //					"wLAC":XXX			    追踪区域码。GSM：LAC;CDMA：REG_ZONE
+        //					"wUARFCN":XXX			小区频点. CDMA 制式为BSID
+        //					"dwCellId":XXX			小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
         //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"FAP_HEARTBEAT_MSG",                 //4.6  FAP心跳消息，FAP启动成功后，每10秒发送一次该消息给GUI
-        //      {
-        //            该消息不用。
-        //       }
-        //    ],
+        //    ];
         //"n_dic":
         //   [
         //       "name":"FAP_TRACE_MSG",                 //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
@@ -2615,7 +2631,7 @@ namespace ScannerBackgrdServer.Common
         //    ],
         //"n_dic":
         //   [
-        //       "name":"CONFIG_SMS_CONTENT_MSG_I",                 //4.10  FAP 配置下发短信号码和内容
+        //       "name":"CONFIG_SMS_CONTENT_MSG",           //4.10  FAP 配置下发短信号码和内容
         //      {
         //					"bSMSOriginalNumLen":XXX	    主叫号码长度
         //					"bSMSOriginalNum":XXX	    	主叫号码
@@ -2625,17 +2641,8 @@ namespace ScannerBackgrdServer.Common
         //    ],
         //"n_dic":
         //   [
-        //       "name":"FAP_PARAM_REPORT_MSG",                 //4.16  FAP上报FAP运行参数
-        //      {
-        //					"bWorkingMode":XXX		工作模式。1：侦码模式；3：驻留模式(GSM/CDMA支持)
-        //					"wCDMAUarfcn":XXX		CDMA黑名单频点
-        //					"bPLMNId":XXX		    PLMN标志。ASCII字符
-        //					"bDlAtt":XXX		    发送衰减。0~89，Unit: dB
-        //					"bRxGain":XXX		    保留字段。Unit: dB
-        //					"wPhyCellId":XXX		物理小区ID。GSM：不用；CDMA：PN
-        //					"wLac":XXX		        区域码。GSM：LAC；CDMA：REG_ZONE
-        //					"wUARFCN":XXX		    小区频点。CDMA制式为BSID
-        //					"dwCellId":XXX		    小区ID。注意在CDMA制式没有小区ID，高位WORD是SID，低位WORD是NID
+        //       "name":"CONFIG_CDMA_CARRIER_MSG",            //4.14  GUI 配置CDMA多载波参数
+        //       {
         //					"wARFCN1":XXX	        工作频点1	
         //					"bARFCN1Mode":XXX	    工作频点1模式。0表示扫描，1表示常开,2表示关闭。
         //					"wARFCN1Duration":XXX	工作频点1扫描时长
@@ -2652,6 +2659,20 @@ namespace ScannerBackgrdServer.Common
         //					"bARFCN4Mode":XXX	    工作频点4模式。	0表示扫描，1表示常开,2表示关闭。
         //					"wARFCN4Duration":XXX	工作频点4扫描时长
         //					"wARFCN4Period":XXX	    工作频点4扫描间隔
+        //       }
+        //    ];
+        //"n_dic":
+        //   [
+        //       "name":"CONFIG_IMSI_MSG_V3_ID",                 //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
+        //      {
+        //					"wTotalImsi":XXX		总的IMSI数（此版本忽略）
+        //					"bIMSINum":n		    本条消息中的IMSI(n<=50)
+        //					"bSegmentType":XXX		分段类型。1=First, 2=SubSq, 3=Last, 4=Complete
+        //                                          (如果配置/查询的IMSI超过50，使用多个消息来配置， 此时需要填写分段类型) （此版本忽略）
+        //					"bSegmentID":XXX		分段ID（此版本忽略）
+        //					"bActionType":XXX		动作类型。1 = Delete All IMSI；2 = Delete Special IMSI；3 = Add IMSI；4 = Query IMSI
+        //					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
+        //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
         //       }
         //    ],
         #endregion
@@ -2837,7 +2858,7 @@ namespace ScannerBackgrdServer.Common
         //    ],
         //"n_dic":
         //   [
-        //       "name":"CONFIG_SMS_CONTENT_MSG_I",                 //4.10  FAP 配置下发短信号码和内容
+        //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
         //      {
         //					"bSMSOriginalNumLen":XXX	    主叫号码长度
         //					"bSMSOriginalNum":XXX	    	主叫号码
@@ -3008,11 +3029,13 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         public enum ApInnerType
         {
-            GSM_HJT=0,
-            GSM_ZYF,
-            LTE,
+            GSM=0,
+            GSM_V2,
+            TD_SCDMA,
+            CDMA,
             WCDMA,
-            CDMA_ZYF
+            LTE_TDD,
+            LTE_FDD
         }
 
         /// <summary>

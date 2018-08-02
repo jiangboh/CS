@@ -300,7 +300,7 @@ namespace ScannerBackgrdServer.ApController
         public static uint heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
-        private const string MODE_NAME = "GSM_HJT";
+        private string MODE_NAME = ApInnerType.GSM.ToString();
 
         public Ap_GSM_HJT()
         {
@@ -324,7 +324,7 @@ namespace ScannerBackgrdServer.ApController
                 string msg = GetDeviceMsg_XML(apToKen);
                 if (string.IsNullOrEmpty(msg))
                 {
-                    OnOutputLog(LogInfoType.INFO, "消息已解析完。缓存里没有完整消息了！");
+                    //OnOutputLog(LogInfoType.DEBG, "消息已解析完。缓存里没有完整消息了！");
                     return;
                 }
                 HandleApMsg(apToKen, msg);
@@ -477,7 +477,7 @@ namespace ScannerBackgrdServer.ApController
             //心跳消息处理
             if (msgBody.type == ApMsgType.status_response)
             {
-                OnOutputLog(LogInfoType.INFO, "收到心跳消息");
+                //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
                 if (heartbeatMsgNum == System.UInt32.MaxValue)
                     heartbeatMsgNum = 0;
                 else

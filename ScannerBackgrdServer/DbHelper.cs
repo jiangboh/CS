@@ -82,7 +82,7 @@ namespace ScannerBackgrdServer
     /// </summary>
     public struct strApGenPara
     {
-        public string mode;              //制式：GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD'
+        public string mode;              //制式：GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD
         public string primaryplmn;       //主plmn
         public string earfcndl;          //工作上行频点
         public string earfcnul;          //工作下行频点
@@ -332,6 +332,171 @@ namespace ScannerBackgrdServer
         public string additionalFreq;   //uarfcn,uarfcn;不超过7个freq，超过7个freq的默认丢弃
     };
 
+
+    /// <summary>
+    /// gc_nb_cell表的各个字段
+    /// </summary>
+    public struct strGcNbCell
+    {
+        public string bGCId;         //小区ID。CDMA没有小区ID，高WORD是SID，低WORD是NID
+        public string bPLMNId;       //邻小区PLMN标志
+        public string cRSRP;         //信号功率
+        public string wTac;          //追踪区域码
+        public string wPhyCellId;    //小区ID
+        public string wUARFCN;       //小区频点
+        public string cRefTxPower;   //GSM制式时为C1测量值
+        public string bNbCellNum;    //邻小区个数
+        public string bC2;           //C2测量值（GSM）,其他制式保留
+        public string bReserved1;    //只用于LTE
+
+        public string nc_item;                 //邻小区Item;
+        public List<strGcNbCellItem> listItem; //邻小区Item
+    };
+
+
+    /// <summary>
+    /// 邻小区Item
+    /// </summary>
+    public struct strGcNbCellItem
+    {
+        public string wUarfcn;      //小区频点
+        public string wPhyCellId;   //物理小区ID
+        public string cRSRP;        //信号功率
+        public string bReserved;    //保留
+        public string cC1;          //C1测量值
+        public string bC2;          //C2测量值
+    };
+
+
+    public struct strGcParamConfig
+    {
+        public string bWorkingMode;          //工作模式。1：侦码模式；3：驻留模式(GSM/CDMA支持)
+        public string bC;                    //是否自动切换模式。保留
+        public string wRedirectCellUarfcn;   //CDMA黑名单频点
+        public string dwDateTime;            //当前时间
+        public string bPLMNId;               //PLMN标志
+        public string bTxPower;              //实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
+        public string bRxGain;               //接收信号衰减寄存器. 每增加1增加1DB的增益
+        public string wPhyCellId;            //物理小区ID。GSM：不用；CDMA：PN
+        public string wLAC;                  //追踪区域码。GSM：LAC;CDMA：REG_ZONE
+        public string wUARFCN;               //小区频点。CDMA制式为BSID
+        public string dwCellId;              //小区ID。CDMA制式没有小区ID，高WORD是SID，低WORD是NID
+     
+        public string res1;                //保留字段1
+        public string res2;                //保留字段2
+        public string res3;                //保留字段3
+
+        public string bindingDevId;        //仅用于标识GSM的绑定设备id
+    };
+
+    public struct strGcCarrierMsg
+    {      
+        public string wARFCN1;              //工作频点1
+        public string bARFCN1Mode;          //工作频点1模式。0表示扫描，1表示常开,2表示关闭
+        public string bReserved1;           //保留字段1
+        public string wARFCN1Duration;      //工作频点1扫描时长
+        public string wARFCN1Period;        //工作频点1扫描间隔
+
+        public string wARFCN2;              //工作频点2
+        public string bARFCN2Mode;          //工作频点2模式。0表示扫描，1表示常开,2表示关闭
+        public string bReserved2;           //保留字段2
+        public string wARFCN2Duration;      //工作频点2扫描时长
+        public string wARFCN2Period;        //工作频点2扫描间隔
+
+        public string wARFCN3;              //工作频点3
+        public string bARFCN3Mode;          //工作频点3模式。0表示扫描，1表示常开,2表示关闭
+        public string bReserved3;           //保留字段3
+        public string wARFCN3Duration;      //工作频点3扫描时长
+        public string wARFCN3Period;        //工作频点3扫描间隔
+
+        public string wARFCN4;              //工作频点4
+        public string bARFCN4Mode;          //工作频点4模式。0表示扫描，1表示常开,2表示关闭
+        public string bReserved4;           //保留字段4
+        public string wARFCN4Duration;      //工作频点4扫描时长
+        public string wARFCN4Period;        //工作频点4扫描间隔       
+
+        public string bindingDevId;        //仅用于标识GSM的绑定设备id
+    };
+
+    public struct strGcMisc
+    {
+        public string wTraceLen;          //Trace长度
+        public string cTrace;             //Trace内容
+
+        public string bOrmType;           //主叫类型，1=呼叫号码, 2=短消息PDU, 3=寻呼测量
+        public string bUeId;              //IMSI
+        public string cRSRP;              //接收信号强度
+        public string bUeContentLen;      //Ue主叫内容长度
+        public string bUeContent;         //Ue主叫内容，可变长度，最大249字节
+    
+        public string bSMSOriginalNumLen; //主叫号码长度
+        public string bSMSOriginalNum;    //主叫号码
+        public string bSMSContentLen;     //短信内容字数，0~70
+        public string bSMSContent;        //短信内容
+
+        public string SCTP;          //SCTP连接状态 ：1,正常；0，不正常
+        public string S1;            //S1连接状态   ：1,正常；0，不正常
+        public string GPS;           //GPS连接状态  ：1,正常；0，不正常
+        public string CELL;          //CELL状态     :1,正常；0，不正常
+        public string SYNC;          //同步状态     ：1,正常；0，不正常
+        public string LICENSE;       //LICENSE状态 ：1,正常；0，不正常
+        public string RADIO;         //射频状态     ：1,正常；0，不正常
+        public string time;          //时间戳
+
+        // 2018-07-18
+        public string activeTime1Start;  //生效时间1的起始时间
+        public string activeTime1Ended;  //生效时间1的结束时间
+        public string activeTime2Start;  //生效时间2的起始时间
+        public string activeTime2Ended;  //生效时间2的结束时间
+        public string activeTime3Start;  //生效时间3的起始时间，有的话就添加该项
+        public string activeTime3Ended;  //生效时间3的结束时间，有的话就添加该项
+        public string activeTime4Start;  //生效时间4的起始时间，有的话就添加该项
+        public string activeTime4Ended;  //生效时间4的结束时间，有的话就添加该项
+
+        public string bindingDevId;       //仅用于标识GSM的绑定设备id
+    };
+
+    public struct strGcImsiAction
+    {
+        public string bIMSI;          //IMSI号
+        public string bUeActionFlag;  //目标IMSI对应的动作，1 = Reject 5 = Hold ON'
+
+        public string res1;           //保留字段1
+        public string res2;           //保留字段2
+        public string res3;           //保留字段3
+
+        public string bindingDevId;   //仅用于标识GSM的绑定设备id
+    };
+
+
+    /// <summary>
+    /// GSM-V2和CDMA
+    /// </summary>
+    public struct str_GC_All_Para
+    {
+        public int sys;                        //系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
+        public int hardware_id;                //硬件id
+        public string Protocol;                //"GSM"或者"CDMA"
+
+        // 暂时不用
+        public bool gcNbCellFlag;
+        public List<strGcNbCell> listGcNbCell;      
+
+        public bool gcParamConfigFlag;
+        public strGcParamConfig gcParamConfig;
+
+        public bool gcCarrierMsgFlag;
+        public strGcCarrierMsg gcCarrierMsg;        
+
+        public bool gcMiscFlag;
+        public strGcMisc gcMisc;        
+
+        public bool gcImsiActionFlag;
+        public string actionType;
+        public List<strGcImsiAction> listGcImsiAction;   
+
+    };
+
     public enum RC    //数据库返回代码
     {
         SUCCESS = 0,  //成功
@@ -385,6 +550,8 @@ namespace ScannerBackgrdServer
         CAP_QUERY_INFO_ERR = -33,    //捕号查询信息有误
         TIME_ST_EN_ERR = -34,        //开始时间大于结束时间
         DOMAIN_NO_EXIST = -35,       //域不存在
+
+        CARRY_ERR = -36,             //载波非法
     }
 
     /// <summary>
@@ -430,16 +597,20 @@ namespace ScannerBackgrdServer
     }
 
     /// <summary>
-    /// 设备的类型
+    /// 设备的制式mode
+    /// 软件的内部类型也统一一样定义
+    /// 2018-07-30
     /// </summary>
     public enum devMode
     {
-        MODE_GSM = 0,       
-        MODE_TD_SCDMA = 1,  
-        MODE_WCDMA = 3,    
-        MODE_LTE_TDD = 4,   
-        MODE_LTE_FDD = 5,
-        MODE_UNKNOWN = 6
+        MODE_GSM = 0,        //对应"GSM"
+        MODE_GSM_V2 = 1,     //对应"GSM-V2"
+        MODE_TD_SCDMA = 2,   //对应"TD-SCDMA"
+        MODE_CDMA = 3,       //对应"CDMA"
+        MODE_WCDMA = 4,      //对应"WCDMA "
+        MODE_LTE_TDD = 5,    //对应"LTE-TDD"
+        MODE_LTE_FDD = 6,    //对应"LTE-TDD"    
+        MODE_UNKNOWN = 7     //"非上述定义类型"
     }
 
     #endregion
@@ -586,7 +757,9 @@ namespace ScannerBackgrdServer
             dicRTV.Add((int)RC.AP_MODE_ERR, "AP的制式不对");
             dicRTV.Add((int)RC.CAP_QUERY_INFO_ERR, "捕号查询信息有误");
             dicRTV.Add((int)RC.TIME_ST_EN_ERR, "开始时间大于结束时间");    
-            dicRTV.Add((int)RC.DOMAIN_NO_EXIST, "域不存在");           
+            dicRTV.Add((int)RC.DOMAIN_NO_EXIST, "域不存在");
+
+            dicRTV.Add((int)RC.CARRY_ERR, "载波非法");
 
             try
             {
@@ -596,7 +769,7 @@ namespace ScannerBackgrdServer
             }
             catch (MySqlException e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return false;
             }
         }
@@ -618,7 +791,7 @@ namespace ScannerBackgrdServer
             }
             catch (MySqlException e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return false;
             }
         }
@@ -698,7 +871,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return null;
             }
 
@@ -790,7 +963,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -866,7 +1039,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -935,7 +1108,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -955,7 +1128,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -975,7 +1148,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1042,7 +1215,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1123,7 +1296,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1148,7 +1321,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1197,10 +1370,26 @@ namespace ScannerBackgrdServer
                         {
                             DataRow row = dt.NewRow();
 
-                            row[0] = Convert.ToUInt32(dr[0]);
-                            row[1] = dr[1].ToString();
-                            row[2] = dr[2].ToString();
-                            row[3] = dr[3].ToString();
+                            row["usrId"] = Convert.ToUInt32(dr["usrId"]);
+
+                            if (!string.IsNullOrEmpty(dr["name"].ToString()))
+                            {
+                                row["name"] = dr["name"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["operTime"].ToString()))
+                            {
+                                row["operTime"] = dr["operTime"].ToString();
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -1210,7 +1399,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1272,7 +1461,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1351,7 +1540,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1424,7 +1613,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1442,7 +1631,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1499,7 +1688,15 @@ namespace ScannerBackgrdServer
 
                             row[0] = Convert.ToUInt32(dr[0]);
                             row[1] = dr[1].ToString();
-                            row[2] = dr[2].ToString();        
+
+                            if (!string.IsNullOrEmpty(dr[2].ToString()))
+                            {
+                                row[2] = dr[2].ToString();
+                            }
+                            else
+                            {
+                                row[2] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -1509,7 +1706,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1571,7 +1768,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1685,7 +1882,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1758,7 +1955,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1778,7 +1975,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1853,7 +2050,15 @@ namespace ScannerBackgrdServer
                             row[2] = dr[2].ToString();
                             row[3] = dr[3].ToString();
                             row[4] = dr[4].ToString();
-                            row[5] = dr[5].ToString();
+
+                            if (!string.IsNullOrEmpty(dr[5].ToString()))
+                            {
+                                row[5] = dr[5].ToString();
+                            }
+                            else
+                            {
+                                row[5] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -1863,7 +2068,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1925,7 +2130,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1976,7 +2181,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2047,7 +2252,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2107,7 +2312,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2135,12 +2340,9 @@ namespace ScannerBackgrdServer
 
             dt = new DataTable("privilege");
 
-            DataColumn column0 = new DataColumn("priId", System.Type.GetType("System.UInt32"));
-            
-            DataColumn column1 = new DataColumn("funName", System.Type.GetType("System.String"));  
-            
-            DataColumn column2 = new DataColumn("aliasName", System.Type.GetType("System.String")); 
-            
+            DataColumn column0 = new DataColumn("priId", System.Type.GetType("System.UInt32"));            
+            DataColumn column1 = new DataColumn("funName", System.Type.GetType("System.String"));              
+            DataColumn column2 = new DataColumn("aliasName", System.Type.GetType("System.String"));             
             DataColumn column3 = new DataColumn("des", System.Type.GetType("System.String"));
             
             dt.Columns.Add(column0);
@@ -2159,10 +2361,30 @@ namespace ScannerBackgrdServer
                         {
                             DataRow row = dt.NewRow();
 
-                            row[0] = Convert.ToUInt32(dr[0]);
-                            row[1] = dr[1].ToString();
-                            row[2] = dr[2].ToString();
-                            row[3] = dr[3].ToString();         
+                            row["priId"] = Convert.ToUInt32(dr["priId"]);
+
+                            if (!string.IsNullOrEmpty(dr["funName"].ToString()))
+                            {
+                                row["funName"] = dr["funName"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["aliasName"].ToString()))
+                            {
+                                row["aliasName"] = dr["aliasName"].ToString();
+                            }
+                            else
+                            {
+                                row["aliasName"] = "";
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }  
 
                             dt.Rows.Add(row);
                         }
@@ -2172,7 +2394,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2220,7 +2442,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2270,7 +2492,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2333,7 +2555,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2433,7 +2655,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2495,7 +2717,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2556,9 +2778,29 @@ namespace ScannerBackgrdServer
                             DataRow row = dt.NewRow();
 
                             row[0] = Convert.ToUInt32(dr[0]);
-                            row[1] = dr[1].ToString();
-                            row[2] = dr[2].ToString();
-                            row[3] = dr[3].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["usrName"].ToString()))
+                            {
+                                row["usrName"] = dr["usrName"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["roleName"].ToString()))
+                            {
+                                row["roleName"] = dr["roleName"].ToString();
+                            }
+                            else
+                            {
+                                row["roleName"] = "";
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -2568,7 +2810,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2637,7 +2879,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2706,7 +2948,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return  (int)RC.OP_FAIL;
             }
 
@@ -2760,7 +3002,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(ee);
+                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                         //return false;                  
                     }
                 }
@@ -2817,7 +3059,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(ee);
+                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                         //return false;
                     }
                 }
@@ -2980,7 +3222,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3084,7 +3326,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3144,7 +3386,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3205,9 +3447,29 @@ namespace ScannerBackgrdServer
                             DataRow row = dt.NewRow();
 
                             row[0] = Convert.ToUInt32(dr[0]);
-                            row[1] = dr[1].ToString();
-                            row[2] = dr[2].ToString();
-                            row[3] = dr[3].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["roleName"].ToString()))
+                            {
+                                row["roleName"] = dr["roleName"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["priIdSet"].ToString()))
+                            {
+                                row["priIdSet"] = dr["priIdSet"].ToString();
+                            }
+                            else
+                            {
+                                row["priIdSet"] = "";
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -3217,7 +3479,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3293,7 +3555,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3361,13 +3623,36 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
-                            str.id = Convert.ToInt32(dr[0]);
-                            str.name = dr[1].ToString();
-                            str.parentId = Convert.ToInt32(dr[2]);
-                            //str.idFullPath = dr[3].ToString();
-                            str.nameFullPath = dr[3].ToString();
-                            str.isStation = Convert.ToInt32(dr[4]);
-                            str.des = dr[5].ToString();
+                            str.id = Convert.ToInt32(dr["id"]);
+
+                            if (!string.IsNullOrEmpty(dr["name"].ToString()))
+                            {
+                                str.name = dr["name"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["parentId"].ToString()))
+                            {
+                                str.parentId = Convert.ToInt32(dr["parentId"].ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()))
+                            {
+                                str.nameFullPath = dr["nameFullPath"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["isStation"].ToString()))
+                            {
+                                str.isStation = Convert.ToInt32(dr["isStation"].ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                str.des = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                str.des = "";
+                            }
                         }
                         dr.Close();
                     }
@@ -3375,7 +3660,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3420,12 +3705,43 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
-                            str.id = Convert.ToInt32(dr[0]);
-                            str.name = dr[1].ToString();
-                            str.parentId = Convert.ToInt32(dr[2]);                           
-                            str.nameFullPath = dr[3].ToString();
-                            str.isStation = Convert.ToInt32(dr[4]);
-                            str.des = dr[5].ToString();
+                            //str.id = Convert.ToInt32(dr[0]);
+                            //str.name = dr[1].ToString();
+                            //str.parentId = Convert.ToInt32(dr[2]);                           
+                            //str.nameFullPath = dr[3].ToString();
+                            //str.isStation = Convert.ToInt32(dr[4]);
+                            //str.des = dr[5].ToString();
+
+                            str.id = Convert.ToInt32(dr["id"]);
+
+                            if (!string.IsNullOrEmpty(dr["name"].ToString()))
+                            {
+                                str.name = dr["name"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["parentId"].ToString()))
+                            {
+                                str.parentId = Convert.ToInt32(dr["parentId"].ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()))
+                            {
+                                str.nameFullPath = dr["nameFullPath"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["isStation"].ToString()))
+                            {
+                                str.isStation = Convert.ToInt32(dr["isStation"].ToString());
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                str.des = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                str.des = "";
+                            }
                         }
                         dr.Close();
                     }
@@ -3433,7 +3749,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3480,7 +3796,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3540,7 +3856,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3584,7 +3900,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3649,7 +3965,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3700,7 +4016,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3798,7 +4114,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3871,7 +4187,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3955,7 +4271,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3979,7 +4295,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4110,7 +4426,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4130,7 +4446,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4204,7 +4520,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }           
 
@@ -4289,12 +4605,30 @@ namespace ScannerBackgrdServer
                         {
                             DataRow row = dt.NewRow();
 
-                            row[0] = Convert.ToInt32(dr[0]);
-                            row[1] = dr[1].ToString();
-                            row[2] = Convert.ToInt32(dr[2]);
-                            row[3] = dr[3].ToString();
-                            row[4] = Convert.ToInt32(dr[4]);
-                            row[5] = dr[5].ToString();
+                            row["id"] = Convert.ToInt32(dr["id"]);
+
+                            if (!string.IsNullOrEmpty(dr["name"].ToString()))
+                            {
+                                row["name"] = dr["name"].ToString();
+                            }
+
+                            row["parentId"] = Convert.ToInt32(dr["parentId"]);
+
+                            if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()))
+                            {
+                                row["nameFullPath"] = dr["nameFullPath"].ToString();
+                            }
+
+                            row["isStation"] = Convert.ToInt32(dr["isStation"]);
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -4304,7 +4638,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4352,7 +4686,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4431,12 +4765,23 @@ namespace ScannerBackgrdServer
         public devMode get_device_mode(string modeStr)
         {
             devMode devMode = devMode.MODE_UNKNOWN;
-
             if (string.IsNullOrEmpty(modeStr))
             {
                 return devMode;
             }
 
+            //public enum ApInnerType
+            //{
+            //    GSM = 0,
+            //    GSM_V2,
+            //    TD_SCDMA,
+            //    CDMA,
+            //    WCDMA,
+            //    LTE_TDD,
+            //    LTE_FDD
+            //}
+
+            modeStr = modeStr.ToUpper();
             switch (modeStr)
             {
                 case "GSM":
@@ -4444,9 +4789,21 @@ namespace ScannerBackgrdServer
                         devMode = devMode.MODE_GSM;
                         break;
                     }
+                case "GSM_V2":
+                case "GSM-V2":
+                    {
+                        devMode = devMode.MODE_GSM_V2;
+                        break;
+                    }
                 case "TD_SCDMA":
+                case "TD-SCDMA":
                     {
                         devMode = devMode.MODE_TD_SCDMA;
+                        break;
+                    }
+                case "CDMA":
+                    {
+                        devMode = devMode.MODE_CDMA;
                         break;
                     }
                 case "WCDMA":
@@ -4454,11 +4811,13 @@ namespace ScannerBackgrdServer
                         devMode = devMode.MODE_WCDMA;
                         break;
                     }
+                case "LTE_TDD":
                 case "LTE-TDD":
                     {
                         devMode = devMode.MODE_LTE_TDD;
                         break;
                     }
+                case "LTE_FDD":
                 case "LTE-FDD":
                     {
                         devMode = devMode.MODE_LTE_FDD;
@@ -4490,19 +4849,19 @@ namespace ScannerBackgrdServer
                         modeStr = "GSM";
                         break;
                     }
-                case devMode.MODE_LTE_FDD:
+                case devMode.MODE_GSM_V2:
                     {
-                        modeStr = "LTE_FDD";
-                        break;
-                    }
-                case devMode.MODE_LTE_TDD:
-                    {
-                        modeStr = "LTE_TDD";
+                        modeStr = "GSM-V2";
                         break;
                     }
                 case devMode.MODE_TD_SCDMA:
                     {
-                        modeStr = "TD_SCDMA";
+                        modeStr = "TD-SCDMA";
+                        break;
+                    }
+                case devMode.MODE_CDMA:
+                    {
+                        modeStr = "CDMA";
                         break;
                     }
                 case devMode.MODE_WCDMA:
@@ -4510,14 +4869,24 @@ namespace ScannerBackgrdServer
                         modeStr = "WCDMA";
                         break;
                     }
+                case devMode.MODE_LTE_TDD:
+                    {
+                        modeStr = "LTE-TDD";
+                        break;
+                    }
+                case devMode.MODE_LTE_FDD:
+                    {
+                        modeStr = "LTE-FDD";
+                        break;
+                    }                                            
                 case devMode.MODE_UNKNOWN:
                     {
-                        modeStr = "";
+                        modeStr = "UNKNOWN";
                         break;
                     }
                 default:
                     {
-                        modeStr = "";
+                        modeStr = "UNKNOWN";
                         break;
                     }
             }
@@ -4577,7 +4946,7 @@ namespace ScannerBackgrdServer
         //    }
         //    catch (Exception e)
         //    {
-        //        Logger.Trace(e);
+        //        Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
         //        return (int)RC.OP_FAIL;
         //    }
 
@@ -4685,7 +5054,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4795,7 +5164,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4898,7 +5267,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -4943,7 +5312,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5005,7 +5374,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5058,7 +5427,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5222,7 +5591,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5290,7 +5659,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5402,7 +5771,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5465,7 +5834,15 @@ namespace ScannerBackgrdServer
                             row[0] = Convert.ToUInt32(dr[0]);
                             row[1] = dr[1].ToString();
                             row[2] = dr[2].ToString();
-                            row[3] = dr[3].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["des"].ToString()))
+                            {
+                                row["des"] = dr["des"].ToString();
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -5475,7 +5852,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5530,7 +5907,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5603,7 +5980,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5680,7 +6057,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5765,7 +6142,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5816,7 +6193,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -5872,7 +6249,6 @@ namespace ScannerBackgrdServer
             }
 
             devMode dm = get_device_mode(mode);
-
             if (dm == devMode.MODE_UNKNOWN)
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.AP_MODE_ERR], "DB", LogCategory.I);
@@ -5893,7 +6269,7 @@ namespace ScannerBackgrdServer
                 return (int)RC.EXIST;
             }
 
-            #region
+            #region comment
 
             //Int32 maxId = 0;
             //string sql = string.Format("select max(id) from device");
@@ -5913,7 +6289,7 @@ namespace ScannerBackgrdServer
             //}
             //catch (Exception e)
             //{
-            //    Logger.Trace(e);
+            //    Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
             //    return (int)RC.OP_FAIL;
             //}
 
@@ -5934,7 +6310,7 @@ namespace ScannerBackgrdServer
             //    }
             //    catch (Exception e)
             //    {
-            //        Logger.Trace(e);
+            //        Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
             //        return (int)RC.OP_FAIL;
             //    }
             //}
@@ -5956,7 +6332,7 @@ namespace ScannerBackgrdServer
             //        }
             //        catch (Exception e)
             //        {
-            //            Logger.Trace(e);
+            //            Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
             //            return (int)RC.OP_FAIL;
             //        }
             //    }
@@ -5979,13 +6355,12 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
-
-            string modeFromDev = "";
             int id = -1;
+            string modeFromDev = "";            
 
             /*
              * 通过所属域ID和名称获取对应的设备id列表和mode
@@ -6000,6 +6375,8 @@ namespace ScannerBackgrdServer
             {
                 case devMode.MODE_GSM:
                     {
+                        #region GSM
+
                         rtv2 = gsm_sys_para_record_insert(0, id);
                         if (rtv2 != 0)
                         {
@@ -6037,12 +6414,81 @@ namespace ScannerBackgrdServer
                         }
 
                         break;
+
+                        #endregion
+                    }
+                case devMode.MODE_GSM_V2:
+                    {
+                        #region GSM-V2
+
+                        // 2108-07-29
+
+                        rtv2 = ap_status_record_insert(id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        rtv2 = gc_param_config_record_insert(0, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        rtv2 = gc_param_config_record_insert(1, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        rtv2 = gc_misc_record_insert(0, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        rtv2 = gc_misc_record_insert(1, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        break;
+
+                        #endregion
+                    }
+                case devMode.MODE_CDMA:
+                    {
+                        #region CDMA
+
+                        // 2108-07-29
+
+                        rtv2 = gc_param_config_record_insert(-1, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        rtv2 = gc_misc_record_insert(-1, id);
+                        if (rtv2 != 0)
+                        {
+                            return rtv2;
+                        }
+
+                        break;
+
+                        #endregion
                     }
                 case devMode.MODE_TD_SCDMA:
+                    {
+                        break;
+                    }
                 case devMode.MODE_WCDMA:
                 case devMode.MODE_LTE_FDD:
                 case devMode.MODE_LTE_TDD:
                     {
+                        #region LTE
+
                         rtv2 = ap_status_record_insert(id);
                         if (rtv2 != 0)
                         {
@@ -6056,7 +6502,9 @@ namespace ScannerBackgrdServer
                         }
 
                         break;
-                    }                                  
+
+                        #endregion
+                    }
                 case devMode.MODE_UNKNOWN:
                     {
                         break;
@@ -6135,7 +6583,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6282,7 +6730,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(ee);
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }                
             }
@@ -6334,7 +6782,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(ee);
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -6392,7 +6840,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6431,7 +6879,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6498,7 +6946,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6518,6 +6966,8 @@ namespace ScannerBackgrdServer
             {
                 case devMode.MODE_GSM:
                     {
+                        #region GSM
+
                         rtv = 0;
                         rtv += gsm_sys_para_record_delete(0, id);
                         rtv += gsm_sys_para_record_delete(1, id);
@@ -6531,12 +6981,61 @@ namespace ScannerBackgrdServer
                         rtv += bwlist_record_delete(id);
 
                         break;
+
+                        #endregion
+                    }
+                case devMode.MODE_GSM_V2:
+                    {
+                        #region GSM-V2
+
+                        // 2108-07-29
+
+                        rtv = 0;
+                        rtv += gc_param_config_record_delete(0, id);
+                        rtv += gc_param_config_record_delete(1, id);
+
+                        rtv += gc_misc_record_delete(0, id);
+                        rtv += gc_misc_record_delete(1, id);
+
+                        rtv += gc_nb_cell_record_delete(0, id);
+                        rtv += gc_nb_cell_record_delete(1, id);
+
+                        rtv += gc_imsi_action_record_delete(0, id);
+                        rtv += gc_imsi_action_record_delete(1, id);
+
+                        rtv += bwlist_record_delete(id);
+
+                        break;
+
+                        #endregion
                     }
                 case devMode.MODE_TD_SCDMA:
+                    {
+                        break;
+                    }
+                case devMode.MODE_CDMA:
+                    {
+                        #region CDMA
+
+                        // 2108-07-29
+
+                        rtv = 0;
+                        rtv += gc_param_config_record_delete(-1, id);
+                        rtv += gc_misc_record_delete(-1, id);
+                        rtv += gc_nb_cell_record_delete(-1, id);
+                        rtv += gc_imsi_action_record_delete(-1, id);
+                        rtv += bwlist_record_delete(id);
+
+                        break;
+
+                        #endregion
+                    }
                 case devMode.MODE_WCDMA:
                 case devMode.MODE_LTE_FDD:
                 case devMode.MODE_LTE_TDD:
                     {
+                        #region LTE
+
                         rtv = 0;
 
                         //在AP状态表中删除指定的记录 
@@ -6545,6 +7044,8 @@ namespace ScannerBackgrdServer
                         rtv += bwlist_record_delete(id);
 
                         break;
+
+                        #endregion
                     }
                 case devMode.MODE_UNKNOWN:
                     {
@@ -6621,7 +7122,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6684,7 +7185,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6842,7 +7343,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -6953,7 +7454,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7128,7 +7629,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7183,7 +7684,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7239,7 +7740,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7285,7 +7786,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                Logger.Trace(ee);
+                Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                 return (int)RC.PAR_FMT_ERR;
             }
 
@@ -7464,7 +7965,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7518,7 +8019,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(ee);
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                     continue;
                 }                
 
@@ -7710,7 +8211,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7949,7 +8450,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -7999,7 +8500,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8062,7 +8563,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8125,7 +8626,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8173,7 +8674,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8234,7 +8735,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8414,7 +8915,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8503,7 +9004,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8549,7 +9050,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8627,7 +9128,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8708,7 +9209,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8789,7 +9290,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -8870,7 +9371,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9118,7 +9619,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9246,7 +9747,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9519,7 +10020,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9760,7 +10261,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9844,7 +10345,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9928,7 +10429,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -9991,7 +10492,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10075,7 +10576,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10122,7 +10623,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10266,7 +10767,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10442,7 +10943,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10519,7 +11020,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10643,7 +11144,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10847,7 +11348,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10895,7 +11396,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -10962,7 +11463,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -11579,7 +12080,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -11822,7 +12323,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -11953,7 +12454,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12015,7 +12516,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12080,7 +12581,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12149,7 +12650,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12209,7 +12710,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12288,7 +12789,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12357,7 +12858,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12434,7 +12935,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12580,7 +13081,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(ee);
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -12637,7 +13138,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12704,7 +13205,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12744,7 +13245,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -12902,7 +13403,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13083,7 +13584,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13132,7 +13633,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13200,7 +13701,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13422,7 +13923,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13528,7 +14029,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13575,7 +14076,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13624,7 +14125,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13686,7 +14187,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13866,7 +14367,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -13957,7 +14458,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14004,7 +14505,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14053,7 +14554,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14115,7 +14616,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14383,7 +14884,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14510,7 +15011,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14557,7 +15058,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14722,7 +15223,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14823,7 +15324,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14870,7 +15371,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14922,7 +15423,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -14993,7 +15494,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -15041,7 +15542,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(ee);                     
+                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);                  
                     }
                 }
             }
@@ -15286,7 +15787,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -15395,7 +15896,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -15445,7 +15946,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(e);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
                 return (int)RC.OP_FAIL;
             }
 
@@ -15453,5 +15954,3146 @@ namespace ScannerBackgrdServer
         }
 
         #endregion
+
+        #region 22-gc_nb_cell操作
+
+        /// <summary>
+        /// 从listItem中获取对应的字符串
+        /// </summary>
+        /// <param name="listItem"></param>
+        /// <param name="rtvString"></param>
+        /// <returns>0成功，-1失败</returns>
+        private int get_nb_cell_item_2_str(List<strGcNbCellItem> listItem, ref string rtvString)
+        {
+            if (listItem == null || listItem.Count == 0)
+            {
+                return -1;
+            }
+
+            string sub = "";
+            string big = "";
+
+            //public string wUarfcn;      //小区频点
+            //public string wPhyCellId;   //物理小区ID
+            //public string cRSRP;        //信号功率
+            //public string bReserved;    //保留
+            //public string cC1;          //C1测量值
+            //public string bC2;          //C2测量值
+
+            foreach (strGcNbCellItem str in listItem)
+            {
+                sub = "";
+                if (!string.IsNullOrEmpty(str.wUarfcn))
+                {
+                    sub += string.Format("{0}:", str.wUarfcn);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (!string.IsNullOrEmpty(str.wPhyCellId))
+                {
+                    sub += string.Format("{0}:", str.wPhyCellId);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (!string.IsNullOrEmpty(str.cRSRP))
+                {
+                    sub += string.Format("{0}:", str.cRSRP);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (!string.IsNullOrEmpty(str.bReserved))
+                {
+                    sub += string.Format("{0}:", str.bReserved);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (!string.IsNullOrEmpty(str.cC1))
+                {
+                    sub += string.Format("{0}:", str.cC1);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (!string.IsNullOrEmpty(str.bC2))
+                {
+                    sub += string.Format("{0}:", str.bC2);
+                }
+                else
+                {
+                    sub += string.Format(":");
+                }
+
+                if (sub != "")
+                {
+                    //去掉最后一个字符
+                    sub = sub.Remove(sub.Length - 1, 1);
+                    sub = string.Format("({0}),", sub);
+
+                    big += sub;
+                }
+            }
+
+            if (big != "")
+            {
+                //去掉最后一个字符
+                big = big.Remove(big.Length - 1, 1);
+                rtvString = big;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// 从字符串获取对应的listItem
+        /// </summary>
+        /// <param name="listItem"></param>
+        /// <param name="rtvString"></param>
+        /// <returns>0成功，-1失败</returns>
+        private int get_nb_cell_str_2_item(string strOri, ref List<strGcNbCellItem> listItem)
+        {
+            if (string.IsNullOrEmpty(strOri))
+            {
+                return -1;
+            }
+
+            string[] s = strOri.Split(new char[] { ',' });
+
+            if (s.Length <= 0)
+            {
+                return -1;
+            }
+            else
+            {
+                string tmp = "";
+                listItem = new List<strGcNbCellItem>();
+
+                foreach (string str in s)
+                {
+                    if (!str.Contains("(") || !str.Contains(")"))
+                    {
+                        continue;
+                    }
+
+                    tmp = str;
+
+                    //去掉首位的"()"
+                    tmp = tmp.Remove(0, 1);
+                    tmp = tmp.Remove(tmp.Length - 1, 1);
+
+                    string[] strSub = tmp.Split(new char[] { ':' });
+
+                    if (strSub.Length != 6)
+                    {
+                        continue;
+                    }
+
+                    strGcNbCellItem item = new strGcNbCellItem();
+                    item.wUarfcn = strSub[0];
+                    item.wPhyCellId = strSub[1];
+                    item.cRSRP = strSub[2];
+                    item.bReserved = strSub[3];
+                    item.cC1 = strSub[4];
+                    item.bC2 = strSub[5];
+
+                    listItem.Add(item);
+                }
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// 在gc_nb_cell表中删除指定的记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST ：设备不存在
+        ///   RC.CARRY_ERR    ：载波非法
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_nb_cell_record_delete(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }           
+
+            string sql = string.Format("delete from gc_nb_cell where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }        
+
+        /// <summary>
+        /// 批量插入记录到gc_nb_cell表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>        
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.CARRY_ERR      ：载波非法
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_nb_cell_record_insert_batch(int carry, int affDeviceId,List<strGcNbCell> list)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (list.Count <= 0)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            string sqlSub = "";
+            string sqlBig = "";
+
+            foreach (strGcNbCell str in list)
+            {
+                //(1)-id
+                sqlSub = "NULL,";
+
+                //(2)-bGCId
+                if (!string.IsNullOrEmpty(str.bGCId))
+                {
+                    if (str.bGCId.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.bGCId);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(3)-bPLMNId
+                if (!string.IsNullOrEmpty(str.bPLMNId))
+                {
+                    if (str.bPLMNId.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.bPLMNId);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+
+                //(4)-cRSRP
+                if (!string.IsNullOrEmpty(str.cRSRP))
+                {
+                    if (str.cRSRP.Length > 8)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.cRSRP);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(5)-wTac
+                if (!string.IsNullOrEmpty(str.wTac))
+                {
+                    if (str.wTac.Length > 8)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.wTac);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(6)-wPhyCellId
+                if (!string.IsNullOrEmpty(str.wPhyCellId))
+                {
+                    if (str.wPhyCellId.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.wPhyCellId);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(7)-wUARFCN
+                if (!string.IsNullOrEmpty(str.wUARFCN))
+                {
+                    if (str.wUARFCN.Length > 8)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.wUARFCN);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(8)-cRefTxPower
+                if (!string.IsNullOrEmpty(str.cRefTxPower))
+                {
+                    if (str.cRefTxPower.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.cRefTxPower);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(9)-bNbCellNum
+                if (!string.IsNullOrEmpty(str.bNbCellNum))
+                {
+                    if (str.bNbCellNum.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.bNbCellNum);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(10)-bC2
+                if (!string.IsNullOrEmpty(str.bC2))
+                {
+                    if (str.bC2.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.bC2);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(11)-bReserved1
+                if (!string.IsNullOrEmpty(str.bReserved1))
+                {
+                    if (str.bReserved1.Length > 16)
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                        continue;
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("'{0}',", str.bReserved1);
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }
+
+                //(12)-nc_item
+                if (str.listItem.Count > 0)
+                {
+                    string itemStr = "";
+                    if (0 == get_nb_cell_item_2_str(str.listItem, ref itemStr))
+                    {
+                        sqlSub += string.Format("'{0}',", itemStr);
+                    }
+                    else
+                    {
+                        sqlSub += string.Format("NULL,");
+                    }
+                }
+                else
+                {
+                    sqlSub += string.Format("NULL,");
+                }                
+
+                //(13,14,15)-carry,bindingDevId,affDeviceId
+                sqlSub += string.Format("{0},NULL,{1},",carry,affDeviceId);
+
+                if (sqlSub != "")
+                {
+                    //去掉最后一个字符
+                    sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+                    sqlSub = string.Format("({0}),", sqlSub);
+
+                    sqlBig += sqlSub;
+                }
+            }
+
+            if (sqlBig != "")
+            {
+                //去掉最后一个字符
+                sqlBig = sqlBig.Remove(sqlBig.Length - 1, 1);
+            }
+
+            string sql = string.Format("insert into gc_nb_cell values{0}", sqlBig);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gsm_sys_para记录
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="list">对应的详细信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.CARRY_ERR      ：载波非法
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_nb_cell_record_get_by_devid(int carry, int affDeviceId, ref List<strGcNbCell> list)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            list = new List<strGcNbCell>();
+            string sql = string.Format("select * from gc_nb_cell where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        strGcNbCell str = new strGcNbCell();
+                        while (dr.Read())
+                        {
+                            if (!string.IsNullOrEmpty(dr["bGCId"].ToString()))
+                            {
+                                str.bGCId = dr["bGCId"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bPLMNId"].ToString()))
+                            {
+                                str.bPLMNId = dr["bPLMNId"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["cRSRP"].ToString()))
+                            {
+                                str.cRSRP = dr["cRSRP"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wTac"].ToString()))
+                            {
+                                str.wTac = dr["wTac"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wPhyCellId"].ToString()))
+                            {
+                                str.wPhyCellId = dr["wPhyCellId"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wUARFCN"].ToString()))
+                            {
+                                str.wUARFCN = dr["wUARFCN"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["cRefTxPower"].ToString()))
+                            {
+                                str.cRefTxPower = dr["cRefTxPower"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bNbCellNum"].ToString()))
+                            {
+                                str.bNbCellNum = dr["bNbCellNum"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bC2"].ToString()))
+                            {
+                                str.bC2 = dr["bC2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bReserved1"].ToString()))
+                            {
+                                str.bReserved1 = dr["bReserved1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["nc_item"].ToString()))
+                            {
+                                str.nc_item = dr["nc_item"].ToString();
+                                get_nb_cell_str_2_item(str.nc_item, ref str.listItem);
+                            }
+
+                            list.Add(str);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 23-gc_param_config操作
+
+        /// <summary>
+        /// 检查gc_param_config记录是否存在
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属的设备ID好</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST ：设备不存在
+        ///   RC.CARRY_ERR    ：载波非法
+        ///   RC.NO_EXIST     ：不存在
+        ///   RC.EXIST        ：存在
+        /// </returns>
+        public int gc_param_config_record_exist(int carry, int affDeviceId)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from gc_param_config where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到gc_param_config表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.EXIST          ：记录已经存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_param_config_record_insert(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.EXIST == gc_param_config_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into gc_param_config(id,carry,bindingDevId,affDeviceId) values(NULL,{0},-1,{1})", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 更新记录到gc_param_config表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gpr">
+        /// 要更新的结构体，那些字段不为空就更新那些
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.PAR_NULL       ：参数为空
+        ///   PAR_LEN_ERR       ：参数长度有误
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.PAR_FMT_ERR    ：参数格式有误
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_param_config_record_update(int carry, int affDeviceId, strGcParamConfig gpc)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_param_config_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sqlSub = "";
+
+            //(1)
+            if (!string.IsNullOrEmpty(gpc.bWorkingMode))
+            {
+                if (gpc.bWorkingMode.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bWorkingMode = '{0}',", gpc.bWorkingMode);
+                }
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(gpc.bC))
+            {
+                if (gpc.bC.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bC = '{0}',", gpc.bC);
+                }
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(gpc.wRedirectCellUarfcn))
+            {
+                if (gpc.wRedirectCellUarfcn.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wRedirectCellUarfcn = '{0}',", gpc.wRedirectCellUarfcn);
+                }
+            }
+
+            //(4)
+            if (!string.IsNullOrEmpty(gpc.dwDateTime))
+            {
+                if (gpc.dwDateTime.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("dwDateTime = '{0}',", gpc.dwDateTime);
+                }
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(gpc.bPLMNId))
+            {
+                if (gpc.bPLMNId.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bPLMNId = '{0}',", gpc.bPLMNId);
+                }
+            }
+
+            //(6)
+            if (!string.IsNullOrEmpty(gpc.bTxPower))
+            {
+                if (gpc.bTxPower.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bTxPower = '{0}',", gpc.bTxPower);
+                }
+            }
+
+            //(7)
+            if (!string.IsNullOrEmpty(gpc.bRxGain))
+            {
+                if (gpc.bRxGain.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bRxGain = '{0}',", gpc.bRxGain);
+                }
+            }
+
+            //(8)
+            if (!string.IsNullOrEmpty(gpc.wPhyCellId))
+            {
+                if (gpc.wPhyCellId.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wPhyCellId = '{0}',", gpc.wPhyCellId);
+                }
+            }
+
+            //(9)
+            if (!string.IsNullOrEmpty(gpc.wLAC))
+            {
+                if (gpc.wLAC.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wLAC = '{0}',", gpc.wLAC);
+                }
+            }
+
+            //(10)
+            if (!string.IsNullOrEmpty(gpc.wUARFCN))
+            {
+                if (gpc.wUARFCN.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wUARFCN = '{0}',", gpc.wUARFCN);
+                }
+            }
+
+            //(11)
+            if (!string.IsNullOrEmpty(gpc.dwCellId))
+            {
+                if (gpc.dwCellId.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("dwCellId = '{0}',", gpc.dwCellId);
+                }
+            }
+           
+
+            //(12)
+            if (!string.IsNullOrEmpty(gpc.res1))
+            {
+                if (gpc.res1.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res1 = '{0}',", gpc.res1);
+                }
+            }
+
+            //(13)
+            if (!string.IsNullOrEmpty(gpc.res2))
+            {
+                if (gpc.res2.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res2 = '{0}',", gpc.res2);
+                }
+            }
+
+            //(14)
+            if (!string.IsNullOrEmpty(gpc.res3))
+            {
+                if (gpc.res3.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("res3 = '{0}',", gpc.res3);
+                }
+            }
+
+            //(15)
+            if (!string.IsNullOrEmpty(gpc.bindingDevId))
+            {
+                if (gpc.bindingDevId.Length > 11)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bindingDevId = {0},", gpc.bindingDevId);
+                }
+            }           
+
+            if (sqlSub != "")
+            {
+                //去掉最后一个字符
+                sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+            }
+            else
+            {
+                //不需要更新
+                Logger.Trace(LogInfoType.INFO, "无需更新", "DB", LogCategory.I);
+                return (int)RC.SUCCESS;
+            }
+
+            string sql = string.Format("update gc_param_config set {0} where carry = {1} and affDeviceId = {2}", sqlSub, carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gc_param_config记录
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gpr">affDeviceId对应的详细信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_param_config_record_get_by_devid(int carry, int affDeviceId, ref strGcParamConfig gpc)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_param_config_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            gpc = new strGcParamConfig();
+            string sql = string.Format("select * from gc_param_config where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            if (!string.IsNullOrEmpty(dr["bWorkingMode"].ToString()))
+                            {
+                                gpc.bWorkingMode = dr["bWorkingMode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bC"].ToString()))
+                            {
+                                gpc.bC = dr["bC"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wRedirectCellUarfcn"].ToString()))
+                            {
+                                gpc.wRedirectCellUarfcn = dr["wRedirectCellUarfcn"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["dwDateTime"].ToString()))
+                            {
+                                gpc.dwDateTime = dr["dwDateTime"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bPLMNId"].ToString()))
+                            {
+                                gpc.bPLMNId = dr["bPLMNId"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bTxPower"].ToString()))
+                            {
+                                gpc.bTxPower = dr["bTxPower"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bRxGain"].ToString()))
+                            {
+                                gpc.bRxGain = dr["bRxGain"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wPhyCellId"].ToString()))
+                            {
+                                gpc.wPhyCellId = dr["wPhyCellId"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wLAC"].ToString()))
+                            {
+                                gpc.wLAC = dr["wLAC"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wUARFCN"].ToString()))
+                            {
+                                gpc.wUARFCN = dr["wUARFCN"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["dwCellId"].ToString()))
+                            {
+                                gpc.dwCellId = dr["dwCellId"].ToString();
+                            }
+
+
+                            if (!string.IsNullOrEmpty(dr["res1"].ToString()))
+                            {
+                                gpc.res1 = dr["res1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res2"].ToString()))
+                            {
+                                gpc.res2 = dr["res2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res3"].ToString()))
+                            {
+                                gpc.res3 = dr["res3"].ToString();
+                            }
+
+
+                            if (!string.IsNullOrEmpty(dr["bindingDevId"].ToString()))
+                            {
+                                gpc.bindingDevId = dr["bindingDevId"].ToString();
+                            }
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在gc_param_config表中删除指定的记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_param_config_record_delete(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_param_config_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from gc_param_config where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion               
+
+        #region 24-gc_misc操作
+
+        /// <summary>
+        /// 检查gc_misc记录是否存在
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属的设备ID好</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST ：设备不存在
+        ///   RC.CARRY_ERR    ：载波非法
+        ///   RC.NO_EXIST     ：不存在
+        ///   RC.EXIST        ：存在
+        /// </returns>
+        public int gc_misc_record_exist(int carry, int affDeviceId)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from gc_misc where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到gc_misc表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.EXIST          ：记录已经存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_misc_record_insert(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.EXIST == gc_misc_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                return (int)RC.EXIST;
+            }
+          
+            string sql = string.Format("insert into gc_misc(id,time,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},-1,{1})", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 更新记录到gc_misc表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gpr">
+        /// 要更新的结构体，那些字段不为空就更新那些
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.PAR_NULL       ：参数为空
+        ///   PAR_LEN_ERR       ：参数长度有误
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.PAR_FMT_ERR    ：参数格式有误
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_misc_record_update(int carry, int affDeviceId, strGcMisc gm)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_misc_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sqlSub = "";
+
+            //(1)
+            if (!string.IsNullOrEmpty(gm.wTraceLen))
+            {
+                if (gm.wTraceLen.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wTraceLen = '{0}',", gm.wTraceLen);
+                }
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(gm.cTrace))
+            {
+                if (gm.cTrace.Length > 1024)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("cTrace = '{0}',", gm.cTrace);
+                }
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(gm.bOrmType))
+            {
+                if (gm.bOrmType.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bOrmType = '{0}',", gm.bOrmType);
+                }
+            }
+
+            //(4)
+            if (!string.IsNullOrEmpty(gm.bUeId))
+            {
+                if (gm.bUeId.Length > 16)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bUeId = '{0}',", gm.bUeId);
+                }
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(gm.cRSRP))
+            {
+                if (gm.cRSRP.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("cRSRP = '{0}',", gm.cRSRP);
+                }
+            }
+
+            //(6)
+            if (!string.IsNullOrEmpty(gm.bUeContentLen))
+            {
+                if (gm.bUeContentLen.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bUeContentLen = '{0}',", gm.bUeContentLen);
+                }
+            }
+
+
+            //(7)
+            if (!string.IsNullOrEmpty(gm.bUeContent))
+            {
+                if (gm.bUeContent.Length > 512)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bUeContent = '{0}',", gm.bUeContent);
+                }
+            }
+
+
+            //(8)
+            if (!string.IsNullOrEmpty(gm.bSMSOriginalNumLen))
+            {
+                if (gm.bSMSOriginalNumLen.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bSMSOriginalNumLen = '{0}',", gm.bSMSOriginalNumLen);
+                }
+            }
+
+            //(9)
+            if (!string.IsNullOrEmpty(gm.bSMSOriginalNum))
+            {
+                if (gm.bSMSOriginalNum.Length > 32)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bSMSOriginalNum = '{0}',", gm.bSMSOriginalNum);
+                }
+            }
+
+            //(10)
+            if (!string.IsNullOrEmpty(gm.bSMSContentLen))
+            {
+                if (gm.bSMSContentLen.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bSMSContentLen = '{0}',", gm.bSMSContentLen);
+                }
+            }
+
+            //(11)
+            if (!string.IsNullOrEmpty(gm.bSMSContent))
+            {
+                if (gm.bSMSContent.Length > 256)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bSMSContent = '{0}',", gm.bSMSContent);
+                }
+            }
+
+
+            //(1)
+            if (!string.IsNullOrEmpty(gm.SCTP))
+            {
+                if (gm.SCTP != "0" && gm.SCTP != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("SCTP = {0},", gm.SCTP);
+                }
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(gm.S1))
+            {
+                if (gm.S1 != "0" && gm.S1 != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("S1 = {0},", gm.S1);
+                }
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(gm.GPS))
+            {
+                if (gm.GPS != "0" && gm.GPS != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("GPS = {0},", gm.GPS);
+                }
+            }
+
+            //(4)
+            if (!string.IsNullOrEmpty(gm.CELL))
+            {
+                if (gm.CELL != "0" && gm.CELL != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("CELL = {0},", gm.CELL);
+                }
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(gm.SYNC))
+            {
+                if (gm.SYNC != "0" && gm.SYNC != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("SYNC = {0},", gm.SYNC);
+                }
+            }
+
+            //(6)
+            if (!string.IsNullOrEmpty(gm.LICENSE))
+            {
+                if (gm.LICENSE != "0" && gm.LICENSE != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("LICENSE = {0},", gm.LICENSE);
+                }
+            }
+
+            //(7)
+            if (!string.IsNullOrEmpty(gm.RADIO))
+            {
+                if (gm.RADIO != "0" && gm.RADIO != "1")
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("RADIO = {0},", gm.RADIO);
+                }
+            }
+
+            //(8)
+            if (!string.IsNullOrEmpty(gm.time))
+            {
+                try
+                {
+                    DateTime.Parse(gm.time);
+                    sqlSub += string.Format("time = '{0}',", gm.time);
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    sqlSub += string.Format("time = '{0}',", DateTime.Now.ToString());
+                }
+            }
+
+
+            //(1,2)
+            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+            {
+                try
+                {
+                    string dt1 = DateTime.Parse(gm.activeTime1Start).ToString("HH:mm:ss");
+                    string dt2 = DateTime.Parse(gm.activeTime1Ended).ToString("HH:mm:ss");
+
+                    if (string.Compare(dt2, dt1) > 0)
+                    {
+                        sqlSub += string.Format("activeTime1Start = '{0}',activeTime1Ended = '{1}',", dt1, dt2);
+                    }
+                    else
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
+                        return (int)RC.TIME_FMT_ERR;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+            }
+
+
+            //(3,4)
+            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+            {
+                try
+                {
+                    string dt1 = DateTime.Parse(gm.activeTime2Start).ToString("HH:mm:ss");
+                    string dt2 = DateTime.Parse(gm.activeTime2Ended).ToString("HH:mm:ss");
+
+                    if (string.Compare(dt2, dt1) > 0)
+                    {
+                        sqlSub += string.Format("activeTime2Start = '{0}',activeTime2Ended = '{1}',", dt1, dt2);
+                    }
+                    else
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
+                        return (int)RC.TIME_FMT_ERR;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+            }
+
+
+            //(5,6)
+            if (!string.IsNullOrEmpty(gm.activeTime3Start) && !string.IsNullOrEmpty(gm.activeTime3Ended))
+            {
+                try
+                {
+                    string dt1 = DateTime.Parse(gm.activeTime3Start).ToString("HH:mm:ss");
+                    string dt2 = DateTime.Parse(gm.activeTime3Ended).ToString("HH:mm:ss");
+
+                    if (string.Compare(dt2, dt1) > 0)
+                    {
+                        sqlSub += string.Format("activeTime3Start = '{0}',activeTime3Ended = '{1}',", dt1, dt2);
+                    }
+                    else
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
+                        return (int)RC.TIME_FMT_ERR;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+            }
+
+            //(7,8)
+            if (!string.IsNullOrEmpty(gm.activeTime4Start) && !string.IsNullOrEmpty(gm.activeTime4Ended))
+            {
+                try
+                {
+                    string dt1 = DateTime.Parse(gm.activeTime4Start).ToString("HH:mm:ss");
+                    string dt2 = DateTime.Parse(gm.activeTime4Ended).ToString("HH:mm:ss");
+
+                    if (string.Compare(dt2, dt1) > 0)
+                    {
+                        sqlSub += string.Format("activeTime4Start = '{0}',activeTime4Ended = '{1}',", dt1, dt2);
+                    }
+                    else
+                    {
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
+                        return (int)RC.TIME_FMT_ERR;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+            }
+
+
+
+            //(28)
+            if (!string.IsNullOrEmpty(gm.bindingDevId))
+            {
+                if (gm.bindingDevId.Length > 11)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bindingDevId = {0},", gm.bindingDevId);
+                }
+            }
+
+            if (sqlSub != "")
+            {
+                //去掉最后一个字符
+                sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+            }
+            else
+            {
+                //不需要更新
+                Logger.Trace(LogInfoType.INFO, "无需更新", "DB", LogCategory.I);
+                return (int)RC.SUCCESS;
+            }
+
+            string sql = string.Format("update gc_misc set {0} where carry = {1} and affDeviceId = {2}", sqlSub, carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gc_misc记录
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gpr">affDeviceId对应的详细信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_misc_record_get_by_devid(int carry, int affDeviceId, ref strGcMisc gm)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_misc_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            gm = new strGcMisc();
+            string sql = string.Format("select * from gc_misc where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            //(1)
+                            if (!string.IsNullOrEmpty(dr["wTraceLen"].ToString()))
+                            {
+                                gm.wTraceLen = dr["wTraceLen"].ToString();
+                            }
+
+                            //(2)
+                            if (!string.IsNullOrEmpty(dr["cTrace"].ToString()))
+                            {
+                                gm.cTrace = dr["cTrace"].ToString();
+                            }
+
+
+                            //(3)
+                            if (!string.IsNullOrEmpty(dr["bOrmType"].ToString()))
+                            {
+                                gm.bOrmType = dr["bOrmType"].ToString();
+                            }
+
+                            //(4)
+                            if (!string.IsNullOrEmpty(dr["bUeId"].ToString()))
+                            {
+                                gm.bUeId = dr["bUeId"].ToString();
+                            }
+
+                            //(5)
+                            if (!string.IsNullOrEmpty(dr["cRSRP"].ToString()))
+                            {
+                                gm.cRSRP = dr["cRSRP"].ToString();
+                            }
+
+                            //(6)
+                            if (!string.IsNullOrEmpty(dr["bUeContentLen"].ToString()))
+                            {
+                                gm.bUeContentLen = dr["bUeContentLen"].ToString();
+                            }
+
+                            //(7)
+                            if (!string.IsNullOrEmpty(dr["bUeContent"].ToString()))
+                            {
+                                gm.bUeContent = dr["bUeContent"].ToString();
+                            }
+
+
+                            //(8)
+                            if (!string.IsNullOrEmpty(dr["bSMSOriginalNumLen"].ToString()))
+                            {
+                                gm.bSMSOriginalNumLen = dr["bSMSOriginalNumLen"].ToString();
+                            }
+
+                            //(9)
+                            if (!string.IsNullOrEmpty(dr["bSMSOriginalNum"].ToString()))
+                            {
+                                gm.bSMSOriginalNum = dr["bSMSOriginalNum"].ToString();
+                            }
+
+                            //(10)
+                            if (!string.IsNullOrEmpty(dr["bSMSContentLen"].ToString()))
+                            {
+                                gm.bSMSContentLen = dr["bSMSContentLen"].ToString();
+                            }
+
+                            //(11)
+                            if (!string.IsNullOrEmpty(dr["bSMSContent"].ToString()))
+                            {
+                                gm.bSMSContent = dr["bSMSContent"].ToString();
+                            }
+
+
+                            //(1)
+                            if (!string.IsNullOrEmpty(dr["SCTP"].ToString()))
+                            {
+                                gm.SCTP = dr["SCTP"].ToString();
+                            }
+
+                            //(2)
+                            if (!string.IsNullOrEmpty(dr["S1"].ToString()))
+                            {
+                                gm.S1 = dr["S1"].ToString();
+                            }
+
+                            //(3)
+                            if (!string.IsNullOrEmpty(dr["GPS"].ToString()))
+                            {
+                                gm.GPS = dr["GPS"].ToString();
+                            }
+
+                            //(4)
+                            if (!string.IsNullOrEmpty(dr["CELL"].ToString()))
+                            {
+                                gm.CELL = dr["CELL"].ToString();
+                            }
+
+                            //(5)
+                            if (!string.IsNullOrEmpty(dr["SYNC"].ToString()))
+                            {
+                                gm.SYNC = dr["SYNC"].ToString();
+                            }
+
+                            //(6)
+                            if (!string.IsNullOrEmpty(dr["LICENSE"].ToString()))
+                            {
+                                gm.LICENSE = dr["LICENSE"].ToString();
+                            }
+
+                            //(7)
+                            if (!string.IsNullOrEmpty(dr["RADIO"].ToString()))
+                            {
+                                gm.RADIO = dr["RADIO"].ToString();
+                            }
+
+                            //(8)
+                            if (!string.IsNullOrEmpty(dr["time"].ToString()))
+                            {
+                                gm.time = dr["time"].ToString();
+                            }
+
+
+                            //(1)
+                            if (!string.IsNullOrEmpty(dr["activeTime1Start"].ToString()))
+                            {
+                                gm.activeTime1Start = dr["activeTime1Start"].ToString();
+                            }
+
+                            //(2)
+                            if (!string.IsNullOrEmpty(dr["activeTime1Ended"].ToString()))
+                            {
+                                gm.activeTime1Ended = dr["activeTime1Ended"].ToString();
+                            }
+
+                            //(3)
+                            if (!string.IsNullOrEmpty(dr["activeTime2Start"].ToString()))
+                            {
+                                gm.activeTime2Start = dr["activeTime2Start"].ToString();
+                            }
+
+                            //(4)
+                            if (!string.IsNullOrEmpty(dr["activeTime2Ended"].ToString()))
+                            {
+                                gm.activeTime2Ended = dr["activeTime2Ended"].ToString();
+                            }
+
+                            //(5)
+                            if (!string.IsNullOrEmpty(dr["activeTime3Start"].ToString()))
+                            {
+                                gm.activeTime3Start = dr["activeTime3Start"].ToString();
+                            }
+
+                            //(6)
+                            if (!string.IsNullOrEmpty(dr["activeTime3Ended"].ToString()))
+                            {
+                                gm.activeTime3Ended = dr["activeTime3Ended"].ToString();
+                            }
+
+                            //(7)
+                            if (!string.IsNullOrEmpty(dr["activeTime4Start"].ToString()))
+                            {
+                                gm.activeTime4Start = dr["activeTime4Start"].ToString();
+                            }
+
+                            //(8)
+                            if (!string.IsNullOrEmpty(dr["activeTime4Ended"].ToString()))
+                            {
+                                gm.activeTime4Ended = dr["activeTime4Ended"].ToString();
+                            }
+
+                            //(28)
+                            if (!string.IsNullOrEmpty(dr["bindingDevId"].ToString()))
+                            {
+                                gm.bindingDevId = dr["bindingDevId"].ToString();
+                            }
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在gc_misc表中删除指定的记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_misc_record_delete(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_misc_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from gc_misc where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 25-gc_imsi_action操作
+
+        /// <summary>
+        /// 检查gc_imsi_action记录是否存在
+        /// </summary>
+        /// <param name="bIMSI">imsi</param>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属的设备ID好</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST ：设备不存在
+        ///   RC.CARRY_ERR    ：载波非法
+        ///   RC.NO_EXIST     ：不存在
+        ///   RC.EXIST        ：存在
+        /// </returns>
+        public int gc_imsi_action_record_exist(string bIMSI, int carry, int affDeviceId)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(bIMSI))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (bIMSI.Length > 15)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from gc_imsi_action where bIMSI = '{0}' and carry = {1} and affDeviceId = {2}", bIMSI, carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到gc_imsi_action表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.EXIST          ：记录已经存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_imsi_action_record_insert(int carry, int affDeviceId, strGcImsiAction gia)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(gia.bIMSI) || string.IsNullOrEmpty(gia.bUeActionFlag))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (gia.bIMSI.Length > 15 || gia.bUeActionFlag.Length > 2)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.EXIST == gc_imsi_action_record_exist(gia.bIMSI, carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                return (int)RC.SUCCESS;
+            }
+
+            string sql = string.Format("insert into gc_imsi_action(id,bIMSI,bUeActionFlag,carry,bindingDevId,affDeviceId) values(NULL,'{0}','{1}',{2},-1,{3})", gia.bIMSI, gia.bUeActionFlag, carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gc_imsi_action所有记录
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gpr">affDeviceId对应的详细信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_imsi_action_record_get_by_devid(int carry, int affDeviceId, ref List<strGcImsiAction> list)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            list = new List<strGcImsiAction>();
+            string sql = string.Format("select * from gc_imsi_action where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            strGcImsiAction str = new strGcImsiAction();
+                            if (!string.IsNullOrEmpty(dr["bIMSI"].ToString()))
+                            {
+                                str.bIMSI = dr["bIMSI"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bUeActionFlag"].ToString()))
+                            {
+                                str.bUeActionFlag = dr["bUeActionFlag"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res1"].ToString()))
+                            {
+                                str.res1 = dr["res1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res2"].ToString()))
+                            {
+                                str.res2 = dr["res2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["res3"].ToString()))
+                            {
+                                str.res3 = dr["res3"].ToString();
+                            }
+
+                            list.Add(str);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在gc_imsi_action表中删除指定的所有记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_imsi_action_record_delete(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            string sql = string.Format("delete from gc_imsi_action where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在gc_imsi_action表中删除指定的所有记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_imsi_action_record_delete(int carry, int affDeviceId, string bIMSI)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(bIMSI))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (bIMSI.Length > 15)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            string sql = string.Format("delete from gc_imsi_action where bIMSI = '{0}' and carry = {1} and affDeviceId = {2}", bIMSI, carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 26-gc_carrier_msg操作
+
+        /// <summary>
+        /// 检查gc_carrier_msg记录是否存在
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属的设备ID好</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST ：设备不存在
+        ///   RC.CARRY_ERR    ：载波非法
+        ///   RC.NO_EXIST     ：不存在
+        ///   RC.EXIST        ：存在
+        /// </returns>
+        public int gc_carrier_msg_record_exist(int carry, int affDeviceId)
+        {
+            UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            string sql = string.Format("select count(*) from gc_carrier_msg where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            cnt = Convert.ToUInt32(dr[0]);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            if (cnt > 0)
+            {
+                return (int)RC.EXIST;
+            }
+            else
+            {
+                return (int)RC.NO_EXIST;
+            }
+        }
+
+        /// <summary>
+        /// 插入记录到gc_carrier_msg表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.EXIST          ：记录已经存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_carrier_msg_record_insert(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.EXIST == gc_carrier_msg_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                return (int)RC.EXIST;
+            }
+
+            string sql = string.Format("insert into gc_carrier_msg(id,carry,bindingDevId,affDeviceId) values(NULL,{0},-1,{1})", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 更新记录到gc_carrier_msg表中
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gcm">
+        /// 要更新的结构体，那些字段不为空就更新那些
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.PAR_NULL       ：参数为空
+        ///   PAR_LEN_ERR       ：参数长度有误
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.PAR_FMT_ERR    ：参数格式有误
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_carrier_msg_record_update(int carry, int affDeviceId, strGcCarrierMsg gcm)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_carrier_msg_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sqlSub = "";
+
+            //(1)
+            if (!string.IsNullOrEmpty(gcm.wARFCN1))
+            {
+                if (gcm.wARFCN1.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN1 = '{0}',", gcm.wARFCN1);
+                }
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(gcm.bARFCN1Mode))
+            {
+                if (gcm.bARFCN1Mode.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bARFCN1Mode = '{0}',", gcm.bARFCN1Mode);
+                }
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(gcm.bReserved1))
+            {
+                if (gcm.bReserved1.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bReserved1 = '{0}',", gcm.bReserved1);
+                }
+            }
+
+            //(4)
+            if (!string.IsNullOrEmpty(gcm.wARFCN1Duration))
+            {
+                if (gcm.wARFCN1Duration.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN1Duration = '{0}',", gcm.wARFCN1Duration);
+                }
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(gcm.wARFCN1Period))
+            {
+                if (gcm.wARFCN1Period.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN1Period = '{0}',", gcm.wARFCN1Period);
+                }
+            }
+
+
+
+
+
+            //(6)
+            if (!string.IsNullOrEmpty(gcm.wARFCN2))
+            {
+                if (gcm.wARFCN2.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN2 = '{0}',", gcm.wARFCN2);
+                }
+            }
+
+            //(7)
+            if (!string.IsNullOrEmpty(gcm.bARFCN2Mode))
+            {
+                if (gcm.bARFCN2Mode.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bARFCN2Mode = '{0}',", gcm.bARFCN2Mode);
+                }
+            }
+
+
+            //(8)
+            if (!string.IsNullOrEmpty(gcm.bReserved2))
+            {
+                if (gcm.bReserved2.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bReserved2 = '{0}',", gcm.bReserved2);
+                }
+            }
+
+            //(9)
+            if (!string.IsNullOrEmpty(gcm.wARFCN2Duration))
+            {
+                if (gcm.wARFCN2Duration.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN2Duration = '{0}',", gcm.wARFCN2Duration);
+                }
+            }
+
+            //(10)
+            if (!string.IsNullOrEmpty(gcm.wARFCN2Period))
+            {
+                if (gcm.wARFCN2Period.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN2Period = '{0}',", gcm.wARFCN2Period);
+                }
+            }
+
+
+
+
+            //(11)
+            if (!string.IsNullOrEmpty(gcm.wARFCN3))
+            {
+                if (gcm.wARFCN3.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN3 = '{0}',", gcm.wARFCN3);
+                }
+            }
+
+
+            //(12)
+            if (!string.IsNullOrEmpty(gcm.bARFCN3Mode))
+            {
+                if (gcm.bARFCN3Mode.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bARFCN3Mode = '{0}',", gcm.bARFCN3Mode);
+                }
+            }
+
+
+            //(13)
+            if (!string.IsNullOrEmpty(gcm.bReserved3))
+            {
+                if (gcm.bReserved3.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bReserved3 = '{0}',", gcm.bReserved3);
+                }
+            }
+
+            //(14)
+            if (!string.IsNullOrEmpty(gcm.wARFCN3Duration))
+            {
+                if (gcm.wARFCN3Duration.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN3Duration = '{0}',", gcm.wARFCN3Duration);
+                }
+            }
+
+
+            //(15)
+            if (!string.IsNullOrEmpty(gcm.wARFCN3Period))
+            {
+                if (gcm.wARFCN3Period.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN3Period = '{0}',", gcm.wARFCN3Period);
+                }
+            }
+
+
+
+            //(16)
+            if (!string.IsNullOrEmpty(gcm.wARFCN4))
+            {
+                if (gcm.wARFCN4.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN4 = '{0}',", gcm.wARFCN4);
+                }
+            }
+
+            //(17)
+            if (!string.IsNullOrEmpty(gcm.bARFCN4Mode))
+            {
+                if (gcm.bARFCN4Mode.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bARFCN4Mode = '{0}',", gcm.bARFCN4Mode);
+                }
+            }
+
+
+            //(18)
+            if (!string.IsNullOrEmpty(gcm.bReserved4))
+            {
+                if (gcm.bReserved4.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bReserved4 = '{0}',", gcm.bReserved4);
+                }
+            }
+
+            //(19)
+            if (!string.IsNullOrEmpty(gcm.wARFCN4Duration))
+            {
+                if (gcm.wARFCN4Duration.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN4Duration = '{0}',", gcm.wARFCN4Duration);
+                }
+            }
+
+            //(20)
+            if (!string.IsNullOrEmpty(gcm.wARFCN4Period))
+            {
+                if (gcm.wARFCN4Period.Length > 8)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("wARFCN4Period = '{0}',", gcm.wARFCN4Period);
+                }
+            }
+
+            //(21)
+            if (!string.IsNullOrEmpty(gcm.bindingDevId))
+            {
+                if (gcm.bindingDevId.Length > 11)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("bindingDevId = {0},", gcm.bindingDevId);
+                }
+            }
+
+            if (sqlSub != "")
+            {
+                //去掉最后一个字符
+                sqlSub = sqlSub.Remove(sqlSub.Length - 1, 1);
+            }
+            else
+            {
+                //不需要更新
+                Logger.Trace(LogInfoType.INFO, "无需更新", "DB", LogCategory.I);
+                return (int)RC.SUCCESS;
+            }
+
+            string sql = string.Format("update gc_carrier_msg set {0} where carry = {1} and affDeviceId = {2}", sqlSub, carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gc_carrier_msg记录
+        /// </summary>
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="gcm">affDeviceId对应的详细信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int gc_carrier_msg_record_get_by_devid(int carry, int affDeviceId, ref strGcCarrierMsg gcm)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_carrier_msg_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            gcm = new strGcCarrierMsg();
+            string sql = string.Format("select * from gc_carrier_msg where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {                            
+                            if (!string.IsNullOrEmpty(dr["wARFCN1"].ToString()))
+                            {
+                                gcm.wARFCN1 = dr["wARFCN1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bARFCN1Mode"].ToString()))
+                            {
+                                gcm.bARFCN1Mode = dr["bARFCN1Mode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bReserved1"].ToString()))
+                            {
+                                gcm.bReserved1 = dr["bReserved1"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN1Duration"].ToString()))
+                            {
+                                gcm.wARFCN1Duration = dr["wARFCN1Duration"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN1Period"].ToString()))
+                            {
+                                gcm.wARFCN1Period = dr["wARFCN1Period"].ToString();
+                            }
+
+
+
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN2"].ToString()))
+                            {
+                                gcm.wARFCN2 = dr["wARFCN2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bARFCN2Mode"].ToString()))
+                            {
+                                gcm.bARFCN2Mode = dr["bARFCN2Mode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bReserved2"].ToString()))
+                            {
+                                gcm.bReserved2 = dr["bReserved2"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN2Duration"].ToString()))
+                            {
+                                gcm.wARFCN2Duration = dr["wARFCN2Duration"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN2Period"].ToString()))
+                            {
+                                gcm.wARFCN2Period = dr["wARFCN2Period"].ToString();
+                            }
+
+
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN3"].ToString()))
+                            {
+                                gcm.wARFCN3 = dr["wARFCN3"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bARFCN3Mode"].ToString()))
+                            {
+                                gcm.bARFCN3Mode = dr["bARFCN3Mode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bReserved3"].ToString()))
+                            {
+                                gcm.bReserved3 = dr["bReserved3"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN3Duration"].ToString()))
+                            {
+                                gcm.wARFCN3Duration = dr["wARFCN3Duration"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN3Period"].ToString()))
+                            {
+                                gcm.wARFCN3Period = dr["wARFCN3Period"].ToString();
+                            }
+
+
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN4"].ToString()))
+                            {
+                                gcm.wARFCN4 = dr["wARFCN4"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bARFCN4Mode"].ToString()))
+                            {
+                                gcm.bARFCN4Mode = dr["bARFCN4Mode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["bReserved4"].ToString()))
+                            {
+                                gcm.bReserved4 = dr["bReserved4"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN4Duration"].ToString()))
+                            {
+                                gcm.wARFCN4Duration = dr["wARFCN4Duration"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["wARFCN4Period"].ToString()))
+                            {
+                                gcm.wARFCN4Period = dr["wARFCN4Period"].ToString();
+                            }
+
+                           
+                            if (!string.IsNullOrEmpty(dr["bindingDevId"].ToString()))
+                            {
+                                gcm.bindingDevId = dr["bindingDevId"].ToString();
+                            }
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 在gc_carrier_msg表中删除指定的记录 
+        /// </summary>  
+        /// <param name="carry">载波ID，对于CDMA固定为-1，GSM-V2的0或1</param>
+        /// <param name="affDeviceId">所属设备ID</param>    
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int gc_carrier_msg_record_delete(int carry, int affDeviceId)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (carry != -1 && carry != 0 && carry != 1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.CARRY_ERR], "DB", LogCategory.I);
+                return (int)RC.CARRY_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == gc_carrier_msg_record_exist(carry, affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from gc_carrier_msg where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion               
     }
 }

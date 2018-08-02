@@ -9,7 +9,24 @@ namespace ScannerBackgrdServer.Common
     class CodeConver
     {
         #region 公共转换及编码函数
-
+        /// <summary>
+        /// 字符转为Ascii码值
+        /// </summary>
+        /// <param name="character">字符</param>
+        /// <returns>Ascii值</returns>
+        public static int Str2Asc(string character)
+        {
+            if (character.Length == 1)
+            {
+                System.Text.ASCIIEncoding asciiEncoding = new System.Text.ASCIIEncoding();
+                int intAsciiCode = (int)asciiEncoding.GetBytes(character)[0];
+                return (intAsciiCode);
+            }
+            else
+            {
+                throw new Exception("Character is not valid.");
+            }
+        }
         /// <summary>
         /// 初始化字节数组
         /// </summary>
@@ -27,19 +44,31 @@ namespace ScannerBackgrdServer.Common
         /// 字符串转Unicode
         /// </summary>
         /// <param name="source">源字符串</param>
+        /// <param name="isLittleEndian">小端字节序</param>
         /// <returns>Unicode编码后的字符串</returns>
-        public static string String2Unicode(string source)
+        public static string String2Unicode(string source,bool isLittleEndian)
         {
             var bytes = Encoding.Unicode.GetBytes(source);
             var stringBuilder = new StringBuilder();
             for (var i = 0; i < bytes.Length; i += 2)
             {
-                stringBuilder.AppendFormat("{0:x2}{1:x2}", bytes[i], bytes[i + 1]);
+                if (isLittleEndian)
+                    stringBuilder.AppendFormat("{0:x2}{1:x2}", bytes[i], bytes[i + 1]);
+                else
+                    stringBuilder.AppendFormat("{0:x2}{1:x2}", bytes[i+1], bytes[i]);
             }
 
             return stringBuilder.ToString();
         }
-
+        /// <summary>
+        /// 字符串转Unicode（小端字节序）
+        /// </summary>
+        /// <param name="source">源字符串</param>
+        /// <returns>Unicode编码后的字符串</returns>
+        public static string String2Unicode(string source)
+        {
+            return String2Unicode(source,true);
+        }
 
         /// <summary>  
         /// Unicode字符串转为正常字符串  

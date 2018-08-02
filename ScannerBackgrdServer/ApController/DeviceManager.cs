@@ -47,11 +47,11 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 设备消息处理锁
         /// </summary>
-        private  readonly object mutex_Ap_Msg = new object();
+        private  readonly object mutex_Device_Msg = new object();
         /// <summary>
         /// 设备消息存贮队列
         /// </summary>
-        private Queue<RecvDeviceStruct> rApMsgQueue = new Queue<RecvDeviceStruct>();
+        private Queue<RecvDeviceStruct> rDeviceMsgQueue = new Queue<RecvDeviceStruct>();
 
         /// <summary>
         /// 设备连接Socket
@@ -94,14 +94,46 @@ namespace ScannerBackgrdServer.ApController
             string outStr = string.Format("{0}", str);
             Console.WriteLine(outStr);
 
-            FrmMainController.add_log_info(type, outStr,DeviceType, category, memberName,filePath,lineNumber);
-            Logger.Trace(type, outStr,DeviceType, category, memberName,filePath,lineNumber);
+            Xml_codec.StaticOutputLog(type, outStr, DeviceType,category, memberName,filePath,lineNumber);
 
             outStr = null;
         }
 
         #region 设备消息收/发处理    
-        
+
+        /// <summary>
+        /// 报告指定的 System.Byte[] 在此实例中的第一个匹配项的索引。
+        /// </summary>
+        /// <param name="srcBytes">被执行查找的 System.Byte[]。</param>
+        /// <param name="searchBytes">要查找的 System.Byte[]。</param>
+        /// <returns>如果找到该字节数组，则为 searchBytes 的索引位置；如果未找到该字节数组，则为 -1。如果 searchBytes 为 null 或者长度为0，则返回值为 -1。</returns>
+        protected int ByteIndexOf(byte[] srcBytes, byte[] searchBytes)
+        {
+            if (srcBytes == null) { return -1; }
+            if (searchBytes == null) { return -1; }
+            if (srcBytes.Length == 0) { return -1; }
+            if (searchBytes.Length == 0) { return -1; }
+            if (srcBytes.Length < searchBytes.Length) { return -1; }
+            for (int i = 0; i < srcBytes.Length - searchBytes.Length + 1; i++)
+            {
+                if (srcBytes[i] == searchBytes[0])
+                {
+                    if (searchBytes.Length == 1) { return i; }
+                    bool flag = true;
+                    for (int j = 1; j < searchBytes.Length; j++)
+                    {
+                        if (srcBytes[i + j] != searchBytes[j])
+                        {
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag) { return i; }
+                }
+            }
+            return -1;
+        }
+
         /// <summary>
         /// 收到设备端消息处理函数，需要继承类里重载该函数
         /// </summary>
@@ -124,66 +156,73 @@ namespace ScannerBackgrdServer.ApController
             RecvDeviceStruct recvDeviceStruct = null;
             while (true)
             {
-                if (noMsg)
+                try
                 {
-                    Thread.Sleep(100);
-                }
-                else
-                {
-                    if (hNum >= 100)
+                    if (noMsg)
                     {
-                        hNum = 0;
-                        Thread.Sleep(10);
-                    }
-                }
-
-                lock (mutex_Ap_Msg)
-                {
-                    //if (DeviceType !=null && DeviceType.Equals("LTE"))
-                    //    OnOutputLog(LogInfoType.EROR, "当前剩余消息条数：" + rApMsgQueue.Count);
-
-                    if (rApMsgQueue.Count <= 0)
-                    {
-                        noMsg = true;
-                        hNum = 0;
-                        continue;
+                        Thread.Sleep(100);
                     }
                     else
                     {
-                        recvDeviceStruct = rApMsgQueue.Dequeue();
-                        noMsg = false;
-                        hNum ++;
+                        if (hNum >= 100)
+                        {
+                            hNum = 0;
+                            Thread.Sleep(10);
+                        }
                     }
 
-                    count = rApMsgQueue.Count;
-                }
+                    lock (mutex_Device_Msg)
+                    {
+                        //if (DeviceType !=null && DeviceType.Equals("LTE"))
+                        //    OnOutputLog(LogInfoType.EROR, "当前剩余消息条数：" + rApMsgQueue.Count);
 
-                if (handleDeciveMsgNum == System.UInt32.MaxValue)
-                    handleDeciveMsgNum = 0;
-                else
-                    handleDeciveMsgNum++;
+                        if (rDeviceMsgQueue.Count <= 0)
+                        {
+                            noMsg = true;
+                            hNum = 0;
+                            continue;
+                        }
+                        else
+                        {
+                            recvDeviceStruct = rDeviceMsgQueue.Dequeue();
+                            noMsg = false;
+                            hNum++;
+                        }
 
-                if (!MyDeviceList.AddMsgBuff(recvDeviceStruct.token, recvDeviceStruct.buff))
-                {
-                    MyDeviceList.add(recvDeviceStruct.token);
+                        count = rDeviceMsgQueue.Count;
+                    }
+
+                    if (handleDeciveMsgNum == System.UInt32.MaxValue)
+                        handleDeciveMsgNum = 0;
+                    else
+                        handleDeciveMsgNum++;
+
                     if (!MyDeviceList.AddMsgBuff(recvDeviceStruct.token, recvDeviceStruct.buff))
                     {
-                        OnOutputLog(LogInfoType.WARN, string.Format("设备列表中未找到该设备[{0}:{1}]信息！",
-                                    recvDeviceStruct.token.IPAddress.ToString(), recvDeviceStruct.token.Port.ToString()));
-                        OnOutputLog(LogInfoType.INFO, string.Format("共处理设备消息条数:{0}，当前队列消息条数：{1}!",
-                                    handleDeciveMsgNum, count));
-                        continue;
+                        MyDeviceList.add(recvDeviceStruct.token);
+                        if (!MyDeviceList.AddMsgBuff(recvDeviceStruct.token, recvDeviceStruct.buff))
+                        {
+                            OnOutputLog(LogInfoType.WARN, string.Format("设备列表中未找到该设备[{0}:{1}]信息！",
+                                        recvDeviceStruct.token.IPAddress.ToString(), recvDeviceStruct.token.Port.ToString()));
+                            OnOutputLog(LogInfoType.INFO, string.Format("共处理设备消息条数:{0}，当前队列消息条数：{1}!",
+                                        handleDeciveMsgNum, count));
+                            continue;
+                        }
+
                     }
 
+                    //MyDeviceList.DelMsgBuff(recvDeviceStruct.token, 0,int.MaxValue);
+                    OnReceiveDeviceMsg(recvDeviceStruct.token, recvDeviceStruct.buff);
+
+                    recvDeviceStruct = null;
+
+                    OnOutputLog(LogInfoType.DEBG, string.Format("共处理设备消息条数:{0}，当前队列消息条数：{1}!",
+                        handleDeciveMsgNum, count));
                 }
-
-                //MyDeviceList.DelMsgBuff(recvDeviceStruct.token, 0,int.MaxValue);
-                OnReceiveDeviceMsg(recvDeviceStruct.token, recvDeviceStruct.buff);
-
-                recvDeviceStruct = null;
-
-                OnOutputLog(LogInfoType.INFO, string.Format("共处理设备消息条数:{0}，当前队列消息条数：{1}!",
-                    handleDeciveMsgNum, count));
+                catch (Exception e)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("线程[ReceiveDeviceMsgThread]出错。错误码：{0}", e.Message));
+                }
             }
         }
 
@@ -195,33 +234,43 @@ namespace ScannerBackgrdServer.ApController
         private void OnReceiveData(AsyncUserToken token, byte[] buff)
         {
             int count = 0;
-            string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]消息！",
-                deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
-            OnOutputLog(LogInfoType.INFO, str);
-            str = string.Format("收到{0}设备消息内容为\n{1}\n\n",DeviceType,
-                System.Text.Encoding.Default.GetString(buff));
-            OnOutputLog(LogInfoType.DEBG, str, LogCategory.R);
-            str = null;
-
+            if (-1 != ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(ApMsgType.status_response)) &&
+                (-1 != ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(AppMsgType.app_heartbeat_request))))
+            {
+                string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]消息！",
+                    deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
+                OnOutputLog(LogInfoType.INFO, str);
+                str = string.Format("收到{0}设备消息内容为\n{1}\n\n", DeviceType,
+                    System.Text.Encoding.Default.GetString(buff));
+                OnOutputLog(LogInfoType.DEBG, str, LogCategory.R);
+                str = null;
+            }
+            else
+            {
+                string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]心跳消息！",
+                    deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
+                OnOutputLog(LogInfoType.INFO, str);
+                str = null;
+            }
             RecvDeviceStruct recvDeviceStruct = new RecvDeviceStruct();
             recvDeviceStruct.token = token;
             recvDeviceStruct.buff = buff;
 
-            lock (mutex_Ap_Msg)
+            lock (mutex_Device_Msg)
             {
-                rApMsgQueue.Enqueue(recvDeviceStruct);
+                rDeviceMsgQueue.Enqueue(recvDeviceStruct);
 
                 if (recvDeciveMsgNum == System.UInt32.MaxValue)
                     recvDeciveMsgNum = 0;
                 else
                     recvDeciveMsgNum++;
 
-                count = rApMsgQueue.Count;
+                count = rDeviceMsgQueue.Count;
 
 
             }
 
-            OnOutputLog(LogInfoType.INFO, string.Format("共收到设备消息条数:{0}，当前队列消息条数：{1}!",
+            OnOutputLog(LogInfoType.DEBG, string.Format("共收到设备消息条数:{0}，当前队列消息条数：{1}!",
                     recvDeciveMsgNum, count));
 
             recvDeviceStruct = null;

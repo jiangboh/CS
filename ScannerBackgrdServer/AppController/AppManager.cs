@@ -48,8 +48,8 @@ namespace ScannerBackgrdServer.AppController
             int count = 0;
 
             string outStr = string.Format("AppContr收到Main侧消息。消息内容:\n{0}\n", mb.bJson);
-            FrmMainController.add_log_info(LogInfoType.INFO, outStr, "APPContr", LogCategory.R);
-            Logger.Trace(LogInfoType.DEBG, outStr, "APPContr", LogCategory.R);
+
+            Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APPContr", LogCategory.R);
 
             lock (mutex_Main2App_Msg)
             {
@@ -64,8 +64,7 @@ namespace ScannerBackgrdServer.AppController
             }
 
             outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{1}！", recvMain2AppContrMsgNum,count);
-            FrmMainController.add_log_info(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
-            Logger.Trace(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
         }
     }
 
@@ -109,35 +108,42 @@ namespace ScannerBackgrdServer.AppController
 
             while (true)
             {
-                MyDeviceList.CopyConnList(ref toKenList);
-                foreach (AsyncUserToken x in toKenList)
+                try
                 {
-                    TimeSpan timeSpan = DateTime.Now - x.EndMsgTime;
-                    //if (timeSpan.TotalSeconds > new ModuleConfig().AppOnLineTime) //大于180秒认为设备下线
-                    if (timeSpan.TotalSeconds > DataController.AppOnLineTime) //大于180秒认为设备下线
+                    MyDeviceList.CopyConnList(ref toKenList);
+                    foreach (AsyncUserToken x in toKenList)
                     {
-                        RemovList.Add(x);
+                        TimeSpan timeSpan = DateTime.Now - x.EndMsgTime;
+                        //if (timeSpan.TotalSeconds > new ModuleConfig().AppOnLineTime) //大于180秒认为设备下线
+                        if (timeSpan.TotalSeconds > DataController.AppOnLineTime) //大于180秒认为设备下线
+                        {
+                            RemovList.Add(x);
+                        }
                     }
+                    //删除已下线的AP
+                    foreach (AsyncUserToken x in RemovList)
+                    {
+                        int i = MyDeviceList.remov(x);
+                        if (i != -1)
+                        {
+                            OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
+                            //只发送AP的上下线消息，不发送APP的上下线消息
+                            //Send2main_OnOffLine("OffLine", x); 
+                        }
+                    }
+                    //OnOutputLog(LogInfoType.DEBG, "当前在线App数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
+
+                    toKenList.Clear();
+                    toKenList.TrimExcess();
+                    RemovList.Clear();
+                    RemovList.TrimExcess();
+
+                    Thread.Sleep(3000);
                 }
-                //删除已下线的AP
-                foreach (AsyncUserToken x in RemovList)
+                catch (Exception e)
                 {
-                    int i = MyDeviceList.remov(x);
-                    if (i != -1)
-                    {
-                        OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
-                        //只发送AP的上下线消息，不发送APP的上下线消息
-                        //Send2main_OnOffLine("OffLine", x); 
-                    }
+                    OnOutputLog(LogInfoType.EROR, string.Format("线程[CheckAppStatusThread]出错。错误码：{0}", e.Message));
                 }
-                //OnOutputLog(LogInfoType.DEBG, "当前在线App数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
-
-                toKenList.Clear();
-                toKenList.TrimExcess();
-                RemovList.Clear();
-                RemovList.TrimExcess();
-
-                Thread.Sleep(3000);
             }
         }
 
@@ -326,66 +332,82 @@ namespace ScannerBackgrdServer.AppController
             string str = string.Empty;
             while (true)
             {
-                if (noMsg)
+                try
                 {
-                    Thread.Sleep(100);
-                }
-                else
-                {
-                    if (hNum >= 100)
+                    if (noMsg)
                     {
-                        hNum = 0;
-                        Thread.Sleep(10);
-                    }
-                }
-
-                lock (AppManager.mutex_Main2App_Msg)
-                {
-                    if (AppManager.rMain2AppMsgQueue.Count <= 0)
-                    {
-                        noMsg = true;
-                        hNum = 0;
-                        continue;
+                        Thread.Sleep(100);
                     }
                     else
                     {
-                        noMsg = false;
-                        hNum++;
-                        str = AppManager.rMain2AppMsgQueue.Dequeue();
+                        if (hNum >= 100)
+                        {
+                            hNum = 0;
+                            Thread.Sleep(10);
+                        }
                     }
-                    count = AppManager.rMain2AppMsgQueue.Count;
-                }
 
-                if(AppManager.handleMain2AppContrMsgNum == System.UInt32.MaxValue)
-                    AppManager.handleMain2AppContrMsgNum = 0;
-                else
-                    AppManager.handleMain2AppContrMsgNum++;
+                    lock (AppManager.mutex_Main2App_Msg)
+                    {
+                        if (AppManager.rMain2AppMsgQueue.Count <= 0)
+                        {
+                            noMsg = true;
+                            hNum = 0;
+                            continue;
+                        }
+                        else
+                        {
+                            noMsg = false;
+                            hNum++;
+                            str = AppManager.rMain2AppMsgQueue.Dequeue();
+                        }
+                        count = AppManager.rMain2AppMsgQueue.Count;
+                    }
 
-                //解析收到的消息
-                InterModuleMsgStruct MainMsg = null;
-                try
-                {
-                    MainMsg = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
-                }
-                catch (Exception)
-                {
-                    OnOutputLog(LogInfoType.EROR, "解析收到的Main模块消息出错！", LogCategory.I);
+                    if (AppManager.handleMain2AppContrMsgNum == System.UInt32.MaxValue)
+                        AppManager.handleMain2AppContrMsgNum = 0;
+                    else
+                        AppManager.handleMain2AppContrMsgNum++;
+
+                    //解析收到的消息
+                    InterModuleMsgStruct MainMsg = null;
+                    try
+                    {
+                        MainMsg = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
+                    }
+                    catch (Exception)
+                    {
+                        OnOutputLog(LogInfoType.EROR, "解析收到的Main模块消息出错！", LogCategory.I);
+                        OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2Ap消息条数:{0}，当前队列消息条数：{1}!",
+                                AppManager.handleMain2AppContrMsgNum, count));
+                        continue;
+                    }
+
+                    if ((MainMsg.AppInfo.Ip.Equals(MsgStruct.AllDevice)) || (MainMsg.AppInfo.Type.Equals(DeviceType)))
+                    {
+                        OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
+                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", str));
+                    }
+
+                    AppInnerType flag;
+                    if ((!MainMsg.AppInfo.Ip.Equals(MsgStruct.AllDevice)) 
+                        && (!(Enum.TryParse<AppInnerType>(MainMsg.AppInfo.Type, true, out flag))))
+                    {
+                        if (string.IsNullOrEmpty(MainMsg.AppInfo.Type)) MainMsg.AppInfo.Type = "空";
+                        OnOutputLog(LogInfoType.EROR, "收到MainController模块消息中APP类型错误!收到类型为:" + MainMsg.AppInfo.Type);
+                        continue;
+                    }
+
+                    if (ReceiveMainData != null && MainMsg != null)
+                        ReceiveMainData(MainMsg);
+
                     OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2Ap消息条数:{0}，当前队列消息条数：{1}!",
-                            AppManager.handleMain2AppContrMsgNum, count));
-                    continue;
+                                AppManager.handleMain2AppContrMsgNum, count));
                 }
-
-                if ((MainMsg.AppInfo.Ip.Equals(MsgStruct.AllDevice)) || (MainMsg.AppInfo.Type.Equals(DeviceType)))
+                catch (Exception e)
                 {
-                    OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
-                    OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", str));
+                    OnOutputLog(LogInfoType.EROR, string.Format("线程[ReceiveMainMsgThread]出错。错误码：{0}", e.Message));
                 }
-
-                if (ReceiveMainData != null && MainMsg != null)
-                    ReceiveMainData(MainMsg);
-
-                OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2Ap消息条数:{0}，当前队列消息条数：{1}!",
-                            AppManager.handleMain2AppContrMsgNum, count));
             }
         }
 
@@ -417,44 +439,53 @@ namespace ScannerBackgrdServer.AppController
         /// <param name="stdeviceServerMsgStructr">消息内容</param>
         protected void SendMsg2App(App_Info_Struct appInfo, DeviceServerMsgStruct deviceServerMsgStruct)
         {
-            if ((string.IsNullOrEmpty(appInfo.Ip)) || (appInfo.Ip == MsgStruct.NullDevice))
+            try
             {
-                OnOutputLog(LogInfoType.INFO, string.Format("目的设备为Null，不向App发送信息！"));
-                return;
-            }
-
-            string strJosn = JsonConvert.SerializeObject(deviceServerMsgStruct);
-            byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
-            
-            if (appInfo.Ip == MsgStruct.AllDevice)
-            {
-                OnOutputLog(LogInfoType.INFO, string.Format("目的设备为All，向所有App发送信息！"));
-                HashSet<AsyncUserToken>  toKenList = MyDeviceList.GetConnList();
-                if (toKenList != null)
+                if ((string.IsNullOrEmpty(appInfo.Ip)) || (appInfo.Ip == MsgStruct.NullDevice))
                 {
-                    foreach (AsyncUserToken appToKen in toKenList)
-                    {
-                        OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！", 
-                            deviceServerMsgStruct.Body.type,appToKen.IPAddress,appToKen.Port), LogCategory.S);
-                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
-                        MySocket.SendMessage(appToKen, buff);
-                    }
-                }
-            }
-            else
-            {
-                AsyncUserToken appToKen = MyDeviceList.FindByIpPort(appInfo.Ip, appInfo.Port);
-                if (appToKen == null)
-                {
-                    OnOutputLog(LogInfoType.WARN, string.Format("设备列表中未找到该App设备[{0}:{1}]信息！", appInfo.Ip, appInfo.Port));
+                    OnOutputLog(LogInfoType.INFO, string.Format("目的设备为Null，不向App发送信息！"));
                     return;
                 }
 
-                OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
-                            deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
-                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
-                MySocket.SendMessage(appToKen, buff);
+                string strJosn = JsonConvert.SerializeObject(deviceServerMsgStruct);
+                byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
+
+                if (appInfo.Ip == MsgStruct.AllDevice)
+                {
+                    OnOutputLog(LogInfoType.INFO, string.Format("目的设备为All，向所有App发送信息！"));
+                    //HashSet<AsyncUserToken>  toKenList = MyDeviceList.GetConnList();
+                    AsyncUserToken[] toKenList = MyDeviceList.GetConnListToArray();
+                    if (toKenList.Length > 0)
+                    {
+                        foreach (AsyncUserToken appToKen in toKenList)
+                        {
+                            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                                deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
+                            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+                            MySocket.SendMessage(appToKen, buff);
+                        }
+                    }
+                }
+                else
+                {
+                    AsyncUserToken appToKen = MyDeviceList.FindByIpPort(appInfo.Ip, appInfo.Port);
+                    if (appToKen == null)
+                    {
+                        OnOutputLog(LogInfoType.WARN, string.Format("设备列表中未找到该App设备[{0}:{1}]信息！", appInfo.Ip, appInfo.Port));
+                        return;
+                    }
+
+                    OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                                deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
+                    OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+                    MySocket.SendMessage(appToKen, buff);
+                }
             }
+            catch (Exception ee)
+            {
+                OnOutputLog(LogInfoType.EROR, "发送消息到App出错。出错原因："+ee.Message, LogCategory.I);
+            }
+
             return;
         }
 
@@ -477,11 +508,15 @@ namespace ScannerBackgrdServer.AppController
 
             msgStruct.Body = TypeKeyValue;
             string strJosn = JsonConvert.SerializeObject(msgStruct);
+            if (-1 == strJosn.IndexOf(AppMsgType.app_heartbeat_response))
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                            TypeKeyValue.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
+                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+            }
+
             byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
-                            TypeKeyValue.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
             MySocket.SendMessage(appToKen, buff);
         }
 

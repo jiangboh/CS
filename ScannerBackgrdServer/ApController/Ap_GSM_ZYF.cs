@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using static ScannerBackgrdServer.Common.MsgStruct;
 
 namespace ScannerBackgrdServer.ApController
 {
@@ -13,7 +14,7 @@ namespace ScannerBackgrdServer.ApController
         public static uint heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
-        private const string MODE_NAME = "GSM_ZYF";
+        private string MODE_NAME = ApInnerType.GSM_V2.ToString();
 
         public Ap_GSM_ZYF()
         {

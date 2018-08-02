@@ -18,7 +18,14 @@
      
      (8) add activeTime Start and end for GSM
          TAC:smallint->smallint unsigned
-                            2018-07-18                      
+                            2018-07-18    
+                            
+     (9) add otherplmn and periodFreq
+         add res1,res2,res3
+                            2018-07-23
+                                
+     (A) add all tables of GSM-V2/CDMA  
+                            2018-07-28                                                                     
                                                                                                                                           
 ********************************************************************************/
 
@@ -304,6 +311,9 @@ CREATE TABLE gsm_rf_para
     rfPwr              tinyint      	   NULL default 63  COMMENT '发射功率衰减值',
     carry              tinyint             NULL default -1  COMMENT 'GSM的载波标识0或1',
 	bindingDevId       int                 NULL default -1  COMMENT '仅用于标识GSM的绑定设备id', 	
+	res1               char(128)      	   NULL  COMMENT '保留字段1',
+	res2               char(128)      	   NULL  COMMENT '保留字段2',
+	res3               char(128)      	   NULL  COMMENT '保留字段3',
 	activeTime1Start   time                NULL  COMMENT '生效时间1的起始时间',
 	activeTime1Ended   time                NULL  COMMENT '生效时间1的结束时间',
 	activeTime2Start   time                NULL  COMMENT '生效时间2的起始时间',
@@ -384,6 +394,128 @@ CREATE TABLE gsm_msg_option
 	
 ) ENGINE=InnoDB DEFAULT  CHARSET=utf8;
 
+
+
+/* ===  gc_nb_cell === */
+SELECT '-----gc_nb_cell prcess--------';
+
+CREATE TABLE `gc_nb_cell` 
+(
+  id             int      unsigned   primary key NOT NULL auto_increment COMMENT '主键ID',	
+  `bGCId`        char(16) DEFAULT NULL COMMENT '小区ID。CDMA没有小区ID，高WORD是SID，低WORD是NID',
+  `bPLMNId`      char(16) DEFAULT NULL COMMENT '邻小区PLMN标志',
+  `cRSRP`        char(8)  DEFAULT NULL COMMENT '信号功率',
+  `wTac`         char(8)  DEFAULT NULL COMMENT '追踪区域码',
+  `wPhyCellId`   char(8)  DEFAULT NULL COMMENT '小区ID',
+  `wUARFCN`      char(8)  DEFAULT NULL COMMENT '小区频点',
+  `cRefTxPower`  char(8)  DEFAULT NULL COMMENT 'GSM制式时为C1测量值',
+  `bNbCellNum`   char(8)  DEFAULT NULL COMMENT '邻小区个数',
+  `bC2`          char(8)  DEFAULT NULL COMMENT 'C2测量值（GSM）,其他制式保留',
+  `bReserved1`   char(8)  DEFAULT NULL COMMENT '只用于LTE',
+  `nc_item`      varchar(1024) DEFAULT NULL COMMENT '邻区item',
+ 
+   carry            tinyint   NULL default -1   COMMENT 'GSM的载波标识0或1',
+   bindingDevId     int       NULL default -1   COMMENT '仅用于标识GSM的绑定设备id', 	
+   affDeviceId      int       NOT NULL  COMMENT '所属的设备ID号；即关联到deviceinfo表 外键FK'	
+ 
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+
+
+/* ===  gc_misc === */
+SELECT '-----gc_misc prcess--------';
+
+CREATE TABLE `gc_misc` 
+(
+  id             int      unsigned   primary key NOT NULL auto_increment COMMENT '主键ID',	
+  
+  `wTraceLen`    char(8) DEFAULT NULL COMMENT 'Trace长度',
+  `cTrace`       varchar(1024) DEFAULT NULL COMMENT 'Trace内容',
+  
+  `bOrmType`      char(8)  DEFAULT NULL COMMENT '主叫类型，1=呼叫号码, 2=短消息PDU, 3=寻呼测量',
+  `bUeId`         char(16) DEFAULT NULL COMMENT 'IMSI',
+  `cRSRP`         char(8)  DEFAULT NULL COMMENT '接收信号强度',
+  `bUeContentLen` char(8)  DEFAULT NULL COMMENT 'Ue主叫内容长度',
+  `bUeContent`    varchar(512) DEFAULT NULL COMMENT 'Ue主叫内容，可变长度，最大249字节',
+  
+  `bSMSOriginalNumLen` char(8)  DEFAULT NULL COMMENT '主叫号码长度',
+  `bSMSOriginalNum`    char(32) DEFAULT NULL COMMENT '主叫号码',
+  `bSMSContentLen`     char(8)  DEFAULT NULL COMMENT '短信内容字数，0~70',
+  `bSMSContent`        varchar(256) DEFAULT NULL COMMENT '短信内容',
+  
+   carry            tinyint   NULL default -1   COMMENT 'GSM的载波标识0或1',
+   bindingDevId     int       NULL default -1   COMMENT '仅用于标识GSM的绑定设备id', 	
+   affDeviceId      int       NOT NULL  COMMENT '所属的设备ID号；即关联到deviceinfo表 外键FK'
+ 
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
+
+
+/* ===  gc_param_report === */
+SELECT '-----gc_param_report prcess--------';
+
+CREATE TABLE gc_param_report
+(
+  id                int      unsigned   primary key NOT NULL auto_increment COMMENT '主键ID',	
+  
+  `bWorkingMode`    char(8)  DEFAULT NULL COMMENT '工作模式。1：侦码模式；3：驻留模式(GSM/CDMA支持)',
+  `wCDMAUarfcn`     char(8)  DEFAULT NULL COMMENT 'CDMA黑名单频点',
+  `bPLMNId`         char(16) DEFAULT NULL COMMENT 'PLMN标志。ASCII字符',
+  `bDlAtt`          char(8)  DEFAULT NULL COMMENT '发送衰减。0~89，Unit: dB',
+  `bRxGain`         char(8)  DEFAULT NULL COMMENT '保留字段。Unit: dB',
+  `wPhyCellId`      char(8)  DEFAULT NULL COMMENT '物理小区ID。GSM：不用；CDMA：PN',
+  `wLac`            char(8)  DEFAULT NULL COMMENT '区域码。GSM：LAC；CDMA：REG_ZONE',
+  `wUARFCN`         char(8)  DEFAULT NULL COMMENT '小区频点。CDMA制式为BSID',
+  `dwCellId`        char(16) DEFAULT NULL COMMENT '小区ID。CDMA制式没有小区ID，高WORD是SID，低WORD是NID',
+  
+  `wARFCN1`         char(8)  DEFAULT NULL COMMENT '工作频点1',
+  `bARFCN1Mode`     char(8)  DEFAULT NULL COMMENT '工作频点1模式。0表示扫描，1表示常开,2表示关闭。',
+  `wARFCN1Duration` char(8)  DEFAULT NULL COMMENT '工作频点1扫描时长',
+  `wARFCN1Period`   char(8)  DEFAULT NULL COMMENT '工作频点1扫描间隔',
+  
+  `wARFCN2`         char(8)  DEFAULT NULL COMMENT '工作频点2',
+  `bARFCN2Mode`     char(8)  DEFAULT NULL COMMENT '工作频点2模式。0表示扫描，1表示常开,2表示关闭。',
+  `wARFCN2Duration` char(8)  DEFAULT NULL COMMENT '工作频点2扫描时长',
+  `wARFCN2Period`   char(8)  DEFAULT NULL COMMENT '工作频点2扫描间隔',
+  
+  `wARFCN3`         char(8)  DEFAULT NULL COMMENT '工作频点3',
+  `bARFCN3Mode`     char(8)  DEFAULT NULL COMMENT '工作频点3模式。0表示扫描，1表示常开,2表示关闭。',
+  `wARFCN3Duration` char(8)  DEFAULT NULL COMMENT '工作频点3扫描时长',
+  `wARFCN3Period`   char(8)  DEFAULT NULL COMMENT '工作频点3扫描间隔',
+  
+  `wARFCN4`         char(8)  DEFAULT NULL COMMENT '工作频点4',
+  `bARFCN4Mode`     char(8)  DEFAULT NULL COMMENT '工作频点4模式。0表示扫描，1表示常开,2表示关闭。',
+  `wARFCN4Duration` char(8)  DEFAULT NULL COMMENT '工作频点4扫描时长',
+  `wARFCN4Period`   char(8)  DEFAULT NULL COMMENT '工作频点4扫描间隔',
+  
+  `res1`            char(16) DEFAULT NULL COMMENT '保留字段1',
+  `res2`            char(16) DEFAULT NULL COMMENT '保留字段2',
+  `res3`            char(16) DEFAULT NULL COMMENT '保留字段3',
+  
+   carry            tinyint   NULL default -1   COMMENT 'GSM的载波标识0或1',
+   bindingDevId     int       NULL default -1   COMMENT '仅用于标识GSM的绑定设备id', 	
+   affDeviceId      int       NOT NULL  COMMENT '所属的设备ID号；即关联到deviceinfo表 外键FK'	
+ 
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
+
+
+/* ===  gc_imsi_action === */
+SELECT '-----gc_imsi_action prcess--------';
+
+CREATE TABLE `gc_imsi_action`
+(
+  id              int      unsigned   primary key NOT NULL auto_increment COMMENT '主键ID',	
+  
+  `bIMSI`         char(16) DEFAULT NULL COMMENT 'IMSI号',
+  `bUeActionFlag` char(8)  DEFAULT NULL COMMENT '目标IMSI对应的动作，1 = Reject 5 = Hold ON',
+ 
+  `res1`          char(16) DEFAULT NULL COMMENT '保留字段1',
+  `res2`          char(16) DEFAULT NULL COMMENT '保留字段2',
+  `res3`          char(16) DEFAULT NULL COMMENT '保留字段3',
+ 
+   carry          tinyint   NULL default -1   COMMENT 'GSM的载波标识0或1',
+   bindingDevId   int       NULL default -1   COMMENT '仅用于标识GSM的绑定设备id', 	
+   affDeviceId    int       NOT NULL  COMMENT '所属的设备ID号；即关联到deviceinfo表 外键FK'
+  
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
 
 
 
@@ -3742,6 +3874,11 @@ CREATE TABLE ap_general_para
 	ManualPci          int      	         NULL  COMMENT '手动设置同步pci',
 	ManualBw           int      	         NULL  COMMENT '手动设置同步带宽',	
 	gpsConfig          tinyint      	     NULL  COMMENT 'GPS配置，0表示NOGPS，1表示GPS',
+	otherplmn          char(255)      	     NULL  COMMENT '多PLMN选项，多个之间用逗号隔开',
+	periodFreq         char(255)      	     NULL  COMMENT '{周期:freq1,freq2,freq3}',
+	res1               char(128)      	     NULL  COMMENT '保留字段1',
+	res2               char(128)      	     NULL  COMMENT '保留字段2',
+	res3               char(128)      	     NULL  COMMENT '保留字段3',
 	activeTime1Start   time                  NULL  COMMENT '生效时间1的起始时间',
 	activeTime1Ended   time                  NULL  COMMENT '生效时间1的结束时间',
 	activeTime2Start   time                  NULL  COMMENT '生效时间2的起始时间',

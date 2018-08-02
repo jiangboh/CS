@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ScannerBackgrdServer.Common;
 
 namespace ScannerBackgrdServer.ApController
 {
@@ -28,37 +29,46 @@ namespace ScannerBackgrdServer.ApController
 
             while (true)
             {
-                //去重功能关闭
-                if (DataController.RemoveDupMode != 1)
+                try
                 {
-                    Thread.Sleep(3000);
-                    continue;
-                }
-
-                lock (locker1)
-                {
-                    foreach (KeyValuePair<string, DateTime> kvp in dic)
+                    //去重功能关闭
+                    if (DataController.RemoveDupMode != 1)
                     {
-                        //Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-                        TimeSpan timeSpan = DateTime.Now - kvp.Value;
-                        if (timeSpan.TotalMinutes > DataController.RemoveDupTimeLength)
+                        Thread.Sleep(3000);
+                        continue;
+                    }
+
+                    lock (locker1)
+                    {
+                        foreach (KeyValuePair<string, DateTime> kvp in dic)
                         {
-                            RemovList.Add(kvp.Key);
+                            //Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                            TimeSpan timeSpan = DateTime.Now - kvp.Value;
+                            if (timeSpan.TotalMinutes > DataController.RemoveDupTimeLength)
+                            {
+                                RemovList.Add(kvp.Key);
+                            }
                         }
                     }
-                }
 
-                //删除超时的imsi
-                foreach (string x in RemovList)
+                    //删除超时的imsi
+                    foreach (string x in RemovList)
+                    {
+                        del(x);
+                    }
+
+                    //Console.WriteLine("\n\n当前缓存Imsi数量: {0}\n\n", GetCount());
+                    RemovList.Clear();
+                    RemovList.TrimExcess();
+
+                    Thread.Sleep(3000);
+                }
+                catch (Exception e)
                 {
-                    del(x);
+                    Xml_codec.StaticOutputLog(LogInfoType.EROR, 
+                        string.Format("线程[CheckImsiList]出错。错误码：{0}", e.Message),
+                        "ImsiRemoverDup");
                 }
-
-                //Console.WriteLine("\n\n当前缓存Imsi数量: {0}\n\n", GetCount());
-                RemovList.Clear();
-                RemovList.TrimExcess();
-
-                Thread.Sleep(3000);
             }
         }
 

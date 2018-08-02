@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -11,7 +12,8 @@ using System.Windows.Forms;
 
 namespace ScannerBackgrdServer.Common
 {
-    public enum LogInfoType       //日志信息类型
+    //日志信息类型
+    public enum LogInfoType       
     {
         DEBG = 0,
         INFO = 1,
@@ -26,6 +28,13 @@ namespace ScannerBackgrdServer.Common
         I = 2    //信息
     }
 
+    public enum LogOutType       //日志输出类型
+    {
+        OT_File = 0,    //仅输出到文件
+        OT_Net = 1,     //仅输出到网络
+        OT_Both = 2,    //输出到文件和网络
+    }
+
     public class Logger
     {
         #region 定义
@@ -34,30 +43,22 @@ namespace ScannerBackgrdServer.Common
         private const string LOG_INFO  = "\r\n【INFO】[{0}][{1}] {2}({3})\r\n";
         private const string LOG_WARN  = "\r\n【WARN】[{0}][{1}] {2}({3})\r\n";
         private const string LOG_EROR  = "\r\n【EROR】[{0}][{1}] {2}({3})\r\n";
+       
+        private static TextWriterTraceListener twTraceListener;
 
         private static DateTime currentLogFileDate = DateTime.Now;
 
-        private static TextWriterTraceListener twtl;
-
-        //private const string logRootDirectory = @"D:\log";
-
-        private static string logRootDirectory = Application.StartupPath + @"\strLogInfo";
-
-        //private static string logRootDirectory = @"C:\Apache24\htdocs\server";
-
         private static string logSubDirectory;
-        //private static string outString;
 
-        private static Mutex gMutexLog = new Mutex();
+        private static Object mutex_Logger = new Object();
+        private static Queue<string> gQueueLogger = new Queue<string>();
 
         private static long gLogIndex = 0;
 
-        private enum LogOutType       //日志输出类型
-        {
-            MessageBoxOnly = 0,       //仅MessageBox输出
-            FileOnly = 1,             //仅日志输出
-            MessageBoxAndFile = 2,    //MessageBox输出+日志输出
-        }
+        private static long gLines = 0;
+        private static long logLinesPerFils = 50000;
+
+        private static string logRootDirectory = Application.StartupPath + @"\strLogInfo";        
 
         private enum FileFlushType    //日志文件刷新类型
         {
@@ -65,19 +66,17 @@ namespace ScannerBackgrdServer.Common
             RightNow = 1,             //立即刷新
         }
 
-
         /// <summary>
         /// 配置记录输出类型
-        /// 可以修改成从配置文件读取
         /// </summary>
-        private static readonly LogOutType logOutType = LogOutType.FileOnly;
+        private static  LogOutType logOutType = LogOutType.OT_File;
 
         /// <summary>
         /// 配置记录文件的刷新类型
-        /// 可以修改成从配置文件读取
         /// </summary>
         private static readonly FileFlushType fileFlushType = FileFlushType.RightNow;
 
+        private static UdpClient udpSender = new UdpClient(0);
 
         #endregion
 
@@ -97,48 +96,52 @@ namespace ScannerBackgrdServer.Common
             set
             {
                 logRootDirectory = value;
-
                 switch (logOutType)
                 {
-                    case LogOutType.MessageBoxOnly:
-                        {
-                            break;
-                        }
-                    case LogOutType.FileOnly:
+                    case LogOutType.OT_File:
                         {
                             System.Diagnostics.Trace.AutoFlush = true;
                             System.Diagnostics.Trace.Listeners.Clear();
-                            System.Diagnostics.Trace.Listeners.Add(TWTL);
+                            System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
                             break;
                         }
-                    case LogOutType.MessageBoxAndFile:
+                    case LogOutType.OT_Net:
+                        {                            
+                            break;
+                        }
+                    case LogOutType.OT_Both:
                         {
                             System.Diagnostics.Trace.AutoFlush = true;
                             System.Diagnostics.Trace.Listeners.Clear();
-                            System.Diagnostics.Trace.Listeners.Add(TWTL);
+                            System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
                             break;
                         }
                 }
             }
         }
 
+
+        /// <summary>
+        /// 获取Log的全路径
+        /// </summary>
         private static string GetLogFullPath
         {
             get
             {
-                return string.Concat(logRootDirectory, '\\', string.Concat(logSubDirectory, @"\log", currentLogFileDate.ToString("yyyy-MM-dd"), ".txt"));
+                string tmp = string.Concat(logRootDirectory, '\\', string.Concat(logSubDirectory, @"\log", currentLogFileDate.ToString("yyyy-MM-dd")));
+                tmp = string.Format("{0}-{1}.txt",tmp,gLines);
+
+                return tmp;
             }
         }
 
         /// <summary>
         /// 跟踪输出日志文件
         /// </summary>
-        private static TextWriterTraceListener TWTL
+        private static TextWriterTraceListener TWTraceListener
         {
             get
-            {
-                //if (twtl == null)
-                //{
+            {         
                 if (string.IsNullOrEmpty(logSubDirectory))
                 {
                     BuiderDir(DateTime.Now);
@@ -151,12 +154,9 @@ namespace ScannerBackgrdServer.Common
                         BuiderDir(DateTime.Now);
                     }
                 }
-
-                //MessageBox.Show(GetLogFullPath);
-                twtl = new TextWriterTraceListener(GetLogFullPath);
-                //}
-
-                return twtl;
+        
+                twTraceListener = new TextWriterTraceListener(GetLogFullPath);              
+                return twTraceListener;
             }
         }
 
@@ -167,53 +167,45 @@ namespace ScannerBackgrdServer.Common
 
         static Logger()
         {
-            switch (logOutType)
+            logLinesPerFils = DataController.LogLinesPerFils;
+            logOutType = DataController.LogOutputType;
+
+            try
             {
-                case LogOutType.MessageBoxOnly:
-                    {
-                        break;
-                    }
-                case LogOutType.FileOnly:
-                    {
-                        System.Diagnostics.Trace.AutoFlush = true;
-                        System.Diagnostics.Trace.Listeners.Clear();
-                        System.Diagnostics.Trace.Listeners.Add(TWTL);
-                        break;
-                    }
-                case LogOutType.MessageBoxAndFile:
-                    {
-                        System.Diagnostics.Trace.AutoFlush = true;
-                        System.Diagnostics.Trace.Listeners.Clear();
-                        System.Diagnostics.Trace.Listeners.Add(TWTL);
-                        break;
-                    }
+                switch (logOutType)
+                {
+                    case LogOutType.OT_File:
+                        {
+                            System.Diagnostics.Trace.AutoFlush = true;
+                            System.Diagnostics.Trace.Listeners.Clear();
+                            System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
+                            break;
+                        }
+                    case LogOutType.OT_Net:
+                        {
+                            udpSender.Connect(DataController.StrLogIpAddr, int.Parse(DataController.StrLogPort));
+                            break;
+                        }
+                    case LogOutType.OT_Both:
+                        {
+                            udpSender.Connect(DataController.StrLogIpAddr, int.Parse(DataController.StrLogPort));
+                            System.Diagnostics.Trace.AutoFlush = true;
+                            System.Diagnostics.Trace.Listeners.Clear();
+                            System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
+                            break;
+                        }
+                }
+            }
+            catch (Exception ee)
+            {
+                Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+                MessageBox.Show(ee.Message, "Logger出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
             }
         }
 
         #endregion
 
         #region 方法
-
-        #region trace
-
-        public static void Trace(Exception ex)
-        {
-            new AsyncLogException(BeginTraceError).BeginInvoke(ex, null, null);
-        }
-
-        //public static void Trace(LogInfoType logInfoType,string logInfo,
-        //                        [CallerMemberName] string memberName = "",
-        //                        [CallerFilePath] string filePath = "",
-        //                        [CallerLineNumber] int lineNumber = 0)
-        //{
-        //    if (logInfoType < DataController.LogOutputLevel)
-        //    {
-        //        return;
-        //    }
-
-        //    logInfo = string.Format("Line->{0}\r\nFunc->{1}\r\nFile->{2}\r\nInfo->{3}\r\n", lineNumber, memberName, Path.GetFileName(filePath), logInfo);           
-        //    new AsyncLogString(BeginTraceError).BeginInvoke(logInfoType, logInfo, null, null);
-        //}
 
         public static void Trace(LogInfoType logInfoType,
                                  string logInfo,
@@ -273,138 +265,113 @@ namespace ScannerBackgrdServer.Common
                 tmp += string.Format("【{0},I】{1}", moduleName, logInfo);
             }
 
-            new AsyncLogString(BeginTraceError).BeginInvoke(logInfoType, tmp, null, null);
+            lock (mutex_Logger)
+            {
+                gQueueLogger.Enqueue(tmp);
+            }
+
+            //new AsyncLogString(BeginTraceError).BeginInvoke(logInfoType, tmp, null, null);
         }
 
-        #endregion
 
-        #region delegate
+        /// <summary>
+        /// 用于处理Logger的线程
+        /// </summary>
+        /// <param name="obj"></param>
+        private static void thread_for_logger(object obj)
+        {                  
+            bool noMsg = false;
+            string logInfo = "";
+            
+            try
+            {
+                while (true)
+                {
+                    #region Sleep处理
 
-        private delegate void AsyncLogException(Exception ex);
+                    if (noMsg)
+                    {
+                        //没消息时Sleep一大点
+                        Thread.Sleep(100);
+                    }
+                    else
+                    {
+                        //有消息时Sleep一小点
+                        Thread.Sleep(2);
+                    }
+
+                    #endregion
+
+                    #region 保存Logger
+
+                    lock (mutex_Logger)
+                    {
+                        if (gQueueLogger.Count <= 0)
+                        {
+                            noMsg = true;
+                            continue;
+                        }
+
+                        logInfo = gQueueLogger.Dequeue();
+                    }
+
+                    if (string.IsNullOrEmpty(logInfo))
+                    {   
+                        continue;
+                    }
+
+                    noMsg = false;
+                    switch (logOutType)
+                    {
+                        case LogOutType.OT_File:
+                            {
+                                gLines++;
+
+                                //检测日志日期
+                                StrategyLog();
+
+                                System.Diagnostics.Trace.WriteLine(logInfo);
+                                if (fileFlushType == FileFlushType.RightNow)
+                                {
+                                    System.Diagnostics.Trace.Close();
+                                }
+                                
+                                break;
+                            }
+                        case LogOutType.OT_Net:
+                            {
+                                byte[] sendBytes = Encoding.Default.GetBytes(logInfo);
+                                udpSender.Send(sendBytes, sendBytes.Length);
+                                break;
+                            }
+                        case LogOutType.OT_Both:
+                            {                               
+                                //检测日志日期
+                                StrategyLog();
+                                System.Diagnostics.Trace.WriteLine(logInfo);
+
+                                if (fileFlushType == FileFlushType.RightNow)
+                                {
+                                    System.Diagnostics.Trace.Close();
+                                }
+
+                                byte[] sendBytes = Encoding.Default.GetBytes(logInfo);
+                                udpSender.Send(sendBytes, sendBytes.Length);
+
+                                break;
+                            }
+                    }                   
+
+                    #endregion
+                }
+            }
+            catch (Exception ee)
+            {                
+                Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+            }
+        }
 
         private delegate void AsyncLogString(LogInfoType logInfoType, string logInfo);
-
-        private static int get_info_from_error(string ori,ref string fileName,ref string line)
-        {
-            int i;
-            if (string.IsNullOrEmpty(ori))
-            {
-                return -1;
-            }
-
-            //int i = gApLower.ApInfo.Fullname.LastIndexOf(".");
-            //name = gApLower.ApInfo.Fullname.Substring(i + 1);
-            //nameFullPath = gApLower.ApInfo.Fullname.Substring(0, i);
-            //E:\各种资料\C#-Project\ScannerBackgrdServer\ScannerB
-            //ackgrdServer\ScannerBackgrdServer\FrmMainController.cs:line 11836
-
-            fileName = "";
-            line = "";
-
-            i = ori.LastIndexOf("\\");
-            if (i > 0)
-            {
-                ori = ori.Substring(i + 1);
-            }
-
-            i = ori.LastIndexOf(" ");
-            if (i > 0)
-            {
-                line = ori.Substring(i + 1);
-            }
-
-            i = ori.LastIndexOf(":");            
-            if (i > 0 )
-            {
-                fileName = ori.Substring(0, i);
-            }
-
-            if (fileName != "" && line != "")
-            {
-                return 0;
-            }
-            else
-            {
-                return -1;
-            }
-
-        }
-
-        private static void BeginTraceError(Exception ex)
-        {
-            string tmp = "";
-            string line = "";
-            string fileName = "";
-
-            get_info_from_error(ex.StackTrace.Trim(), ref fileName, ref line);
-
-            tmp = string.Format(LOG_EROR, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), ++gLogIndex, fileName, line);
-            tmp += string.Format("【ERR,I】{0},{1}", ex.GetType().Name, ex.Message);
-           
-
-            //outString = string.Format("1 -> {0} {1}\r\n2 -> {2}\r\n3 -> Source:{3}",
-            //ex.GetType().Name,ex.Message, ex.StackTrace.Trim(), ex.Source);
-
-            //申请
-            gMutexLog.WaitOne();           
-
-            switch (logOutType)
-            {
-                case LogOutType.MessageBoxOnly:
-                    {
-                        MessageBox.Show(tmp);
-                        break;
-                    }
-                case LogOutType.FileOnly:
-                    {                      
-                        if (null != ex)
-                        {
-                            StrategyLog();                           
-                            //System.Diagnostics.Trace.WriteLine(string.Format(LOG_EROR, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-
-                            while (null != ex)
-                            {
-                                //System.Diagnostics.Trace.WriteLine(outString);
-                                System.Diagnostics.Trace.WriteLine(tmp);
-                                ex = ex.InnerException;
-                            }
-
-                            if (fileFlushType == FileFlushType.RightNow)
-                            {
-                                System.Diagnostics.Trace.Close();
-                            }
-                        }
-
-                        break;
-                    }
-                case LogOutType.MessageBoxAndFile:
-                    {
-                        MessageBox.Show(string.Format(tmp));
-
-                        if (null != ex)
-                        {
-                            StrategyLog();
-                            //System.Diagnostics.Trace.WriteLine(string.Format(LOG_EROR, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"),gLogIndex));
-
-                            while (null != ex)
-                            {
-                                System.Diagnostics.Trace.WriteLine(tmp);
-                                ex = ex.InnerException;
-                            }
-
-                            if (fileFlushType == FileFlushType.RightNow)
-                            {
-                                System.Diagnostics.Trace.Close();
-                            }
-                        }
-
-                        break;
-                    }
-            }
-
-            //释放
-            gMutexLog.ReleaseMutex();
-        }
 
         private static void BeginTraceError(LogInfoType logInfoType, string logInfo)
         {
@@ -413,97 +380,49 @@ namespace ScannerBackgrdServer.Common
                 MessageBox.Show("参数非法！");
             }
 
-            //申请
-            gMutexLog.WaitOne();
-
-            switch (logOutType)
+            lock (mutex_Logger)
             {
-                case LogOutType.MessageBoxOnly:
-                    {
-                        MessageBox.Show(logInfo);
-                        break;
-                    }
-                case LogOutType.FileOnly:
-                    {
-                        //检测日志日期
-                        StrategyLog();
 
-                        ////输出日志头
-                        //if (logInfoType == LogInfoType.INFO)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_INFO, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else if (logInfoType == LogInfoType.WARN)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_WARN, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else if (logInfoType == LogInfoType.EROR)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_EROR, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_DEBG, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        
-                        System.Diagnostics.Trace.WriteLine(logInfo);
-
-                        if (fileFlushType == FileFlushType.RightNow)
+                switch (logOutType)
+                {
+                    case LogOutType.OT_File:
                         {
-                            System.Diagnostics.Trace.Close();
+                            //检测日志日期
+                            StrategyLog();
+                            System.Diagnostics.Trace.WriteLine(logInfo);
+
+                            if (fileFlushType == FileFlushType.RightNow)
+                            {
+                                System.Diagnostics.Trace.Close();
+                            }
+
+                            break;
                         }
-
-                        break;
-                    }
-                case LogOutType.MessageBoxAndFile:
-                    {
-                        MessageBox.Show(logInfo);
-
-                        //检测日志日期
-                        StrategyLog();
-
-                        ////输出日志头
-                        //if (logInfoType == LogInfoType.INFO)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_INFO, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else if (logInfoType == LogInfoType.WARN)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_WARN, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else if (logInfoType == LogInfoType.EROR)
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_EROR, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-                        //else
-                        //{
-                        //    System.Diagnostics.Trace.WriteLine(string.Format(LOG_DEBG, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"), gLogIndex));
-                        //}
-
-                        System.Diagnostics.Trace.WriteLine(logInfo);
-
-                        if (fileFlushType == FileFlushType.RightNow)
-                        {
-                            System.Diagnostics.Trace.Close();
+                    case LogOutType.OT_Net:
+                        {                            
+                            break;
                         }
+                    case LogOutType.OT_Both:
+                        {                            
+                            //检测日志日期
+                            StrategyLog();
+                            System.Diagnostics.Trace.WriteLine(logInfo);
 
-                        break;
-                    }
+                            if (fileFlushType == FileFlushType.RightNow)
+                            {
+                                System.Diagnostics.Trace.Close();
+                            }
+
+                            break;
+                        }
+                }
+
             }
-
-            //释放
-            gMutexLog.ReleaseMutex();
         }
-
-
-        #endregion
-
-        #region helper
 
         private static void StrategyLog()
         {
-            //判断日志日期
-            if (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0)
+            if (((gLines % logLinesPerFils) == 0) || (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0))
             {
                 DateTime currentDate = DateTime.Now.Date;
 
@@ -512,19 +431,43 @@ namespace ScannerBackgrdServer.Common
 
                 //更新当前日志日期
                 currentLogFileDate = currentDate;
-
                 System.Diagnostics.Trace.Flush();
 
                 //更改输出
-                if (twtl != null)
+                if (twTraceListener != null)
                 {
-                    System.Diagnostics.Trace.Listeners.Remove(twtl);
+                    System.Diagnostics.Trace.Listeners.Remove(twTraceListener);
                 }
 
-                System.Diagnostics.Trace.Listeners.Add(TWTL);
+                System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
             }
+
+            ////判断日志日期
+            //if (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0)
+            //{
+            //    DateTime currentDate = DateTime.Now.Date;
+
+            //    //生成子目录
+            //    BuiderDir(currentDate);
+
+            //    //更新当前日志日期
+            //    currentLogFileDate = currentDate;
+            //    System.Diagnostics.Trace.Flush();
+
+            //    //更改输出
+            //    if (twTraceListener != null)
+            //    {
+            //        System.Diagnostics.Trace.Listeners.Remove(twTraceListener);
+            //    }
+
+            //    System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
+            //}
         }
 
+        /// <summary>
+        /// 创建路径
+        /// </summary>
+        /// <param name="currentDate"></param>
         private static void BuiderDir(DateTime currentDate)
         {
             int year = currentDate.Year;
@@ -539,11 +482,84 @@ namespace ScannerBackgrdServer.Common
                 Directory.CreateDirectory(path);
             }
 
+            //2018年\07月
             logSubDirectory = subdir;
         }
 
-        #endregion
+        ///// <summary>
+        ///// 压缩文件
+        ///// </summary>
+        ///// <param name="fileNames">要打包的文件列表</param>
+        ///// <param name="GzipFileName">目标文件名称</param>
+        ///// <param name="CompressionLevel">压缩品质级别（0~9）</param>   
+        //public static int Compress(FileInfo fileNames, string GzipFileName, int CompressionLevel)
+        //{
+        //    if (!File.Exists(fileNames.FullName))
+        //    {
+        //        return -1;
+        //    }
 
-        #endregion
+        //    ZipOutputStream s = new ZipOutputStream(File.Create(GzipFileName));
+
+        //    try
+        //    {
+        //        /*
+        //         * 0 - store only 
+        //         * 9 - means best compression
+        //         */
+        //        s.SetLevel(CompressionLevel);
+        //        FileStream fs = fileNames.Open(FileMode.Open, FileAccess.ReadWrite);
+
+        //        // 将文件分批读入缓冲区
+        //        byte[] data = new byte[2048];
+        //        int size = 2048;
+
+        //        ZipEntry entry = new ZipEntry(Path.GetFileName(fileNames.Name));
+        //        entry.DateTime = (fileNames.CreationTime > fileNames.LastWriteTime ? fileNames.LastWriteTime : fileNames.CreationTime);
+
+        //        s.PutNextEntry(entry);
+
+        //        while (true)
+        //        {
+        //            size = fs.Read(data, 0, size);
+
+        //            if (size <= 0)
+        //            {
+        //                break;
+        //            }
+
+        //            s.Write(data, 0, size);
+        //        }
+
+        //        fs.Close();
+
+        //    }
+        //    catch (Exception ee)
+        //    {
+        //        Logger.Trace(LogInfoType.EROR,ee.Message,"Logger",LogCategory.I);
+        //        return -1;
+        //    }
+        //    finally
+        //    {
+        //        s.Finish();
+        //        s.Close();
+        //    }
+
+        //    return 0;
+        //}
+
+        public static void Start()
+        {          
+            //通过ParameterizedThreadStart创建线程
+            Thread threadLogger = new Thread(new ParameterizedThreadStart(thread_for_logger));
+
+            threadLogger.Priority = ThreadPriority.Lowest;
+
+            //给方法传值
+            threadLogger.Start("thread_for_ftp_helper!\n");
+            threadLogger.IsBackground = true;           
+        }
+
+        #endregion       
     }
 }

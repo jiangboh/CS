@@ -243,7 +243,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                Logger.Trace(ee);
+                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+
                 FrmMainController.add_log_info(LogInfoType.EROR,ee.Message,"FTP", LogCategory.I);
                 FrmMainController.add_log_info(LogInfoType.EROR,"Couldn't connect to remote server", "FTP", LogCategory.I);
                 //throw new IOException("Couldn't connect to remote server");
@@ -955,7 +956,8 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(ee);
+                        Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+
                         FrmMainController.add_log_info(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
                         throw new IOException("Malformed PASV strReply: " +strReply);
                     }
@@ -974,7 +976,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                Logger.Trace(ee);
+                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
                 FrmMainController.add_log_info(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
                 //throw new IOException("Can't connect to remote server");
                 return null;
@@ -1070,10 +1072,10 @@ namespace ScannerBackgrdServer
                     isConn = true;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ee)
             {
                 isConn = false;
-                Logger.Trace(ex);
+                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
             }
             finally
             {
@@ -1175,9 +1177,9 @@ namespace ScannerBackgrdServer
                         pingStatus = -1;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ee)
                 {
-                    Logger.Trace(ex);
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
                     pingStatus = -1;
                 }
 

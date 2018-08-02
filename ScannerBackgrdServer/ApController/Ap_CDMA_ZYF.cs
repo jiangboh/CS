@@ -39,18 +39,20 @@ namespace ScannerBackgrdServer.ApController
             CONFIG_FAP_MSG = 204,  //GUI配置FAP的启动参数
             CONTROL_FAP_REBOOT_MSG = 205,  //GUI控制FAP的重启。
             CONTROL_FAP_RF_MSG = 206,  //控制FAP射频的消息
+            CONFIG_SMS_CONTENT_MSG =192,	    //配置下发短信号码和内容（下发，界面报成功、报数据库）
             CONTROL_FAP_RADIO_ON_MSG = 193,  //	GUI 控制FAP开启射频
             CONTROL_FAP_RADIO_OFF_MSG = 194,  //GUI 控制FAP关闭射频
             CONTROL_FAP_RESET_MSG = 195,  //GUI 控制FAP的软复位
             CONFIG_CDMA_CARRIER_MSG = 196,  //GUI 配置CDMA多载波参数
             QUERY_FAP_PARAM_MSG = 197,  //GUI 查询FAP运行参数
-            CONFIG_IMSI_MSG_V3 = 245,  //大数量imsi名单，用于配置不同的目标IMSI不同的行为
+            CONFIG_IMSI_MSG_V3_ID = 245,  //大数量imsi名单，用于配置不同的目标IMSI不同的行为
         };
         /// <summary>
         /// 设备发送给控制端的消息类型
         /// </summary>
         private enum Recv_Msg_Id
         {
+            QUERY_NB_CELL_INFO_MSG = 202,  //	GUI查询邻区信息
             FAP_NB_CELL_INFO_MSG = 203,  //FAP上报邻区信息
             CONFIG_FAP_MSG = 204,  //GUI配置FAP的启动参数
             CONTROL_FAP_REBOOT_MSG = 205,  //GUI控制FAP的重启。
@@ -163,7 +165,7 @@ namespace ScannerBackgrdServer.ApController
             public string[] bIMSI;
             public Byte[] bUeActionFlag;
 
-            public STRUCT_CONFIG_IMSI_MSG_V3(byte arrayNum)
+            public STRUCT_CONFIG_IMSI_MSG_V3(int arrayNum)
             {
                 this.wTotalImsi = 0;
                 this.bIMSINum = 0;
@@ -252,7 +254,7 @@ namespace ScannerBackgrdServer.ApController
         public static uint heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
-        private const string MODE_NAME = "CDMA_ZYF";
+        private string MODE_NAME = ApInnerType.CDMA.ToString();
 
         private const byte MsgHadeLen = 12;
 
@@ -278,7 +280,7 @@ namespace ScannerBackgrdServer.ApController
                 string msg = GetDeviceMsg_XML(apToKen);
                 if (string.IsNullOrEmpty(msg))
                 {
-                    OnOutputLog(LogInfoType.INFO, "消息已解析完。缓存里没有完整消息了！");
+                    //OnOutputLog(LogInfoType.DEBG, "消息已解析完。缓存里没有完整消息了！");
                     return;
                 }
                 HandleApMsg(apToKen, msg);
@@ -315,7 +317,7 @@ namespace ScannerBackgrdServer.ApController
             recv.bProtocolSap = (Protocol_Sap)bProtocolSap;
 
             byte bMsgId = GetValueByString_Byte(ref msg_data);
-            if (!Enum.IsDefined(typeof(Recv_Msg_Id),bMsgId))
+            if (!Enum.IsDefined(typeof(Recv_Msg_Id),(System.Int32)bMsgId))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("解析CDMA消息格式错误，bMsgId为{0}，不在定义中！",bMsgId));
                 return false;
@@ -323,7 +325,7 @@ namespace ScannerBackgrdServer.ApController
             recv.bMsgId = (Recv_Msg_Id)bMsgId;
 
             byte bMsgType = GetValueByString_Byte(ref msg_data);
-            if (!Enum.IsDefined(typeof(Msg_Type), bMsgType))
+            if (!Enum.IsDefined(typeof(Msg_Type), (System.Int32)bMsgType))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("解析CDMA消息格式错误，bMsgType{0}，不在定义中！", bMsgType));
                 return false;
@@ -411,24 +413,24 @@ namespace ScannerBackgrdServer.ApController
             //心跳消息处理
             if (msgBody.type == ApMsgType.status_response)
             {
-                OnOutputLog(LogInfoType.INFO, "收到心跳消息");
+                //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
                 if (heartbeatMsgNum == System.UInt32.MaxValue)
                     heartbeatMsgNum = 0;
                 else
                     heartbeatMsgNum++;
 
-                //UInt32 oldDetail = token.Detail;
+                UInt32 oldDetail = apToKen.Detail;
 
-                //UInt32 detail = 0;
-                //string sDetail = GetMsgStringValueInList("detail", msgBody);
-                //if (!string.IsNullOrEmpty(sDetail))
-                //    detail = Convert.ToUInt32(sDetail, 16);
+                UInt32 detail = 0;
+                string sDetail = GetMsgStringValueInList("detail", msgBody);
+                if (!string.IsNullOrEmpty(sDetail))
+                    detail = Convert.ToUInt32(sDetail, 16);
 
                 apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
                 apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
                 apToKen.FullName = GetMsgStringValueInList("fullname", msgBody);
                 apToKen.Id = GetMsgStringValueInList("id", msgBody);
-                //token.Detail = detail;
+                apToKen.Detail = detail;
 
                 int i = MyDeviceList.add(apToKen);
                 Send2main_OnOffLine("OnLine", i, apToKen);
@@ -444,9 +446,10 @@ namespace ScannerBackgrdServer.ApController
                 //    OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
                 //}
                 ////发送状态改变
-                //Send2ap_ApStatusChange(token, oldDetail);
+
+                Send2ap_ApStatusChange_GSM_ZYF(apToKen, oldDetail);
             }
-            else if (msgBody.type == ApMsgType.agent_transmit_gsm_msg)
+            else if (msgBody.type == ApMsgType.agent_straight_msg)
             {
                 MsgRecvStruct recv = new MsgRecvStruct();
                 string msg_data = GetMsgStringValueInList("data", msgBody);
@@ -469,6 +472,31 @@ namespace ScannerBackgrdServer.ApController
                 }
 
                 HandleGsmMsg(apToKen, recv);
+
+            }
+            else if (msgBody.type == ApMsgType.agent_transmit_ack_msg)
+            {
+                MsgRecvStruct recv = new MsgRecvStruct();
+                string msg_data = GetMsgStringValueInList("data", msgBody);
+                msg_data = msg_data.Replace(" ", "");
+                if (string.IsNullOrEmpty(msg_data))
+                {
+                    OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中data字段为空！");
+                    return;
+                }
+                if (msg_data.Length < MsgHadeLen)
+                {
+                    OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中data字段长度过短！");
+                    return;
+                }
+
+                if (!DecodeGsmMsg(true, ref recv, msg_data))
+                {
+                    OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误！");
+                    return;
+                }
+
+                HandleGsmAckMsg(apToKen, recv);
 
             }
             else if (msgBody.type == ApMsgType.get_general_para_response)
@@ -601,49 +629,66 @@ namespace ScannerBackgrdServer.ApController
         private void HandleGsmMsg(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
-            if (recv.bMsgId == Recv_Msg_Id.FAP_NB_CELL_INFO_MSG) 
+            if (recv.bMsgId == Recv_Msg_Id.QUERY_NB_CELL_INFO_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONFIG_FAP_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_REBOOT_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID ||
+                recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_ON_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RESET_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG ||
+                recv.bMsgId == Recv_Msg_Id.CONFIG_IMSI_MSG_V3_ID)
+            {
+                Send2Main_SEND_REQ_CNF(apToKen, recv);
+            }
+            else if (recv.bMsgId == Recv_Msg_Id.FAP_NB_CELL_INFO_MSG)
             {
                 Send2Main_FAP_NB_CELL_INFO_MSG(apToKen, recv);
             }
-            else if (recv.bMsgId == Recv_Msg_Id.CONFIG_FAP_MSG)
-            {
-                Send2Main_CONFIG_FAP_MSG(apToKen, recv);
-            }
-            else if (recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_REBOOT_MSG)
-            {
-                Send2Main_CONTROL_FAP_REBOOT_MSG(apToKen, recv);
-            }
             else if (recv.bMsgId == Recv_Msg_Id.FAP_TRACE_MSG)
             {
-                Send2Main_FAP_TRACE_MSG(apToKen, recv);
+                Send2Main_FAP_TRACE_MSG(apToKen, recv,Main2ApControllerMsgType.gsm_msg_recv);
             }
             else if (recv.bMsgId == Recv_Msg_Id.UE_STATUS_REPORT_MSG)
             {
-                Send2Main_UE_STATUS_REPORT_MSG(apToKen, recv);
+                Send2Main_UE_STATUS_REPORT_MSG(apToKen, recv, Main2ApControllerMsgType.gsm_msg_recv);
             }
             else if (recv.bMsgId == Recv_Msg_Id.UE_ORM_REPORT_MSG)
             {
-                Send2Main_UE_ORM_REPORT_MSG(apToKen, recv);
-            }
-            else if (recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID)
-            {
-                Send2Main_CONFIG_SMS_CONTENT_MSG_ID(apToKen, recv);
+                Send2Main_UE_ORM_REPORT_MSG(apToKen, recv, Main2ApControllerMsgType.gsm_msg_recv);
             }
             else if (recv.bMsgId == Recv_Msg_Id.FAP_PARAM_REPORT_MSG)
             {
                 Send2Main_FAP_PARAM_REPORT_MSG(apToKen, recv);
             }
-            else if (recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_ON_MSG)
+            else
             {
-                Send2Main_CONTROL_FAP_RADIO_ON_MSG(apToKen, recv);
+                OnOutputLog(LogInfoType.WARN, "HandleGsmMsg收到的Ap消息类型错误！");
             }
-            else if (recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG)
+        }
+
+        private void HandleGsmAckMsg(AsyncUserToken apToKen, MsgRecvStruct recv)
+        {
+            String data = recv.data;
+            if (recv.bMsgId == Recv_Msg_Id.CONFIG_FAP_MSG)
             {
-                Send2Main_CONTROL_FAP_RADIO_OFF_MSG(apToKen, recv);
+                Send2Main_CONFIG_FAP_MSG(apToKen, recv);
             }
-            else if (recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RESET_MSG)
+            else if (recv.bMsgId == Recv_Msg_Id.FAP_TRACE_MSG)
             {
-                Send2Main_CONTROL_FAP_RESET_MSG(apToKen, recv);
+                Send2Main_FAP_TRACE_MSG(apToKen, recv, Main2ApControllerMsgType.ReportGenPara);
+            }
+            else if (recv.bMsgId == Recv_Msg_Id.UE_STATUS_REPORT_MSG)
+            {
+                //Send2Main_UE_STATUS_REPORT_MSG(apToKen, recv, Main2ApControllerMsgType.ReportGenPara);
+            }
+            else if (recv.bMsgId == Recv_Msg_Id.UE_ORM_REPORT_MSG)
+            {
+                Send2Main_UE_ORM_REPORT_MSG(apToKen, recv, Main2ApControllerMsgType.ReportGenPara);
+            }
+            else if (recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID)
+            {
+                Send2Main_CONFIG_SMS_CONTENT_MSG_ID(apToKen, recv);
             }
             else if (recv.bMsgId == Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG)
             {
@@ -655,7 +700,7 @@ namespace ScannerBackgrdServer.ApController
             }
             else
             {
-                OnOutputLog(LogInfoType.WARN, "收到的Ap消息类型错误！");
+                OnOutputLog(LogInfoType.WARN, "HandleGsmAckMsg收到的Ap消息类型错误！");
             }
         }
 
@@ -669,6 +714,24 @@ namespace ScannerBackgrdServer.ApController
         private string getReservedString(byte len)
         {
             return "0".PadLeft(len * 2, '0');
+        }
+
+        private string fullString(byte len,string str)
+        {
+            if (str.Length >= len)
+                return str;
+            else
+                return str + "0".PadLeft(len - str.Length, '0');
+        }
+
+        private string StringAddZero(string str)
+        {
+            string data = string.Empty;
+            for (int i=0;i<str.Length;i++)
+            {
+                data = string.Format("{0}{1}",data,str[i].ToString().PadLeft(2,'0'));
+            }
+            return data;
         }
 
         private void SendMainMsgParaVlaueError(Ap_Info_Struct ApInfo, App_Info_Struct AppInfo, string type, string name)
@@ -772,7 +835,7 @@ namespace ScannerBackgrdServer.ApController
             sendMsg = Regex.Replace(sendMsg, @".{2}", "$0 ");
 
             Msg_Body_Struct TypeKeyValue =
-                new Msg_Body_Struct(ApMsgType.agent_transmit_gsm_msg,
+                new Msg_Body_Struct(ApMsgType.agent_straight_msg,
                 "data", sendMsg.Trim());
 
             byte[] bMsg = EncodeApXmlMessage(msgId2App.id, TypeKeyValue);
@@ -817,7 +880,7 @@ namespace ScannerBackgrdServer.ApController
             }
 
             Msg_Body_Struct TypeKeyValue =
-                new Msg_Body_Struct(ApMsgType.agent_transmit_gsm_msg,
+                new Msg_Body_Struct(ApMsgType.agent_straight_msg,
                 "data", sendData.Trim());
 
             byte[] bMsg = EncodeApXmlMessage(sendMsg.wSqn, TypeKeyValue);
@@ -838,13 +901,19 @@ namespace ScannerBackgrdServer.ApController
         {
             string paraMnc = string.Empty;
 
+            //string plmn = string.Empty;
+            //for (int i = 0; i < 5; i++)
+            //{
+            //    plmn = string.Format("{0}{1}",plmn, GetValueByString_String(1,ref para.bPLMNId).PadLeft(2, '0'));
+            //}
+
             string data = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}{12}{13}{14}",
                 para.bWorkingMode.ToString("X").PadLeft(2, '0'),
                 para.bC.ToString("X").PadLeft(2, '0'),
                 para.wRedirectCellUarfcn.ToString("X").PadLeft(4, '0'),
                 getReservedString(4),
                 para.dwDateTime.ToString("X").PadLeft(8, '0'),
-                para.bPLMNId.PadLeft(10, '0'),
+                CodeConver.String2HexString(para.bPLMNId).PadLeft(10, '0'),
                 para.bTxPower.ToString("X").PadLeft(2, '0'),
                 getReservedString(1),
                 para.bRxGain.ToString("X").PadLeft(2, '0'),
@@ -857,12 +926,32 @@ namespace ScannerBackgrdServer.ApController
             Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_FAP_MSG,sys, data));
         }
 
+        private void Send2ap_CONFIG_SMS_CONTENT_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, string num,string text)
+        {
+            int len = num.Length;
+            string phoneNum  = CodeConver.String2HexString(num);
+            string phoneText = CodeConver.String2Unicode(text,false);
+            if(phoneText.Length >40 || phoneText.Length<=0)
+            {
+                Send2APP_GeneralError(ApToken,AppInfo,Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(),
+                    "编码后的消息内容长度错误!");
+                return;
+            }
+
+            string data = string.Format("{0}{1}{2}{3}",
+                 len.ToString("X").PadLeft(2, '0'),
+                 fullString(36,phoneNum),
+                 text.Length.ToString("X").PadLeft(2, '0'),
+                 phoneText);
+            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG, sys, data));
+        }
+
         private void Send2ap_CONTROL_FAP_REBOOT_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys,byte flag)
         {
             string data = string.Format("{0}{1}",
                  flag.ToString("X").PadLeft(2, '0'),
                  getReservedString(3));
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_NB_CELL_INFO_MSG, sys,data));
+            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_REBOOT_MSG, sys,data));
         }
 
         private void Send2ap_CONTROL_FAP_RADIO_ON_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys)
@@ -913,24 +1002,96 @@ namespace ScannerBackgrdServer.ApController
 
         private void Send2ap_CONFIG_IMSI_MSG_V3(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_IMSI_MSG_V3 para)
         {
-            string data = string.Format("{0}{1}{2}{3}{4}{5}",
-               para.wTotalImsi.ToString("X").PadLeft(4, '0'),
-               para.bIMSINum.ToString("X").PadLeft(2, '0'),
-               para.bSegmentType.ToString("X").PadLeft(2, '0'),
-               para.bSegmentID.ToString("X").PadLeft(2, '0'),
-               para.bActionType.ToString("X").PadLeft(2, '0'),
-               getReservedString(1));
-
-            for (int i = 0; i < 50; i++)
+            
+            if (para.wTotalImsi <= 50 || para.bActionType == 1)
             {
-                data = data + para.bIMSI[i].PadLeft(30, '0');
-            }
-            for (int i = 0; i < 50; i++)
-            {
-                data = data + para.bUeActionFlag[i].ToString("X").PadLeft(2, '0');
-            }
+                string data = string.Empty;
+                data = string.Format("{0}{1}{2}{3}{4}{5}",
+                   para.wTotalImsi.ToString("X").PadLeft(4, '0'),
+                   para.wTotalImsi.ToString("X").PadLeft(2, '0'),
+                   4.ToString("X").PadLeft(2, '0'), //Complete
+                   0.ToString("X").PadLeft(2, '0'),
+                   para.bActionType.ToString("X").PadLeft(2, '0'),
+                   getReservedString(2));
 
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3, sys, data));
+                for (int i = 0; i < para.wTotalImsi; i++)
+                {
+                    data = data + StringAddZero(para.bIMSI[i]);
+                }
+                for (int i = para.wTotalImsi; i < 50; i++)
+                {
+                    data = data + getReservedString(15);
+                }
+                for (int i = 0; i < para.wTotalImsi; i++)
+                {
+                    data = data + para.bUeActionFlag[i].ToString("X").PadLeft(2, '0');
+                }
+                for (int i = para.wTotalImsi; i < 50; i++)
+                {
+                    data = data + getReservedString(1);
+                }
+
+                Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
+            }
+            else
+            {
+                string data = string.Empty;
+                byte bSegmentType = 0;
+                byte bSegmentID = 0;
+                for (int j = 0; j < para.wTotalImsi; j += 50)
+                {
+                    int lastId = j + 50;
+                    if (j == 0)
+                        bSegmentType = 1;
+                    else if (lastId >= para.wTotalImsi)
+                        bSegmentType = 1;
+                    else
+                        bSegmentType = 3;
+
+                    data = string.Format("{0}{1}{2}{3}{4}{5}",
+                       para.wTotalImsi.ToString("X").PadLeft(4, '0'),
+                       para.wTotalImsi.ToString("X").PadLeft(2, '0'),
+                       bSegmentType.ToString("X").PadLeft(2, '0'), //Complete
+                       bSegmentID.ToString("X").PadLeft(2, '0'),
+                       para.bActionType.ToString("X").PadLeft(2, '0'),
+                       getReservedString(2));
+
+                    bSegmentID++;
+
+                    if (lastId < para.wTotalImsi)
+                    {
+                        for (int i = j; i < lastId; i++)
+                        {
+                            data = data + StringAddZero(para.bIMSI[i]);
+                        }
+                        for (int i = j; i < lastId; i++)
+                        {
+                            data = data + para.bUeActionFlag[i].ToString("X").PadLeft(2, '0');
+                        }
+                    }
+                    else
+                    {
+                        for (int i = j; i < para.wTotalImsi; i++)
+                        {
+                            data = data + StringAddZero(para.bIMSI[i]);
+                        }
+                        for (int i = para.wTotalImsi; i < lastId; i++)
+                        {
+                            data = data + getReservedString(15);
+                        }
+                        for (int i = j; i < para.wTotalImsi; i++)
+                        {
+                            data = data + para.bUeActionFlag[i].ToString("X").PadLeft(2, '0');
+                        }
+                        for (int i = para.wTotalImsi; i < lastId; i++)
+                        {
+                            data = data + getReservedString(1);
+                        }
+                    }
+
+                    Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
+                }
+            }
         }
 
         //private void Send2ap_SET_PARA_REQ(AsyncUserToken ApToken, App_Info_Struct AppInfo, Gsm_Device_Sys sys, int Flag,
@@ -1144,6 +1305,16 @@ namespace ScannerBackgrdServer.ApController
                 }
                 return;
             }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
+            {
+                //返回错误
+                if (GetMsgIntValueInList("ReturnCode", MainMsg.Body) != 0)
+                {
+                    OnOutputLog(LogInfoType.EROR,
+                        "[ApStatusChange_Ack]Main模块返回错误:" + GetMsgStringValueInList("ReturnStr", MainMsg.Body));
+                }
+                return;
+            }
             else if (MainMsg.Body.type == Main2ApControllerMsgType.gsm_msg_send)
             {
                 //string Protocol = GetMsgStringValueInList("Protocol", MainMsg.Body.dic, string.Empty);
@@ -1271,12 +1442,13 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
 
-                para.dwDateTime = GetMsgU32ValueInList("dwDateTime", n_dic.dic, UInt32.MaxValue);
-                if (para.dwDateTime == UInt32.MaxValue)
-                {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "dwDateTime");
-                    return;
-                }
+                para.dwDateTime = (UInt32)DateTime.Now.Subtract(DateTime.Parse("1970-1-1")).TotalSeconds;
+                //para.dwDateTime = GetMsgU32ValueInList("dwDateTime", n_dic.dic, UInt32.MaxValue);
+                //if (para.dwDateTime == UInt32.MaxValue)
+                //{
+                //    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "dwDateTime");
+                //    return;
+                //}
 
                 para.bPLMNId = GetMsgStringValueInList("bPLMNId", n_dic.dic, string.Empty);
                 if (para.bPLMNId == string.Empty)
@@ -1339,6 +1511,22 @@ namespace ScannerBackgrdServer.ApController
                 }
 
                 Send2ap_CONTROL_FAP_REBOOT_MSG(ApToKen, AppInfo, sys, bRebootFlag);
+            }
+            else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString()))
+            {
+                string bSMSOriginalNum = GetMsgStringValueInList("bSMSOriginalNum", n_dic.dic, String.Empty);
+                string bSMSContent = GetMsgStringValueInList("bSMSContent", n_dic.dic, String.Empty);
+                if (String.IsNullOrEmpty(bSMSOriginalNum) || bSMSOriginalNum.Length <= 0)
+                {
+                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(), "bSMSOriginalNum");
+                    return;
+                }
+                if (String.IsNullOrEmpty(bSMSContent))
+                {
+                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(), "bSMSContent");
+                    return;
+                }
+                Send2ap_CONFIG_SMS_CONTENT_MSG(ApToKen, AppInfo, sys, bSMSOriginalNum, bSMSContent);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_RADIO_ON_MSG.ToString()))
             {
@@ -1473,60 +1661,60 @@ namespace ScannerBackgrdServer.ApController
             {
                 Send2ap_QUERY_FAP_PARAM_MSG(ApToKen, AppInfo, sys);
             }
-            else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString()))
+            else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString()))
             {
-                STRUCT_CONFIG_IMSI_MSG_V3 para = new STRUCT_CONFIG_IMSI_MSG_V3(50);
-                para.wTotalImsi = GetMsgU16ValueInList("wTotalImsi", n_dic.dic, 0);
-                if (para.wTotalImsi == 0)
+                STRUCT_CONFIG_IMSI_MSG_V3 para = new STRUCT_CONFIG_IMSI_MSG_V3(1000);
+                para.wTotalImsi = GetMsgU16ValueInList("wTotalImsi", n_dic.dic, UInt16.MaxValue);
+                if (para.wTotalImsi > 1000)
                 {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "wTotalImsi");
+                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString(), "wTotalImsi");
                     return;
                 }
 
-                para.bIMSINum = GetMsgByteValueInList("bIMSINum", n_dic.dic, Byte.MaxValue);
-                if (para.bIMSINum <= 0 || para.bIMSINum > 50)
-                {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bIMSINum");
-                    return;
-                }
+                //para.bIMSINum = GetMsgByteValueInList("bIMSINum", n_dic.dic, Byte.MaxValue);
+                //if (para.bIMSINum <= 0 || para.bIMSINum > 50)
+                //{
+                //    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bIMSINum");
+                //    return;
+                //}
 
-                para.bSegmentType = GetMsgByteValueInList("bSegmentType", n_dic.dic, Byte.MaxValue);
-                if (para.bSegmentType != 1 && para.bSegmentType != 2 && para.bSegmentType != 3 && para.bSegmentType != 4)
-                {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bSegmentType");
-                    return;
-                }
+                //para.bSegmentType = GetMsgByteValueInList("bSegmentType", n_dic.dic, Byte.MaxValue);
+                //if (para.bSegmentType != 1 && para.bSegmentType != 2 && para.bSegmentType != 3 && para.bSegmentType != 4)
+                //{
+                //    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bSegmentType");
+                //    return;
+                //}
 
-                para.bSegmentID = GetMsgByteValueInList("bSegmentID", n_dic.dic, Byte.MaxValue);
-                if (para.bSegmentID == Byte.MaxValue)
-                {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bSegmentID");
-                    return;
-                }
+                //para.bSegmentID = GetMsgByteValueInList("bSegmentID", n_dic.dic, Byte.MaxValue);
+                //if (para.bSegmentID == Byte.MaxValue)
+                //{
+                //    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bSegmentID");
+                //    return;
+                //}
 
                 para.bActionType = GetMsgByteValueInList("bActionType", n_dic.dic, Byte.MaxValue);
                 if (para.bActionType != 1 && para.bActionType != 2 && para.bActionType != 3 && para.bActionType != 4)
                 {
-                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), "bActionType");
+                    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString(), "bActionType");
                     return;
                 }
 
-                for (int i = 0; i < para.bIMSINum; i++)
+                for (int i = 0; i < para.wTotalImsi; i++)
                 {
                     para.bIMSI[i] = GetMsgStringValueInList(string.Format("bIMSI_#{0}#", i), n_dic.dic, string.Empty);
                     if (String.IsNullOrEmpty(para.bIMSI[i]))
                     {
-                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), string.Format("bIMSI_#{0}#", i));
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString(), string.Format("bIMSI_#{0}#", i));
                         return;
                     }
                 }
 
-                for (int i = 0; i < para.bIMSINum; i++)
+                for (int i = 0; i < para.wTotalImsi; i++)
                 {
-                    para.bUeActionFlag[i] = GetMsgByteValueInList(string.Format("bUeActionFlag#{0}#", i), n_dic.dic, Byte.MaxValue);
+                    para.bUeActionFlag[i] = GetMsgByteValueInList(string.Format("bUeActionFlag_#{0}#", i), n_dic.dic, Byte.MaxValue);
                     if (para.bUeActionFlag[i] != 1 && para.bUeActionFlag[i] != 5)
                     {
-                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3.ToString(), string.Format("bUeActionFlag#{0}#", i));
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString(), string.Format("bUeActionFlag#{0}#", i));
                         return;
                     }
                 }
@@ -1719,11 +1907,43 @@ namespace ScannerBackgrdServer.ApController
 
         #region 封装发送给Main模块消息
 
+        private string StringDelZero(string str)
+        {
+            string data = string.Empty;
+            for (int i = 0; i < str.Length; i+=2)
+            {
+                data = string.Format("{0}{1}", data, str[i+1].ToString());
+            }
+            return data;
+        }
+
         /// <summary>
         /// 向Main模块发送系统参数设备更改通知
         /// </summary>
         /// <param name="apToken">AP设备信息</param>
         /// <param name="recv">收到的参数</param>
+        private void Send2Main_SEND_REQ_CNF(AsyncUserToken apToKen, MsgRecvStruct recv)
+        {
+            String data = recv.data;
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("hardware_id", 0);
+
+            Name_DIC_Struct nDic = new Name_DIC_Struct();
+            nDic.name = "SEND_REQ_CNF".ToString();
+
+            GetValue_Reserved(1, ref data);
+            nDic.dic.Add("cnfType", Enum.GetName(typeof(Recv_Msg_Id), recv.bMsgId));
+            if (recv.bMsgType == Msg_Type.SUCC_OUTCOME)
+                nDic.dic.Add("cnfInd",  0);
+            else
+                nDic.dic.Add("cnfInd", 1);
+
+            TypeKeyValue.n_dic.Add(nDic);
+
+            OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
+        }
+
         private void Send2Main_FAP_NB_CELL_INFO_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
@@ -1795,7 +2015,7 @@ namespace ScannerBackgrdServer.ApController
         private void Send2Main_CONFIG_FAP_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
@@ -1806,16 +2026,22 @@ namespace ScannerBackgrdServer.ApController
             nDic.dic.Add("bC", GetValueByString_Byte(ref data).ToString());
             nDic.dic.Add("wRedirectCellUarfcn", GetValueByString_U16(ref data).ToString());
             GetValue_Reserved(4, ref data);
-            nDic.dic.Add("dwDateTime", GetValueByString_U16(ref data).ToString());
-
-            nDic.dic.Add("bPLMNId", GetValueByString_String(10,ref data).ToString());
+            GetValue_Reserved(4, ref data);
+            //nDic.dic.Add("dwDateTime", GetValueByString_U32(ref data).ToString());
+            byte[] plmn = CodeConver.strToToHexByte(GetValueByString_Byte(ref data).ToString());
+            //for (int i= 0;i<5;i++)
+            //{
+            //    plmn = string.Format("{0}{1}",plmn, GetValueByString_Byte(ref data).ToString());
+            //}
+            
+            nDic.dic.Add("bPLMNId", plmn);
             nDic.dic.Add("bTxPower", GetValueByString_Byte(ref data).ToString());
             nDic.dic.Add("cReserved", GetValueByString_SByte(ref data).ToString());
             nDic.dic.Add("bRxGain", GetValueByString_Byte(ref data).ToString());
             nDic.dic.Add("wPhyCellId", GetValueByString_U16(ref data).ToString());
             nDic.dic.Add("wLAC", GetValueByString_U16(ref data).ToString());
             nDic.dic.Add("wUARFCN", GetValueByString_U16(ref data).ToString());
-            GetValue_Reserved(8, ref data);
+            GetValue_Reserved(2, ref data);
             nDic.dic.Add("dwCellId", GetValueByString_U32(ref data).ToString());
             GetValue_Reserved(32, ref data);
 
@@ -1842,10 +2068,10 @@ namespace ScannerBackgrdServer.ApController
             OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
         }
 
-        private void Send2Main_FAP_TRACE_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
+        private void Send2Main_FAP_TRACE_MSG(AsyncUserToken apToKen, MsgRecvStruct recv,string msgType)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
@@ -1860,38 +2086,153 @@ namespace ScannerBackgrdServer.ApController
             OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
         }
 
-        private void Send2Main_UE_STATUS_REPORT_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
+        private void Send2Main_UE_STATUS_REPORT_MSG(AsyncUserToken apToKen, MsgRecvStruct recv, string msgType)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.UE_STATUS_REPORT_MSG.ToString();
 
-            nDic.dic.Add("bUeIdType1", GetValueByString_Byte(ref data).ToString());
-            nDic.dic.Add("bUeId1", GetValueByString_String(30, ref data).ToString());
-            nDic.dic.Add("cRSRP", GetValueByString_SByte(ref data).ToString());
-            nDic.dic.Add("bUeIdLen1", GetValueByString_Byte(ref data).ToString());
+            byte addFlag = 0;
+            byte type1 = GetValueByString_Byte(ref data);
 
-            nDic.dic.Add("bUeIdType2", GetValueByString_Byte(ref data).ToString());
-            nDic.dic.Add("bUeId2", GetValueByString_String(30, ref data).ToString());
-            nDic.dic.Add("bUeIdLen2", GetValueByString_Byte(ref data).ToString());
+            string msg = GetValueByString_String(30, ref data).ToString();
+            sbyte rsrp = GetValueByString_SByte(ref data);
+            byte len = GetValueByString_Byte(ref data);
 
-            nDic.dic.Add("bUeIdType3", GetValueByString_Byte(ref data).ToString());
-            nDic.dic.Add("bUeId3", GetValueByString_String(30, ref data).ToString());
-            nDic.dic.Add("bUeIdLen3", GetValueByString_Byte(ref data).ToString());
+            if (type1 == 1) 
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imsi", imsi.ToString());
+                addFlag |= 0x1;
+            }
+            else if (type1 == 2)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("tmsi", imsi.ToString());
+                addFlag |= 0x2;
+            }
+            else if (type1 == 3)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imei", imsi.ToString());
+                addFlag |= 0x4;
+            }
+
+
+            byte type2 = GetValueByString_Byte(ref data);
+            msg = GetValueByString_String(30, ref data).ToString();
+            len = GetValueByString_Byte(ref data);
+         
+            if (type2 == 1)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imsi", imsi.ToString());
+                addFlag |= 0x1;
+            }
+            else if (type2 == 2)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("tmsi", imsi.ToString());
+                addFlag |= 0x2;
+            }
+            else if (type2 == 3)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imei", imsi.ToString());
+                addFlag |= 0x4;
+            }
+
+
+            byte type3 = GetValueByString_Byte(ref data);
+            msg = GetValueByString_String(30, ref data).ToString();
+            len = GetValueByString_Byte(ref data);
+            
+            if (type3 == 1)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imsi", imsi.ToString());
+                addFlag |= 0x1;
+            }
+            else if (type3 == 2)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("tmsi", imsi.ToString());
+                addFlag |= 0x2;
+            }
+            else if (type3 == 3)
+            {
+                string imsi = string.Empty;
+                for (int i = 0; i < len; i++)
+                {
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                }
+                nDic.dic.Add("imei", imsi.ToString());
+                addFlag |= 0x4;
+            }
+
+
+            if ((addFlag & 0X1) <= 0)
+            {
+                nDic.dic.Add("imsi", "");
+            }
+            if ((addFlag & 0X2) <= 0)
+            {
+                nDic.dic.Add("tmsi", "");
+            }
+            if ((addFlag & 0X4) <= 0)
+            {
+                nDic.dic.Add("imei", "");
+            }
+
+            nDic.dic.Add("cRSRP", rsrp.ToString());
+            nDic.dic.Add("userType", "");
+            nDic.dic.Add("sn", apToKen.Sn);
 
             TypeKeyValue.n_dic.Add(nDic);
 
-            OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
+            OnSendMsg2Main(recv.wSqn, MsgType.NOTICE, apToKen, TypeKeyValue);
         }
 
-        private void Send2Main_UE_ORM_REPORT_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
+        private void Send2Main_UE_ORM_REPORT_MSG(AsyncUserToken apToKen, MsgRecvStruct recv, string msgType)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
@@ -1914,7 +2255,7 @@ namespace ScannerBackgrdServer.ApController
         private void Send2Main_CONFIG_SMS_CONTENT_MSG_ID(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
@@ -1922,7 +2263,7 @@ namespace ScannerBackgrdServer.ApController
             nDic.name = Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID.ToString();
 
             nDic.dic.Add("bSMSOriginalNumLen", GetValueByString_Byte(ref data).ToString());
-            nDic.dic.Add("bSMSOriginalNum", GetValueByString_String(36, ref data).ToString());
+            nDic.dic.Add("bSMSOriginalNum", CodeConver.strToToHexByte(GetValueByString_String(36, ref data).ToString()));
  
             Byte bSMSContentLen = GetValueByString_Byte(ref data);
             nDic.dic.Add("bSMSContentLen", bSMSContentLen.ToString());
@@ -1947,7 +2288,7 @@ namespace ScannerBackgrdServer.ApController
             nDic.dic.Add("bWorkingMode", GetValueByString_Byte(ref data).ToString());
             GetValue_Reserved(1, ref data);
             nDic.dic.Add("wCDMAUarfcn", GetValueByString_U16(ref data).ToString());
-            nDic.dic.Add("bPLMNId", GetValueByString_String(10, ref data).ToString());
+            nDic.dic.Add("bPLMNId", StringDelZero( GetValueByString_String(10, ref data).ToString()));
             nDic.dic.Add("bDlAtt", GetValueByString_Byte(ref data).ToString());
             GetValue_Reserved(1, ref data);
             nDic.dic.Add("bRxGain", GetValueByString_Byte(ref data).ToString());
@@ -2039,7 +2380,7 @@ namespace ScannerBackgrdServer.ApController
         private void Send2Main_CONFIG_CDMA_CARRIER_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
@@ -2079,7 +2420,7 @@ namespace ScannerBackgrdServer.ApController
         private void Send2Main_CONFIG_IMSI_MSG_V3_ID(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
-            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 

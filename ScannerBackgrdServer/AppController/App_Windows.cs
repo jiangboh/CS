@@ -66,8 +66,8 @@ namespace ScannerBackgrdServer.AppController
             }
             catch (Exception)
             {
-                OnOutputLog(LogInfoType.EROR, "解析收到的App消息出错！");
-                SendErrorMsg2App(appToKen,null, "解析收到的App消息出错！");
+                OnOutputLog(LogInfoType.EROR, "解析收到的App消息出错。JSON格式错误！");
+                SendErrorMsg2App(appToKen,null, "解析收到的App消息出错。JSON格式错误！");
                 return;
             }
 
@@ -89,7 +89,7 @@ namespace ScannerBackgrdServer.AppController
             //心跳消息
             if (AppMsg.Body.type == AppMsgType.app_heartbeat_request)
             {
-                OnOutputLog(LogInfoType.INFO, "收到心跳消息");
+                //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
                 //if (GetMsgIntValueInList(MsgStruct.AllNum, msgBody) != msgBody.dic.Count())
                 //{
                 //    OnOutputLog(LogInfoType.EROR, string.Format("收到消息里键值对数[{0}]与校验值[{1}]不一至。",

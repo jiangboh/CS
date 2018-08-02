@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ScannerBackgrdServer.Common;
 using static ScannerBackgrdServer.Common.MsgStruct;
 
 namespace ScannerBackgrdServer.ApController
@@ -27,31 +28,40 @@ namespace ScannerBackgrdServer.ApController
         {
             while (true)
             {
-                lock (locker1)
+                try
                 {
-                    foreach (AsyncUserToken x in connList)
+                    lock (locker1)
                     {
-                        HashSet<MsgId2App> RemoveList = new HashSet<MsgId2App>();
-                        foreach (MsgId2App y in x.msgId2App)
+                        foreach (AsyncUserToken x in connList)
                         {
-                            TimeSpan timeSpan = DateTime.Now - y.AddTime;
-                            if (timeSpan.TotalSeconds > 20) //大于120秒认为设备不会再回消息了
+                            HashSet<MsgId2App> RemoveList = new HashSet<MsgId2App>();
+                            foreach (MsgId2App y in x.msgId2App)
                             {
-                                RemoveList.Add(y);
+                                TimeSpan timeSpan = DateTime.Now - y.AddTime;
+                                if (timeSpan.TotalSeconds > 20) //大于120秒认为设备不会再回消息了
+                                {
+                                    RemoveList.Add(y);
+                                }
                             }
-                        }
 
-                        foreach (MsgId2App y in RemoveList)
-                        {
-                            x.msgId2App.Remove(y);
-                        }
-                        x.msgId2App.TrimExcess();
+                            foreach (MsgId2App y in RemoveList)
+                            {
+                                x.msgId2App.Remove(y);
+                            }
+                            x.msgId2App.TrimExcess();
 
-                        RemoveList.Clear();
-                        RemoveList.TrimExcess();
+                            RemoveList.Clear();
+                            RemoveList.TrimExcess();
+                        }
                     }
+                    Thread.Sleep(10000);
                 }
-                Thread.Sleep(10000);
+                catch (Exception e)
+                {
+                    Xml_codec.StaticOutputLog(LogInfoType.EROR,
+                        string.Format("线程[CheckMsgId]出错。错误码：{0}", e.Message),
+                        "DeviceList");
+                }
             }
         }
 
@@ -60,6 +70,18 @@ namespace ScannerBackgrdServer.ApController
             lock (locker1)
             {
                 return connList;
+
+            }
+        }
+
+        public AsyncUserToken[] GetConnListToArray()
+        {
+            lock (locker1)
+            {
+                AsyncUserToken[] array = new AsyncUserToken[connList.Count];
+                connList.CopyTo(array);
+                return array;
+
             }
         }
 
