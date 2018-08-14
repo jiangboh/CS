@@ -126,9 +126,10 @@ namespace ScannerBackgrdServer.AppController
                         int i = MyDeviceList.remov(x);
                         if (i != -1)
                         {
-                            OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
+                            CloseToken(x);
+                            OnOutputLog(LogInfoType.INFO, string.Format("App[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
                             //只发送AP的上下线消息，不发送APP的上下线消息
-                            //Send2main_OnOffLine("OffLine", x); 
+                            //Send2main_OnOffLine(OffLine, x); 
                         }
                     }
                     //OnOutputLog(LogInfoType.DEBG, "当前在线App数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
@@ -166,7 +167,24 @@ namespace ScannerBackgrdServer.AppController
             {
                 if (buff[i] == jsonStartFlag)
                 {
-                    if (sFlagNum == 0) startIndex = i;
+                    if (sFlagNum == 0)
+                    {
+                        int j = i;
+                        for (j = i+1;j<buff.Length;j++)
+                        {
+                            if (buff[j] != '\n' && buff[j] != '\r' && buff[j] != '\t' && buff[j] != ' ')
+                            {
+                                break;
+                            }
+                        }
+
+                        if (buff[j] == '"'
+                            && (buff[j + 1] == 'A' || buff[j + 1] == 'a')
+                            && (buff[j + 2] == 'P' || buff[j + 2] == 'p'))
+                        {
+                            startIndex = i;
+                        }
+                    }
                     sFlagNum++;
                 }
                 if (buff[i] == jsonEndFlag)
@@ -422,12 +440,14 @@ namespace ScannerBackgrdServer.AppController
         {
             if (num > 0)
             {
+                //OnOutputLog(LogInfoType.EROR, string.Format("上上上线APP：[{0}:{1}]：", appToKen.IPAddress.ToString(),appToKen.Port));
                 MyDeviceList.add(appToKen);
                 //在收到心跳消息时上报
-                //send2main_OnOffLine("OnLine",token);
+                //send2main_OnOffLine(OnLine,token);
             }
             else  //AP下线，删除设备列表中的AP信息
             {
+                //OnOutputLog(LogInfoType.EROR, string.Format("下下下线APP：[{0}:{1}]：", appToKen.IPAddress.ToString(), appToKen.Port));
                 MyDeviceList.remov(appToKen);
             }
         }

@@ -22,6 +22,10 @@ namespace ScannerBackgrdServer.ApController
             Thread t = new Thread(new ThreadStart(CheckMsgId));
             t.Start();
             t.IsBackground = true;
+            //启动AP消息缓存检测线程
+            Thread t1 = new Thread(new ThreadStart(CheckMsgBuff));
+            t1.Start();
+            t1.IsBackground = true;
         }
 
         private void CheckMsgId()
@@ -38,7 +42,7 @@ namespace ScannerBackgrdServer.ApController
                             foreach (MsgId2App y in x.msgId2App)
                             {
                                 TimeSpan timeSpan = DateTime.Now - y.AddTime;
-                                if (timeSpan.TotalSeconds > 20) //大于120秒认为设备不会再回消息了
+                                if (timeSpan.TotalSeconds > 30) //大于30秒认为设备不会再回消息了
                                 {
                                     RemoveList.Add(y);
                                 }
@@ -63,6 +67,75 @@ namespace ScannerBackgrdServer.ApController
                         "DeviceList");
                 }
             }
+        }
+
+        private void CheckMsgBuff()
+        {
+            while (true)
+            {
+                try
+                {
+                    HashSet<AsyncUserToken> RemoveList = new HashSet<AsyncUserToken>();
+
+                    lock (locker1)
+                    {
+                        foreach (AsyncUserToken x in connList)
+                        {
+                            TimeSpan timeSpan = DateTime.Now - x.EndMsgTime;
+                            if (x.Buffer.Count > 0 && timeSpan.TotalSeconds > 10) //大于10秒认为设备不会再回消息了
+                            {
+                                RemoveList.Add(x);
+                            }
+                        }
+
+                        foreach (AsyncUserToken x in RemoveList)
+                        {
+                            byte[] rev = x.Buffer.GetRange(0, x.Buffer.Count).ToArray();
+                            string da = System.Text.Encoding.Default.GetString(rev).Trim();
+                            if (!string.IsNullOrEmpty(da))
+                            {
+                                Xml_codec.StaticOutputLog(LogInfoType.EROR,
+                                        string.Format("清除设备[{0}：{1}]缓存消息。", x.IPAddress.ToString(), x.Port),
+                                       "DeviceList");
+                                Xml_codec.StaticOutputLog(LogInfoType.DEBG,
+                                        string.Format("清除消息内容:\n{0}", da),
+                                        "DeviceList");
+                            }
+                            rev = null;
+                            da = null;
+                            x.Buffer.Clear();
+                            x.Buffer.TrimExcess();
+                        }
+                        connList.TrimExcess();
+
+                        RemoveList.Clear();
+                        RemoveList.TrimExcess();
+                    }
+                    Thread.Sleep(10000);
+                }
+                catch (Exception e)
+                {
+                    Xml_codec.StaticOutputLog(LogInfoType.EROR,
+                        string.Format("线程[CheckMsgBuff]出错。错误码：{0}", e.Message),
+                        "DeviceList");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 比较两个设备信息是否一至
+        /// </summary>
+        /// <param name="toKen1">设备1</param>
+        /// <param name="toKen2">设备2</param>
+        /// <returns>一至返加true；否则返回false</returns>
+        private bool CompApInfo(AsyncUserToken toKen1,AsyncUserToken toKen2)
+        {
+            if ((String.Compare(toKen1.IPAddress.ToString(), toKen2.IPAddress.ToString(), true) == 0) &&
+                        (String.Compare(toKen1.Port.ToString(), toKen2.Port.ToString(), true) == 0))
+            {
+                return true;
+            }
+            return false;
         }
 
         public HashSet<AsyncUserToken> GetConnList()
@@ -116,8 +189,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x,toKen))
                     {
                         x.EndMsgTime = DateTime.Now;
                         return true;
@@ -139,8 +211,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         msgId2App.AddTime = DateTime.Now;
                         x.msgId2App.Add(msgId2App);
@@ -164,8 +235,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         HashSet<MsgId2App> RemoveList = new HashSet<MsgId2App>();
                         foreach(MsgId2App y in x.msgId2App)
@@ -213,8 +283,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         str = x.MainControllerStatus;
                         break;
@@ -237,8 +306,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         x.MainControllerStatus = status;
                         return true;
@@ -258,6 +326,54 @@ namespace ScannerBackgrdServer.ApController
                     {
                         x.MainControllerStatus = status;
                         x.Detail = 0;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 保存的ap Detail状态
+        /// </summary>
+        /// <param name="detail">状态</param>
+        /// <param name="ip">ap信息-ip</param>
+        /// <param name="prot">ap信息-prot</param>
+        /// <returns></returns>
+        public bool SetDetail(UInt32 detail, string ip, int port)
+        {
+            lock (locker1)
+            {
+                foreach (AsyncUserToken x in connList)
+                {
+                    if ((String.Compare(x.IPAddress.ToString(), ip.ToString(), true) == 0) &&
+                        (String.Compare(x.Port.ToString(), port.ToString(), true) == 0))
+                    {
+                        x.Detail = detail;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 保存的ap Detail状态
+        /// </summary>
+        /// <param name="ApReadySt">状态</param>
+        /// <param name="ip">ap信息-ip</param>
+        /// <param name="prot">ap信息-prot</param>
+        /// <returns></returns>
+        public bool SetApReadySt(Byte ApReadySt, string ip, int port)
+        {
+            lock (locker1)
+            {
+                foreach (AsyncUserToken x in connList)
+                {
+                    if ((String.Compare(x.IPAddress.ToString(), ip.ToString(), true) == 0) &&
+                        (String.Compare(x.Port.ToString(), port.ToString(), true) == 0))
+                    {
+                        x.ApReadySt = ApReadySt;
                         return true;
                     }
                 }
@@ -315,19 +431,19 @@ namespace ScannerBackgrdServer.ApController
         /// <returns>设备信息，未找到返回null</returns>
         public AsyncUserToken FindByIpPort(string ip,int port)
         {
-            AsyncUserToken toKen = null;
+            //AsyncUserToken toKen = null;
             lock (locker1)
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), ip, true) == 0) &&
-                        (String.Compare(x.Port.ToString(), port.ToString(), true) == 0))
+                    if ((String.Compare(x.IPAddress.ToString(), ip.ToString(), true) == 0) &&
+                       (String.Compare(x.Port.ToString(), port.ToString(), true) == 0))
                     {
                         return x;
                     }
                 }
             }
-            return toKen;
+            return null;
         }
 
         /// <summary>
@@ -342,8 +458,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         x.Buffer.AddRange(buff);
                         x.EndMsgTime = DateTime.Now;
@@ -367,8 +482,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         if (startIndex < 0) startIndex = 0;
                         if ((startIndex + len ) > x.Buffer.Count) len = x.Buffer.Count - startIndex;
@@ -387,8 +501,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         byte[] rev = x.Buffer.GetRange(0, x.Buffer.Count).ToArray();
                         return rev;
@@ -410,8 +523,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         if (startIndex < 0) startIndex = 0;
                         if ((startIndex + len) > x.Buffer.Count) len = x.Buffer.Count - startIndex;
@@ -469,8 +581,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 foreach (AsyncUserToken x in connList)
                 {
-                    if ((String.Compare(x.IPAddress.ToString(), toKen.IPAddress.ToString(), true) == 0) &&
-                        (String.Compare(x.Port.ToString(), toKen.Port.ToString(), true) == 0))
+                    if (CompApInfo(x, toKen))
                     {
                         isExist = true;
                         toKen.ConnectTime = x.ConnectTime;

@@ -28,6 +28,21 @@ namespace ScannerBackgrdServer.Common
             }
         }
         /// <summary>
+        /// 将Ascii字符串转为正常字符串
+        /// </summary>
+        /// <param name="Astr">Ascii字符串</param>
+        /// <returns>正常字符串</returns>
+        public static string AscStr2str(string AStr)
+        {
+            string str=string.Empty;
+            for (int i =0;i<AStr.Length;i+=2)
+            {
+                int intAsciiCode = Convert.ToInt32(AStr.Substring(i,2),16);
+                str = string.Format("{0}{1}",str, intAsciiCode-48);
+            }
+            return str;
+        }
+        /// <summary>
         /// 初始化字节数组
         /// </summary>
         /// <param name="Bytes"></param>

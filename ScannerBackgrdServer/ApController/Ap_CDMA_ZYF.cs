@@ -419,21 +419,26 @@ namespace ScannerBackgrdServer.ApController
                 else
                     heartbeatMsgNum++;
 
-                UInt32 oldDetail = apToKen.Detail;
-
+                //UInt32 oldDetail = apToKen.Detail;
                 UInt32 detail = 0;
                 string sDetail = GetMsgStringValueInList("detail", msgBody);
                 if (!string.IsNullOrEmpty(sDetail))
                     detail = Convert.ToUInt32(sDetail, 16);
 
+                //Byte oldApReadySt = apToKen.ApReadySt;
+                Byte ApReadySt = 5;
+                string sApReadySt = GetMsgStringValueInList("addStatus", msgBody);
+                if (!string.IsNullOrEmpty(sApReadySt))
+                    ApReadySt = Convert.ToByte(sApReadySt);
+
                 apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
                 apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
                 apToKen.FullName = GetMsgStringValueInList("fullname", msgBody);
                 apToKen.Id = GetMsgStringValueInList("id", msgBody);
-                apToKen.Detail = detail;
+                //apToKen.Detail = detail;
 
                 int i = MyDeviceList.add(apToKen);
-                Send2main_OnOffLine("OnLine", i, apToKen);
+                Send2main_OnOffLine(OnLine, i, apToKen);
 
                 //判断是周期心跳，还是上线心跳
                 //if ((detail & (int)AP_STATUS.OnLine) > 0) //上线
@@ -447,7 +452,7 @@ namespace ScannerBackgrdServer.ApController
                 //}
                 ////发送状态改变
 
-                Send2ap_ApStatusChange_GSM_ZYF(apToKen, oldDetail);
+                Send2ap_ApStatusChange_GSM_ZYF(apToKen, detail, ApReadySt);
             }
             else if (msgBody.type == ApMsgType.agent_straight_msg)
             {
@@ -498,6 +503,11 @@ namespace ScannerBackgrdServer.ApController
 
                 HandleGsmAckMsg(apToKen, recv);
 
+            }
+            else if (msgBody.type == ApMsgType.set_param_response)
+            {
+                Msg_Body_Struct body = new Msg_Body_Struct(msgBody.type, msgBody.dic);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.CONFIG, apToKen, body);
             }
             else if (msgBody.type == ApMsgType.get_general_para_response)
             {
@@ -1284,7 +1294,7 @@ namespace ScannerBackgrdServer.ApController
                 else
                 {
                     string status = GetMsgStringValueInList("Status", MainMsg.Body);
-                    if (status.Equals("OnLine") || status.Equals("OffLine"))
+                    if (status.Equals(OnLine) || status.Equals(OffLine))
                     {
                         //修改状态
                         MyDeviceList.SetMainControllerStatus(status, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
@@ -1296,22 +1306,21 @@ namespace ScannerBackgrdServer.ApController
                 }
             }
             //状态改变回复
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
+            {
+                RecvAckSaveApStatus(MainMsg);
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.OnOffLineCheck)
+            {
+                string status = GetMsgStringValueInList("Status", MainMsg.Body);
+                Send2main_OnOffLineCheck(status, MainMsg.ApInfo);
+            }
             else if (MainMsg.Body.type == Main2ApControllerMsgType.ReportGenParaAck)
             {
                 if (GetMsgIntValueInList("ReturnCode", MainMsg.Body) != 0)
                 {
                     OnOutputLog(LogInfoType.EROR,
                         "[ReportGenParaAck]Main模块返回错误:" + GetMsgStringValueInList("ReturnStr", MainMsg.Body));
-                }
-                return;
-            }
-            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
-            {
-                //返回错误
-                if (GetMsgIntValueInList("ReturnCode", MainMsg.Body) != 0)
-                {
-                    OnOutputLog(LogInfoType.EROR,
-                        "[ApStatusChange_Ack]Main模块返回错误:" + GetMsgStringValueInList("ReturnStr", MainMsg.Body));
                 }
                 return;
             }
@@ -1377,6 +1386,19 @@ namespace ScannerBackgrdServer.ApController
                 //EncodeSetParaMsg(MainMsg.ApInfo, MainMsg.AppInfo, (Device_Sys)sys, MainMsg.Body.n_dic);
 
                 return;
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.set_parameter_request)
+            {
+                if ((string.IsNullOrEmpty(MainMsg.ApInfo.IP)) || (MainMsg.ApInfo.IP == MsgStruct.NullDevice))
+                {
+                    OnOutputLog(LogInfoType.INFO, string.Format("目的设备为Null，不向Ap发送信息！"));
+                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
+                        string.Format("目的设备为Null，不向Ap发送信息！"));
+                }
+                else
+                {
+                    Send2ap_RecvMainMsg(MainMsg);
+                }
             }
             else //其它消息
             {
@@ -2028,7 +2050,7 @@ namespace ScannerBackgrdServer.ApController
             GetValue_Reserved(4, ref data);
             GetValue_Reserved(4, ref data);
             //nDic.dic.Add("dwDateTime", GetValueByString_U32(ref data).ToString());
-            byte[] plmn = CodeConver.strToToHexByte(GetValueByString_Byte(ref data).ToString());
+            string plmn = CodeConver.AscStr2str(GetValueByString_String(10,ref data).ToString());
             //for (int i= 0;i<5;i++)
             //{
             //    plmn = string.Format("{0}{1}",plmn, GetValueByString_Byte(ref data).ToString());
@@ -2220,7 +2242,7 @@ namespace ScannerBackgrdServer.ApController
                 nDic.dic.Add("imei", "");
             }
 
-            nDic.dic.Add("cRSRP", rsrp.ToString());
+            nDic.dic.Add("rsrp", rsrp.ToString());
             nDic.dic.Add("userType", "");
             nDic.dic.Add("sn", apToKen.Sn);
 

@@ -1077,6 +1077,7 @@ namespace ScannerBackgrdServer.Common
         //         "dic":{
         //         "ipAddr":"172.17.0.123",
         //         "port":"12345",
+        //         "name":"FDD100"           //没有就为空，有的话就为设备名
         //      }
         //  ]
         public const string app_add_device_request = "app_add_device_request";
@@ -1204,6 +1205,14 @@ namespace ScannerBackgrdServer.Common
         //         "LICENSE":"1",                 //LICENSE状态 ：1,正常；0，不正常
         //         "RADIO":"1",                   //射频状态     ：1,正常；0，不正常
         //         "wSelfStudy"  "0"              //"0"正常状态，"1"自学习状态 ，2018-07-19
+        //         "ApReadySt"   "XML-Not-Ready"  //0-"XML-Not-Ready"
+        //                                        //1-"XML-Ready"
+        //                                        //2-"Sniffering"
+        //                                        //3-"Ready-For-Cell"
+        //                                        //4-"Cell-Setuping"
+        //                                        //5-"Cell-Ready"
+        //                                        //6-"Cell-Failure"
+        //         "source:"0， 同步源（0：GPS ； 1：CNM ； 2：no sync）
         //         "time":"2018-05-24 15:38:55"   //时间戳
         //       }
         //    "n_dic":[
@@ -1218,6 +1227,14 @@ namespace ScannerBackgrdServer.Common
         //         "LICENSE":"1",                 //LICENSE状态 ：1,正常；0，不正常
         //         "RADIO":"1",                   //射频状态     ：1,正常；0，不正常
         //         "wSelfStudy"  "0"              //"0"正常状态，"1"自学习状态 ，2018-07-19
+        //         "ApReadySt" "XML-Not-Ready"    //0-"XML-Not-Ready"
+        //                                        //1-"XML-Ready"
+        //                                        //2-"Sniffering"
+        //                                        //3-"Ready-For-Cell"
+        //                                        //4-"Cell-Setuping"
+        //                                        //5-"Cell-Ready"
+        //                                        //6-"Cell-Failure"
+        //         "source:"0，                   //同步源（0：GPS ； 1：CNM ； 2：no sync）
         //         "time":"2018-05-24 15:38:55"   //时间戳
         //       }
         //}
@@ -1538,7 +1555,7 @@ namespace ScannerBackgrdServer.Common
         //   "ManualEarfcn:"xxx",   手动选择的同步频点
         //   "ManualPci:"xxx",      手动选择的同步PCI
         //   "ManualBw:"xxx"        手动选择的同步小区带宽
-        //   "gpsConfig":"0"        GPS配置，0表示NOGPS，1表示GPS
+        //   "gps_select":"0"       GPS配置，0表示NOGPS，1表示GPS
         //                          2018-07-23
         //   "otherplmn:"xxx,yyy",  多PLMN选项，多个之间用逗号隔开
         //   "periodFreq:"{周期:freq1,freq2,freq3}"  周期以S表示，0表示不做周期性变换；
@@ -2415,6 +2432,20 @@ namespace ScannerBackgrdServer.Common
     class Main2ApControllerMsgType : AppMsgType
     {
         /// <summary>
+        /// MainCtrl每隔一段时间(10分钟)就向所有的AP发该消息，用于确认AP和数据库中的上下线状态是否
+        /// 一致，如果不一致的话，ApCtrl就使用OnOffLine消息上报状态给MainCtrl，也即以AP的消息为准.
+        /// 
+        /// MainController-->ApController),2018-08-07
+        /// 
+        /// </summary>
+        //"dic":
+        //{
+        //    "Status":"OnLine"   //"OnLine"或"OffLine"
+        //}
+        public const string OnOffLineCheck = "OnOffLineCheck";
+
+
+        /// <summary>
         /// AP上下线通知消息 (ApController-->MainController)
         /// </summary>
         //"dic":
@@ -2447,8 +2478,15 @@ namespace ScannerBackgrdServer.Common
         /// <summary>
         /// AP状态改变通知 (ApController-->MainController)
         /// </summary>
+        /// 
+        /// 2018-08-03
+        /// WCDMA/LTE-TDD/LTE-FDD对应数据库表ap_status
+        /// GSM-V2/CDMA对应数据库表gc_misc
+        /// GSM目前没有上报这个消息
+        ///
         //"dic":
-        //{
+        //{        
+        //    "carry":     "载波信息 0/1" 
         //    "SCTP":       SCTP连接状态：1,正常；0，不正常
         //    "S1":         S1连接状态：1,正常；0，不正常
         //    "GPS":        GPS连接状态：1,正常；0，不正常
@@ -2457,7 +2495,16 @@ namespace ScannerBackgrdServer.Common
         //    "LICENSE":    LICENSE状态：1,正常；0，不正常
         //    "RADIO":      射频状态：1,正常；0，不正常
         //    "timestamp"   时间戳
-        //    "wSelfStudy"  "0"  //"0"正常状态，"1"只学习状态 ，2018-07-19
+        //    "wSelfStudy"  "0"      //"0"正常状态，"1"只学习状态 ，2018-07-19
+        //                           // 2018-08-09
+        //    "ApReadySt"   "XML-Not-Ready"     //0-"XML-Not-Ready"
+        //                                      //1-"XML-Ready"
+        //                                      //2-"Sniffering"
+        //                                      //3-"Ready-For-Cell"
+        //                                      //4-"Cell-Setuping"
+        //                                      //5-"Cell-Ready"
+        //                                      //6-"Cell-Failure"
+        //    "detail"      : "0x3000000"       //16进制字符串
         //}
         public const string ApStatusChange = "ApStatusChange";
 
@@ -2466,8 +2513,10 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         //"dic":
         //{
-        //    "ReturnCode": 返回码：0,成功；其它值为失败
-        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "ReturnCode"  : 返回码：0,成功；其它值为失败
+        //    "ReturnStr"   : 失败原因值。ReturnCode不为0时有意义
+        //    "detail"      : "0x3000000"   //16进制字符串
+        //    "ApReadySt"   : "XML-Not-Ready"
         //}
         public const string ApStatusChange_Ack = "ApStatusChange_Ack";
 
@@ -2506,11 +2555,11 @@ namespace ScannerBackgrdServer.Common
         //          "ManualEarfcn:"xxx",   手动选择的同步频点
         //          "ManualPci:"xxx",      手动选择的同步PCI
         //          "ManualBw:"xxx"        手动选择的同步小区带宽
-        //          "gpsConfig":"0"        GPS配置，0表示NOGPS，1表示GPS
-        //                                 2018-07-23
-        //          "otherplmn:"xxx,yyy",  多PLMN选项，多个之间用逗号隔开
-        //          "periodFreq:"{周期:freq1,freq2,freq3}"  周期以S表示，0表示不做周期性变换；
-        //                                                 在freq list中进行循环，此时小区配置中的频点失效
+        //          "gps_select":"0"       GPS配置，0表示NOGPS，1表示GPS
+        //                                               2018-07-23
+        //          "otherplmn:"xxx,yyy",                多PLMN选项，多个之间用逗号隔开
+        //          "periodFreq:"周期:freq1,freq2,freq3"  周期以S表示，0表示不做周期性变换；
+        //                                               在freq list中进行循环，此时小区配置中的频点失效
         //      }
         #endregion
         #region GSM通用参数
@@ -2591,7 +2640,6 @@ namespace ScannerBackgrdServer.Common
         //          "FtpUser":"xxx"        FTP用户名           （预留接口，暂不支持）
         //          "FtpPas":"xxx"         FTP密码            （预留接口，暂不支持）
         //          "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
-        //          "Protocol":协议类型。GSM/CDMA。默认GSM，如果没有带此项，则为GSM。
         //    }
         //"n_dic":
         //   [
@@ -2719,7 +2767,7 @@ namespace ScannerBackgrdServer.Common
         //          "ManualEarfcn:"xxx",   手动选择的同步频点
         //          "ManualPci:"xxx",      手动选择的同步PCI
         //          "ManualBw:"xxx"        手动选择的同步小区带宽
-        //          "gpsConfig":"0"        GPS配置，0表示NOGPS，1表示GPS    
+        //          "gps_select":"0"       GPS配置，0表示NOGPS，1表示GPS    
         //                                 2018-07-23
         //          "otherplmn:"xxx,yyy",  多PLMN选项，多个之间用逗号隔开
         //          "periodFreq:"{周期:freq1,freq2,freq3}"  周期以S表示，0表示不做周期性变换；
@@ -2805,7 +2853,6 @@ namespace ScannerBackgrdServer.Common
         //          "FtpUser":"xxx"        FTP用户名           （预留接口，暂不支持）
         //          "FtpPas":"xxx"         FTP密码            （预留接口，暂不支持）
         //          "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
-        //          "Protocol":协议类型。GSM/CDMA。默认GSM，如果没有带此项，则为GSM。
         //    }
         //"n_dic":
         //   [
@@ -3029,10 +3076,10 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         public enum ApInnerType
         {
-            GSM=0,
-            GSM_V2,
+            GSM=0,     //GSM_HJT
+            GSM_V2,   //GSM_ZYF
             TD_SCDMA,
-            CDMA,
+            CDMA,      //CDMA_ZYF
             WCDMA,
             LTE_TDD,
             LTE_FDD

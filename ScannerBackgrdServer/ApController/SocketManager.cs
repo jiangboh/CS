@@ -251,8 +251,12 @@ namespace ScannerBackgrdServer.ApController
 
                 lock (m_clients) { m_clients.Add(userToken); }
 
+                //log(LogInfoType.EROR, string.Format("设备[{0}:{1}]建立TCP连接。当前连接数：{2}！", 
+                //    userToken.IPAddress.ToString(), userToken.Port,m_clients.Count));
+
                 if (ClientNumberChange != null)
                     ClientNumberChange(1, userToken);
+
                 if (!e.AcceptSocket.ReceiveAsync(readEventArgs))
                 {
                     ProcessReceive(readEventArgs);
@@ -392,6 +396,8 @@ namespace ScannerBackgrdServer.ApController
 
             lock (m_clients) { m_clients.Remove(token); }
             //如果有事件,则调用事件,发送客户端数量变化通知  
+            //log(LogInfoType.EROR, string.Format("设备[{0}:{1}]TCP连接断开！当前连接数：{2}！",
+            //        token.IPAddress.ToString(), token.Port, m_clients.Count));
             if (ClientNumberChange != null)
                 ClientNumberChange(-1, token);
             // close the socket associated with the client  
@@ -409,7 +415,22 @@ namespace ScannerBackgrdServer.ApController
             m_pool.Push(e);
         }
 
+        public void CloseClientSocket(AsyncUserToken token)
+        {
+            lock (m_clients) { m_clients.Remove(token); }
+            //如果有事件,则调用事件,发送客户端数量变化通知  
+            //log(LogInfoType.EROR, string.Format("设备[{0}:{1}]TCP连接断开！当前连接数：{2}！",
+            //        token.IPAddress.ToString(), token.Port, m_clients.Count));
 
+            try
+            {
+                token.Socket.Shutdown(SocketShutdown.Send);
+            }
+            catch (Exception) { }
+            token.Socket.Close();
+            // decrement the counter keeping track of the total number of clients connected to the server  
+            Interlocked.Decrement(ref m_clientCount);
+        }
 
         /// <summary>  
         /// 对数据进行打包,然后再发送  

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -94,9 +96,9 @@ namespace ScannerBackgrdServer
         private static int imsiParseMode = 1;
 
         /// <summary>
-        /// 每个Log文件存放多少条记录
+        /// 每个Log文件的大小，单位为MB
         /// </summary>
-        private static int logLinesPerFils = 50000;
+        private static int logMaxSize = 10;
 
         /// <summary>
         /// Log的输出类型
@@ -116,6 +118,11 @@ namespace ScannerBackgrdServer
         /// </summary>
         private static string strLogPort = "23456";
 
+        /// <summary>
+        /// Logger的最大Idle时间，秒数 
+        /// </summary>
+        private static int logMaxIdleSeconds = 10;
+       
         #endregion
 
         #region 属性定义
@@ -169,13 +176,40 @@ namespace ScannerBackgrdServer
         public static int SimuTest { get => simuTest; set => simuTest = value; }
         public static int DataAlignMode { get => dataAlignMode; set => dataAlignMode = value; }
         public static int ImsiParseMode { get => imsiParseMode; set => imsiParseMode = value; }
-        public static int LogLinesPerFils { get => logLinesPerFils; set => logLinesPerFils = value; }
+        public static int LogMaxSize { get => logMaxSize; set => logMaxSize = value; }
 
         public static string StrLogIpAddr { get => strLogIpAddr; set => strLogIpAddr = value; }
         public static string StrLogPort { get => strLogPort; set => strLogPort = value; }
         public static LogOutType LogOutputType { get => logOutputType; set => logOutputType = value; }
+        public static int LogMaxIdleSeconds { get => logMaxIdleSeconds; set => logMaxIdleSeconds = value; }
 
         #endregion
+
+        public static string GetLocalIP()
+        {
+            try
+            {
+                string HostName = Dns.GetHostName(); //得到主机名
+                IPHostEntry IpEntry = Dns.GetHostEntry(HostName);
+
+                for (int i = 0; i < IpEntry.AddressList.Length; i++)
+                {
+                    //从IP地址列表中筛选出IPv4类型的IP地址
+                    //AddressFamily.InterNetwork表示此IP为IPv4,
+                    //AddressFamily.InterNetworkV6表示此地址为IPv6类型
+                    if (IpEntry.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        return IpEntry.AddressList[i].ToString();
+                    }
+                }
+                return "";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("获取本机IP出错:" + ex.Message);
+                return "";
+            }
+        }
 
         static DataController()
         {
@@ -192,7 +226,17 @@ namespace ScannerBackgrdServer
                 strDbPort = ConfigurationManager.AppSettings["strDbPort"].ToString();
 
                 strFtpSwitch = ConfigurationManager.AppSettings["strFtpSwitch"].ToString();
+
                 strFtpIpAddr = ConfigurationManager.AppSettings["strFtpIpAddr"].ToString();
+                if (strFtpIpAddr == "127.0.0.1")
+                {
+                    strFtpIpAddr = GetLocalIP();
+                    if (strFtpIpAddr == "")
+                    {
+                        strFtpIpAddr = "127.0.0.1";
+                    }
+                }
+
                 strFtpUserId = ConfigurationManager.AppSettings["strFtpUserId"].ToString();
                 strFtpUserPsw = ConfigurationManager.AppSettings["strFtpUserPsw"].ToString();
                 strFtpUserPsw = Common.Common.Decode(StrFtpUserPsw);
@@ -244,7 +288,7 @@ namespace ScannerBackgrdServer
                 dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());
                 imsiParseMode = int.Parse(ConfigurationManager.AppSettings["imsiParseMode"].ToString());
 
-                logLinesPerFils = int.Parse(ConfigurationManager.AppSettings["logLinesPerFils"].ToString());
+                logMaxSize = int.Parse(ConfigurationManager.AppSettings["logMaxSize"].ToString());
 
                 strLogIpAddr = ConfigurationManager.AppSettings["strLogIpAddr"].ToString();
                 strLogPort = ConfigurationManager.AppSettings["strLogPort"].ToString();
@@ -258,7 +302,9 @@ namespace ScannerBackgrdServer
                 if (logOutputType < LogOutType.OT_File)
                 {
                     logOutputType = LogOutType.OT_File;
-                }              
+                }
+
+                logMaxIdleSeconds = int.Parse(ConfigurationManager.AppSettings["logMaxIdleSeconds"].ToString());                
             }
             catch (Exception ee)
             {

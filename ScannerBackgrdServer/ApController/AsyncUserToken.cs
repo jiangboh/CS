@@ -41,6 +41,11 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>  
         public UInt32 Detail { get; set; }
 
+        /// <summary>
+        /// Ap软件就序状态
+        /// </summary>
+        public Byte ApReadySt { get; set; }
+
         /// <summary>  
         /// 客户端全名
         /// </summary>  

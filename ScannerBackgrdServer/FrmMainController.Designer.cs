@@ -59,16 +59,23 @@
             this.button16 = new System.Windows.Forms.Button();
             this.label5 = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.BgWorker = new System.ComponentModel.BackgroundWorker();
+            this.label_ver = new System.Windows.Forms.Label();
+            this.label_time = new System.Windows.Forms.Label();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.labelDbg = new System.Windows.Forms.Label();
             this.panel1.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.groupBox4.SuspendLayout();
             this.SuspendLayout();
             // 
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.Color.LightSteelBlue;
+            this.panel1.Controls.Add(this.groupBox4);
             this.panel1.Controls.Add(this.groupBox3);
             this.panel1.Controls.Add(this.groupBox2);
             this.panel1.Controls.Add(this.groupBox1);
@@ -94,7 +101,7 @@
             // 
             this.groupBox3.Controls.Add(this.label6);
             this.groupBox3.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.groupBox3.Location = new System.Drawing.Point(408, 13);
+            this.groupBox3.Location = new System.Drawing.Point(572, 13);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(149, 61);
             this.groupBox3.TabIndex = 20;
@@ -269,7 +276,7 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(619, 23);
+            this.button3.Location = new System.Drawing.Point(619, 115);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(75, 23);
             this.button3.TabIndex = 2;
@@ -324,7 +331,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Courier New", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(15, 525);
+            this.label1.Location = new System.Drawing.Point(8, 534);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(114, 23);
             this.label1.TabIndex = 2;
@@ -340,7 +347,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("宋体", 15F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(15, 495);
+            this.label2.Location = new System.Drawing.Point(8, 504);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(93, 20);
             this.label2.TabIndex = 2;
@@ -349,7 +356,7 @@
             // button16
             // 
             this.button16.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button16.Location = new System.Drawing.Point(16, 438);
+            this.button16.Location = new System.Drawing.Point(9, 447);
             this.button16.Name = "button16";
             this.button16.Size = new System.Drawing.Size(66, 23);
             this.button16.TabIndex = 15;
@@ -362,17 +369,69 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label5.Location = new System.Drawing.Point(17, 470);
+            this.label5.Location = new System.Drawing.Point(10, 479);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(83, 12);
             this.label5.TabIndex = 14;
             this.label5.Text = "当前级别:INFO";
+            // 
+            // BgWorker
+            // 
+            this.BgWorker.WorkerReportsProgress = true;
+            this.BgWorker.WorkerSupportsCancellation = true;
+            this.BgWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BgWorker_DoWork);
+            this.BgWorker.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.BgWorker_ProgressChanged);
+            this.BgWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.BgWorker_RunWorkerCompleted);
+            // 
+            // label_ver
+            // 
+            this.label_ver.AutoSize = true;
+            this.label_ver.Font = new System.Drawing.Font("宋体", 10.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_ver.Location = new System.Drawing.Point(45, 167);
+            this.label_ver.Name = "label_ver";
+            this.label_ver.Size = new System.Drawing.Size(56, 14);
+            this.label_ver.TabIndex = 16;
+            this.label_ver.Text = "1.0.0.0";
+            // 
+            // label_time
+            // 
+            this.label_time.AutoSize = true;
+            this.label_time.Font = new System.Drawing.Font("宋体", 10.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_time.Location = new System.Drawing.Point(45, 185);
+            this.label_time.Name = "label_time";
+            this.label_time.Size = new System.Drawing.Size(77, 14);
+            this.label_time.TabIndex = 17;
+            this.label_time.Text = "2018-08-07";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.labelDbg);
+            this.groupBox4.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.groupBox4.Location = new System.Drawing.Point(407, 13);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(149, 61);
+            this.groupBox4.TabIndex = 20;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "版本信息";
+            // 
+            // labelDbg
+            // 
+            this.labelDbg.AutoSize = true;
+            this.labelDbg.Font = new System.Drawing.Font("Courier New", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.labelDbg.ForeColor = System.Drawing.Color.Black;
+            this.labelDbg.Location = new System.Drawing.Point(13, 28);
+            this.labelDbg.Name = "labelDbg";
+            this.labelDbg.Size = new System.Drawing.Size(120, 21);
+            this.labelDbg.TabIndex = 19;
+            this.labelDbg.Text = "2018-08-07";
             // 
             // FrmMainController
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(733, 562);
+            this.Controls.Add(this.label_time);
+            this.Controls.Add(this.label_ver);
             this.Controls.Add(this.button16);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.label2);
@@ -396,6 +455,8 @@
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -432,6 +493,11 @@
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Label label6;
+        private System.ComponentModel.BackgroundWorker BgWorker;
+        private System.Windows.Forms.Label label_ver;
+        private System.Windows.Forms.Label label_time;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Label labelDbg;
     }
 }
 

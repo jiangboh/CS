@@ -233,6 +233,7 @@ namespace ScannerBackgrdServer
         /// </summary>
         public void Connect()
         {
+            string errInfo = "";
             socketControl = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint ep = new IPEndPoint(IPAddress.Parse(RemoteHost), strRemotePort);
 
@@ -272,10 +273,13 @@ namespace ScannerBackgrdServer
             if (!(iReplyCode == REQUIRE_PASSWD || iReplyCode == LOG_INTERNET))
             {
                 CloseSocketConnect();//关闭连接
-                
-                //throw new IOException(strReply.Substring(4));
-                Logger.Trace(LogInfoType.INFO, "连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",FAILED.", "Main", LogCategory.I);
-                FrmMainController.add_log_info(LogInfoType.INFO, "连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",FAILED.", "FTP", LogCategory.I);
+
+                errInfo = string.Format("连接到FTP server {0}:{1} ,FAILED.", RemoteHost, strRemotePort);
+                Logger.Trace(LogInfoType.EROR, errInfo, "FTP", LogCategory.I);
+                FrmMainController.add_log_info(LogInfoType.EROR, errInfo, "FTP", LogCategory.I);
+
+                bConnected = false;
+                return;
             }
 
             if (iReplyCode != LOG_INTERNET)
@@ -286,14 +290,20 @@ namespace ScannerBackgrdServer
                     CloseSocketConnect();//关闭连接
                     //throw new IOException(strReply.Substring(4));
 
-                    Logger.Trace(LogInfoType.INFO, "连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",FAILED.", "Main", LogCategory.I);
-                    FrmMainController.add_log_info(LogInfoType.INFO, "连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",FAILED.", "FTP", LogCategory.I);
+                    errInfo = string.Format("连接到FTP server {0}:{1} ,FAILED.", RemoteHost, strRemotePort);
+                    Logger.Trace(LogInfoType.EROR, errInfo, "FTP", LogCategory.I);
+                    FrmMainController.add_log_info(LogInfoType.EROR, errInfo, "FTP", LogCategory.I);
+
+                    bConnected = false;
+                    return;
                 }
             }
 
+            errInfo = string.Format("连接到FTP server {0}:{1} ,OK.", RemoteHost, strRemotePort);
+
             bConnected = true;            
-            Logger.Trace(LogInfoType.INFO,"连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",OK.", "Main", LogCategory.I);
-            FrmMainController.add_log_info(LogInfoType.INFO, "连接到FTP server：" + RemoteHost + ":" + strRemotePort + ",OK.", "FTP", LogCategory.I);
+            Logger.Trace(LogInfoType.INFO, errInfo, "FTP", LogCategory.I);
+            FrmMainController.add_log_info(LogInfoType.INFO, errInfo, "FTP", LogCategory.I);
 
             // 切换到目录
             ChDir(strRemotePath);

@@ -71,6 +71,20 @@ namespace ScannerBackgrdServer.ApController
 
     class ApBase : DeviceManager
     {
+        protected string OffLine = "OffLine";
+        protected string OnLine = "OnLine";
+
+        protected enum ApReadyStEnum : Byte
+        {
+            XML_Not_Ready = 0,                    
+            XML_Ready,
+            Sniffering,
+            Ready_For_Cell,
+            Cell_Setuping,
+            Cell_Ready,
+            Cell_Failure
+        }
+
         protected class AP_STATUS_LTE
         {
             public static UInt32 SCTP = 0x80000000;
@@ -138,7 +152,7 @@ namespace ScannerBackgrdServer.ApController
                         if (i != -1)
                         {
                             OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
-                            Send2main_OnOffLine("OffLine", i, x, MainControllerStatus);
+                            Send2main_OnOffLine(OffLine, i, x, MainControllerStatus);
                         }
                     }
                     //OnOutputLog(LogInfoType.DEBG, "当前在线Ap数量为：" + MyDeviceList.GetCount().ToString() + "台 ！");
@@ -168,7 +182,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 MyDeviceList.add(apToKen);
                 //在收到心跳消息时上报
-                //send2main_OnOffLine("OnLine",token);
+                //send2main_OnOffLine(OnLine,token);
             }
             else  //AP下线，删除设备列表中的AP信息
             {
@@ -178,7 +192,7 @@ namespace ScannerBackgrdServer.ApController
                 int i = MyDeviceList.remov(apToKen);
                 if (i != -1)
                 {
-                    Send2main_OnOffLine("OffLine", i, apToKen, MainControllerStatus);
+                    Send2main_OnOffLine(OffLine, i, apToKen, MainControllerStatus);
                 }
             }
         }
@@ -428,12 +442,13 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             //当设备状态为在线时再发送消息给Main模块
-            if ((String.Compare(MyDeviceList.GetMainControllerStatus(apToken), "OnLine", true) != 0) &&
+            if ((String.Compare(MyDeviceList.GetMainControllerStatus(apToken), OnLine, true) != 0) &&
                 (!TypeKeyValue.type.Equals(Main2ApControllerMsgType.OnOffLine)))
             {
                     OnOutputLog(LogInfoType.WARN,
-                    string.Format("设备[{0}:{1}]在线状态为：{2}，OnLine状态才向Main模块发送消息！",
-                    apToken.IPAddress.ToString(), apToken.Port.ToString(), MyDeviceList.GetMainControllerStatus(apToken)));
+                    string.Format("设备[{0}:{1}]在线状态为：{2}，OnLine状态才向Main模块发送消息{3}！",
+                    apToken.IPAddress.ToString(), apToken.Port.ToString(), 
+                    MyDeviceList.GetMainControllerStatus(apToken), TypeKeyValue.type));
                 return;
             }
 
@@ -466,13 +481,13 @@ namespace ScannerBackgrdServer.ApController
 
             OnOutputLog(LogInfoType.DEBG, "旧状态为：" + MainControllerStatus + "新状态为：" + status);
 
-            if ((String.Compare(status, "OffLine", true) == 0) && (MainControllerStatus.Equals("unknown")))
+            if ((String.Compare(status, OffLine, true) == 0) && (MainControllerStatus.Equals("unknown")))
             {
                 OnOutputLog(LogInfoType.WARN, "未向MainController模块上报过上线消息，该下线消息不上报！");
                 return;
             }
 
-            if ((String.Compare(status, "OffLine", true) == 0) && (null != MyDeviceList.FindByFullname(apToken.FullName)))
+            if ((String.Compare(status, OffLine, true) == 0) && (null != MyDeviceList.FindByFullname(apToken.FullName)))
             {
                 OnOutputLog(LogInfoType.WARN, "该设备有另外一个TCP连接在线，不向MainController模块上报下线消息！");
                 return;
@@ -495,6 +510,60 @@ namespace ScannerBackgrdServer.ApController
                 //{
                 //    MyDeviceList.SetMainControllerStatus(status, token);
                 //}
+            }
+        }
+
+        /// <summary>
+        /// 检测数所库保存的Ap上下线状态是否正确，若不正确，向其发送正状态
+        /// </summary>
+        /// <param name="status">数据库保存状态</param>
+        /// <param name="apToken">ap信息</param>
+        protected void Send2main_OnOffLineCheck(string status, Ap_Info_Struct ApInfo)
+        {
+            string MainControllerStatus = OffLine;
+            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
+            if (apToKen == null)
+            {
+                apToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
+            }
+            if (apToKen == null)
+            {
+                MainControllerStatus = OffLine;
+            }
+            else
+            {
+                MainControllerStatus = apToKen.MainControllerStatus;
+            }
+
+            OnOutputLog(LogInfoType.DEBG, "保存的状态为：" + MainControllerStatus + ";接收到状态为：" + status);
+
+            if (String.Compare(MainControllerStatus, status, true) != 0)
+            {
+                Msg_Body_Struct TypeKeyValue =
+                    new Msg_Body_Struct(Main2ApControllerMsgType.OnOffLine,
+                    "AllOnLineNum", MyDeviceList.GetCount().ToString(),
+                    "Status", MainControllerStatus,
+                    "mode", apToKen.Mode,
+                    "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+                //向Main模块发消息
+                MessageType mt = MessageType.MSG_JSON;
+                MessageBody mb = new MessageBody();
+
+                InterModuleMsgStruct msg = new InterModuleMsgStruct();
+                msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+                msg.MsgType = MsgStruct.MsgType.NOTICE.ToString();
+
+                msg.ApInfo = ApInfo;
+               
+                App_Info_Struct appInfo = new App_Info_Struct();
+                appInfo.Ip = AllDevice;
+             
+                msg.AppInfo = appInfo;
+                msg.Body = TypeKeyValue;
+                mb.bJson = JsonConvert.SerializeObject(msg);
+
+                ApManager.sendMsg_2_MainController(mt, mb);
             }
         }
 
@@ -533,17 +602,29 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>
         /// <param name="apToken">AP信息，包含改变后的状态</param>
         /// <param name="OldDetail">改变前的状态</param>
-        protected void Send2ap_ApStatusChange_LTE(AsyncUserToken apToken, UInt32 OldDetail)
+        protected void Send2ap_ApStatusChange_LTE(AsyncUserToken apToken, UInt32 detail,Byte ApReadySt)
         {
-            UInt32 detail = apToken.Detail;
+            UInt32 oldDetail = apToken.Detail;
+            byte oldApReadySt = apToken.ApReadySt;
 
             //状态改变时才发送消息
             //需去掉上下线状态，再比较
-            if ((detail | AP_STATUS_LTE.OnLine) == (OldDetail | AP_STATUS_LTE.OnLine))
+            if (((detail | AP_STATUS_LTE.OnLine) == (oldDetail | AP_STATUS_LTE.OnLine)) && (oldApReadySt == ApReadySt))
                 return;
+
+            string st = Enum.GetName(typeof(ApReadyStEnum), ApReadySt);
+            if (string.IsNullOrEmpty(st))
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("收到设备[{0}:{1}]的addStatu为{2}错误。",
+                    apToken.IPAddress.ToString(),apToken.Port,ApReadySt));
+                return;
+            }
+
+            st = st.Replace("_", "-");
 
             Msg_Body_Struct TypeKeyValue =
                 new Msg_Body_Struct(Main2ApControllerMsgType.ApStatusChange,
+                "detail", string.Format("0x{0:X}", detail),
                 "SCTP", ((detail & AP_STATUS_LTE.SCTP) > 0) ? 1 : 0,
                 "S1", ((detail & AP_STATUS_LTE.S1) > 0) ? 1 : 0,
                 "GPS", ((detail & AP_STATUS_LTE.GPS) > 0) ? 1 : 0,
@@ -552,6 +633,7 @@ namespace ScannerBackgrdServer.ApController
                 "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
                 "RADIO", ((detail & AP_STATUS_LTE.RADIO) > 0) ? 1 : 0,
                 "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                "ApReadySt", st,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
             //向Main模块发消息
@@ -563,11 +645,55 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>
         /// <param name="apToken">AP信息，包含改变后的状态</param>
         /// <param name="OldDetail">改变前的状态</param>
-        protected void Send2ap_ApStatusChange_GSM_ZYF(AsyncUserToken apToken, UInt32 OldDetail)
+        protected void Send2ap_ApStatusChange_GSM_ZYF(AsyncUserToken apToken, UInt32 Detail,Byte ApReadySt)
         {
-            this.Send2ap_ApStatusChange_LTE(apToken,OldDetail);
+            this.Send2ap_ApStatusChange_LTE(apToken,Detail,ApReadySt);
+        }
+        protected void Send2ap_ApStatusChange_GSM_HJT(AsyncUserToken apToken, UInt32 Detail, Byte ApReadySt)
+        {
+            this.Send2ap_ApStatusChange_LTE(apToken, Detail, ApReadySt);
         }
 
+        /// <summary>
+        /// 收到ApStatusChange_Ack后，将ap状态保存到设备列表
+        /// </summary>
+        /// <param name="MainMsg">收到Main模块发过来的原始消息</param>
+        protected void RecvAckSaveApStatus(MsgStruct.InterModuleMsgStruct MainMsg)
+        {
+            if (GetMsgIntValueInList("ReturnCode", MainMsg.Body) != 0)
+            {
+                OnOutputLog(LogInfoType.EROR,
+                    "[ApStatus_Ack]Main模块返回错误:" + GetMsgStringValueInList("ReturnStr", MainMsg.Body));
+                return;
+            }
+
+            UInt32 detail = 0;
+            string sDetail = GetMsgStringValueInList("detail", MainMsg.Body);
+            if (!string.IsNullOrEmpty(sDetail))
+            {
+                detail = Convert.ToUInt32(sDetail, 16);
+                //修改状态
+                MyDeviceList.SetDetail(detail, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+            }
+            else
+            {
+                OnOutputLog(LogInfoType.EROR, "Main模块返回消息中，detail字段错误!");
+            }
+
+            Byte ApReadySt = 0;
+            string sApReadySt = GetMsgStringValueInList("ApReadySt", MainMsg.Body);
+            if (!string.IsNullOrEmpty(sApReadySt))
+            {
+                sApReadySt = sApReadySt.Replace("-","_");
+                ApReadySt = Convert.ToByte(Enum.Parse(typeof(ApReadyStEnum), sApReadySt)); ;
+                //修改状态
+                MyDeviceList.SetApReadySt(ApReadySt, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+            }
+            else
+            {
+                OnOutputLog(LogInfoType.EROR, "Main模块返回消息中，ApReadySt字段错误!");
+            }
+        }
         /// <summary>
         /// 向APP返回通用错误消息
         /// </summary>

@@ -332,5 +332,13 @@ namespace ScannerBackgrdServer.ApController
             m_socket.Start(new IPEndPoint(IPAddress.Any, port));
         }
 
+        protected void CloseToken(AsyncUserToken token)
+        {
+            try
+            {
+                m_socket.CloseClientSocket(token);
+            }
+            catch (Exception) { }
+        }
     }
 }

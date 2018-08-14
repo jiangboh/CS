@@ -483,12 +483,17 @@ namespace ScannerBackgrdServer.ApController
                 else
                     heartbeatMsgNum++;
 
-                //UInt32 oldDetail = token.Detail;
+                //UInt32 oldDetail = apToKen.Detail;
+                UInt32 detail = 0;
+                string sDetail = GetMsgStringValueInList("detail", msgBody);
+                if (!string.IsNullOrEmpty(sDetail))
+                    detail = Convert.ToUInt32(sDetail, 16);
 
-                //UInt32 detail = 0;
-                //string sDetail = GetMsgStringValueInList("detail", msgBody);
-                //if (!string.IsNullOrEmpty(sDetail))
-                //    detail = Convert.ToUInt32(sDetail, 16);
+                //Byte oldApReadySt = apToKen.ApReadySt;
+                Byte ApReadySt = 5;
+                string sApReadySt = GetMsgStringValueInList("addStatus", msgBody);
+                if (!string.IsNullOrEmpty(sApReadySt))
+                    ApReadySt = Convert.ToByte(sApReadySt);
 
                 apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
                 apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
@@ -497,7 +502,7 @@ namespace ScannerBackgrdServer.ApController
                 //token.Detail = detail;
 
                 int i = MyDeviceList.add(apToKen);
-                Send2main_OnOffLine("OnLine", i, apToKen);
+                Send2main_OnOffLine(OnLine, i, apToKen);
 
                 //判断是周期心跳，还是上线心跳
                 //if ((detail & (int)AP_STATUS.OnLine) > 0) //上线
@@ -510,7 +515,7 @@ namespace ScannerBackgrdServer.ApController
                 //    OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
                 //}
                 ////发送状态改变
-                //Send2ap_ApStatusChange(token, oldDetail);
+                Send2ap_ApStatusChange_GSM_HJT(apToKen, detail,ApReadySt);
             }
             else if (msgBody.type == ApMsgType.agent_transmit_gsm_msg )
             {
@@ -1730,7 +1735,7 @@ namespace ScannerBackgrdServer.ApController
                 else
                 {
                     string status = GetMsgStringValueInList("Status", MainMsg.Body);
-                    if (status.Equals("OnLine") || status.Equals("OffLine"))
+                    if (status.Equals(OnLine) || status.Equals(OffLine))
                     {
                         //修改状态
                         MyDeviceList.SetMainControllerStatus(status, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
@@ -1742,6 +1747,15 @@ namespace ScannerBackgrdServer.ApController
                 }
             }
             //状态改变回复
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
+            {
+                RecvAckSaveApStatus(MainMsg);
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.OnOffLineCheck)
+            {
+                string status = GetMsgStringValueInList("Status", MainMsg.Body);
+                Send2main_OnOffLineCheck(status, MainMsg.ApInfo);
+            }
             else if (MainMsg.Body.type == Main2ApControllerMsgType.ReportGenParaAck)
             {
                 if (GetMsgIntValueInList("ReturnCode", MainMsg.Body) != 0)
