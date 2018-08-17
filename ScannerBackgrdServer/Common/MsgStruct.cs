@@ -2453,6 +2453,7 @@ namespace ScannerBackgrdServer.Common
         //    "AllOnLineNum": 1（当前在线设备总台数）
         //    "Status":OnLine：上线；OffLine:下线
         //    "mode":"xxx"  //GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD,2018-06-28
+        //    "version":"xxx"  //ap的版本信息,2018-08-17
         //    "timestamp"   时间戳
         //}
 
@@ -2508,11 +2509,54 @@ namespace ScannerBackgrdServer.Common
         //}
         public const string ApStatusChange = "ApStatusChange";
 
+
+        /// <summary>
+        /// AP状态改变通知 (MainController-->ApController)
+        /// </summary>
+        /// 
+        /// 2018-08-16
+        ///
+        #region LTE/WCDMA产品
+        //"dic":
+        //{     
+        //    "active_mode":   "1(start), 2(stop)，3(reboot,本消息不用)"
+        //    "mode":          "1:scanner mode 2: audit mode"
+        //}
+        #endregion
+        #region GSM_HJT产品
+        //"dic":
+        //{     
+        //    "carry":          载波信息 0/1
+        //    "rfEnable":       射频使能(0,关闭；1，打开)
+        //	  "rfFreq":         信道号
+        //	  "rfPwr":          发射功率衰减值
+        //}
+        #endregion
+        #region GSM/CDMA_ZYF产品
+        //"dic":
+        //{     
+        //    "carry":     "载波信息 0/1" ,CDMA为"0"
+        //    "RADIO":     射频使能(0,关闭；1，打开)
+        //}
+        #endregion
+        public const string ApSetRadio = "ApSetRadio";
+
+
+        /// <summary>
+        /// 界面删除设备通知 (MainController-->ApController)
+        /// </summary>
+        /// 
+        /// 2018-08-16
+        ///
+        public const string ApDelete = "ApDelete";
+
+
         /// <summary>
         /// AP状态改变回复 (MainController-->ApController)
         /// </summary>
         //"dic":
         //{
+        //    "carry"       : 载波信息 0/1
         //    "ReturnCode"  : 返回码：0,成功；其它值为失败
         //    "ReturnStr"   : 失败原因值。ReturnCode不为0时有意义
         //    "detail"      : "0x3000000"   //16进制字符串

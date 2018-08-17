@@ -357,8 +357,24 @@ namespace ScannerBackgrdServer.ApController
             return false;
         }
 
+        public UInt32 GetDetail(string ip, int port)
+        {
+            lock (locker1)
+            {
+                foreach (AsyncUserToken x in connList)
+                {
+                    if ((String.Compare(x.IPAddress.ToString(), ip.ToString(), true) == 0) &&
+                        (String.Compare(x.Port.ToString(), port.ToString(), true) == 0))
+                    {
+                        return x.Detail;
+                    }
+                }
+            }
+            return 0;
+        }
+
         /// <summary>
-        /// 保存的ap Detail状态
+        /// 保存的ap Ready状态
         /// </summary>
         /// <param name="ApReadySt">状态</param>
         /// <param name="ip">ap信息-ip</param>
@@ -379,6 +395,34 @@ namespace ScannerBackgrdServer.ApController
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// 根据apinfo查询apToKen信息。首先通过ip+Prot查询，若查不到，再通过fullname查询
+        /// </summary>
+        /// <param name="ApInfo">apinfo信息</param>
+        /// <returns>apToKen信息，若未找到，返回null</returns>
+        public AsyncUserToken FindByApInfo(Ap_Info_Struct ApInfo)
+        {
+            AsyncUserToken apToKen = this.FindByIpPort(ApInfo.IP, ApInfo.Port);
+            if (apToKen == null)
+            {
+                Xml_codec.StaticOutputLog(LogInfoType.DEBG,
+                                        string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
+                                                      ApInfo.IP, ApInfo.Port.ToString()),
+                                        "DeviceList");
+                apToKen = this.FindByFullname(ApInfo.Fullname);
+            }
+
+            if (apToKen == null)
+            {
+                Xml_codec.StaticOutputLog(LogInfoType.WARN,
+                                        string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
+                                                ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname),
+                                        "DeviceList");
+            }
+
+            return apToKen;
         }
 
         /// <summary>

@@ -47,8 +47,8 @@ namespace ScannerBackgrdServer.ApController
         {
             int count = 0;
 
-            string outStr = string.Format("ApContr收到Main侧消息。消息内容:\n{0}\n", mb.bJson);
-            Xml_codec.StaticOutputLog(LogInfoType.INFO,outStr, "APContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.INFO, "ApContr收到Main侧消息。", "APContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), "APContr", LogCategory.R);
 
             lock (mutex_Main2Ap_Msg)
             {
@@ -62,8 +62,8 @@ namespace ScannerBackgrdServer.ApController
                 count = rMain2ApMsgQueue.Count;
             }
 
-            outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{0}！", recvMain2ApContrMsgNum,count);
-            Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
+            string outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{0}！", recvMain2ApContrMsgNum,count);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, outStr, "APContr", LogCategory.R);
         }
     }
 
@@ -96,6 +96,8 @@ namespace ScannerBackgrdServer.ApController
             public static UInt32 RADIO = 0x2000000;
             public static UInt32 OnLine = 0x1000000;
             public static UInt32 wSelfStudy = 0x800000;
+
+            public static UInt32 RADIO2 = 0x1;
         }
 
         /// <summary>
@@ -251,6 +253,7 @@ namespace ScannerBackgrdServer.ApController
                     try
                     {
                         MainMsg = JsonConvert.DeserializeObject<InterModuleMsgStruct>(str);
+                        MainMsg.ApInfo.Type = MainMsg.ApInfo.Type.Replace("-","_");
                     }
                     catch (Exception)
                     {
@@ -299,11 +302,11 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 防止粘包，检查XML消息的起始标志，并从消息中返回一条完整的XML消息
         /// </summary>
-        /// <param name="apToken">设备信息</param>
+        /// <param name="apToKen">设备信息</param>
         /// <returns></returns>
-        protected string GetDeviceMsg_XML(AsyncUserToken apToken)
+        protected string GetDeviceMsg_XML(AsyncUserToken apToKen)
         {
-            byte[] allMsgByte = MyDeviceList.GetAllMsgBuff(apToken);
+            byte[] allMsgByte = MyDeviceList.GetAllMsgBuff(apToKen);
 
             int endIndex = ByteIndexOf(allMsgByte,System.Text.Encoding.Default.GetBytes(xmlEndFlag));
             if (endIndex >= 0)
@@ -321,19 +324,19 @@ namespace ScannerBackgrdServer.ApController
                 {
                     allMsgByte = null;
                     OnOutputLog(LogInfoType.WARN, "未找到Xml消息起始标志！");
-                    MyDeviceList.DelMsgBuff(apToken, 0, endIndex);
+                    MyDeviceList.DelMsgBuff(apToKen, 0, endIndex);
                     return string.Empty;
                 }
                 if (startIndex >= endIndex)
                 {
                     allMsgByte = null;
                     OnOutputLog(LogInfoType.WARN, "Xml消息起始标志错误！");
-                    MyDeviceList.DelMsgBuff(apToken, 0, startIndex);
+                    MyDeviceList.DelMsgBuff(apToKen, 0, startIndex);
                     return string.Empty;
                 }
 
-                string msgStr = MyDeviceList.GetMsgBuff(apToken,startIndex, endIndex-startIndex);
-                MyDeviceList.DelMsgBuff(apToken, 0, endIndex);
+                string msgStr = MyDeviceList.GetMsgBuff(apToKen,startIndex, endIndex-startIndex);
+                MyDeviceList.DelMsgBuff(apToKen, 0, endIndex);
 
                 //OnOutputLog(LogInfoType.DEBG, "收到AP消息：————————————————————");
                 //OnOutputLog(LogInfoType.DEBG, msgStr);
@@ -368,6 +371,27 @@ namespace ScannerBackgrdServer.ApController
             MySocket.SendMessage(apToKen, System.Text.Encoding.Default.GetBytes(buff));
         }
 
+        /// <summary>
+        /// 向AP回应心跳消息
+        /// </summary>
+        /// <param name="apToKen">AP信息</param>
+        protected void Send2ap_status_request(AsyncUserToken apToKen)
+        {
+            //向AP回复心跳
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.status_request,
+                "timeout", 5,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
+            if (sendMsg == null)
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(status_request)出错！"));
+                return;
+            }
+            SendMsg2Ap(apToKen, sendMsg);
+        }
+
         #endregion
 
         #region 向MainController模块发送消息
@@ -377,9 +401,9 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>
         /// <param name="msgId">Ap返回的消息Id</param>
         /// <param name="msgType">Main模块消息类型</param>
-        /// <param name="apToken">Ap信息</param>
+        /// <param name="apToKen">Ap信息</param>
         /// <param name="TypeKeyValue">消息内容</param>
-        public void OnSendMsg2Main(UInt16 msgId, MsgStruct.MsgType msgType, AsyncUserToken apToken, Msg_Body_Struct TypeKeyValue)
+        public void OnSendMsg2Main(UInt16 msgId, MsgStruct.MsgType msgType, AsyncUserToken apToKen, Msg_Body_Struct TypeKeyValue)
         {
             MessageType mt = MessageType.MSG_JSON;
             MessageBody mb = new MessageBody();
@@ -388,10 +412,10 @@ namespace ScannerBackgrdServer.ApController
             msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             msg.MsgType = msgType.ToString();
 
-            msg.ApInfo.SN = apToken.Sn;
-            msg.ApInfo.Fullname = apToken.FullName;
-            msg.ApInfo.IP = apToken.IPAddress.ToString();
-            msg.ApInfo.Port = apToken.Port;
+            msg.ApInfo.SN = apToKen.Sn;
+            msg.ApInfo.Fullname = apToKen.FullName;
+            msg.ApInfo.IP = apToKen.IPAddress.ToString();
+            msg.ApInfo.Port = apToKen.Port;
             msg.ApInfo.Type = DeviceType;
 
             App_Info_Struct appInfo = new App_Info_Struct();
@@ -402,12 +426,12 @@ namespace ScannerBackgrdServer.ApController
             else
             {
                 //通过消息id查找AppInfo
-                AsyncUserToken ListToken = MyDeviceList.FindByIpPort(apToken.IPAddress.ToString(), apToken.Port);
+                AsyncUserToken ListToken = MyDeviceList.FindByIpPort(apToKen.IPAddress.ToString(), apToKen.Port);
                 if (ListToken == null)
                 {
                     String str = string.Format(
                         "未找到设备[{0}:{1}]消息ID({2})对应的APP信息，不发送消息给MainController模块！",
-                        apToken.IPAddress.ToString(), apToken.Port, msgId);
+                        apToKen.IPAddress.ToString(), apToKen.Port, msgId);
                     OnOutputLog(LogInfoType.EROR, str);
 
                     return;
@@ -424,14 +448,14 @@ namespace ScannerBackgrdServer.ApController
                 }
 
                 //删除保存的消息Id列表(目前实现的方法是120秒后自动删除)
-                //MyDeviceList.RemoveMsgId2App(apToken, msgId);
+                //MyDeviceList.RemoveMsgId2App(apToKen, msgId);
             }
 
             if (string.IsNullOrEmpty(appInfo.Ip))
             {
                 String str = string.Format(
                     "未找到设备[{0}:{1}]消息ID({2})对应的APP信息，不发送消息给MainController模块！",
-                    apToken.IPAddress.ToString(), apToken.Port, msgId);
+                    apToKen.IPAddress.ToString(), apToKen.Port, msgId);
                 OnOutputLog(LogInfoType.EROR, str);
 
                 return;
@@ -442,13 +466,13 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             //当设备状态为在线时再发送消息给Main模块
-            if ((String.Compare(MyDeviceList.GetMainControllerStatus(apToken), OnLine, true) != 0) &&
+            if ((String.Compare(MyDeviceList.GetMainControllerStatus(apToKen), OnLine, true) != 0) &&
                 (!TypeKeyValue.type.Equals(Main2ApControllerMsgType.OnOffLine)))
             {
                     OnOutputLog(LogInfoType.WARN,
                     string.Format("设备[{0}:{1}]在线状态为：{2}，OnLine状态才向Main模块发送消息{3}！",
-                    apToken.IPAddress.ToString(), apToken.Port.ToString(), 
-                    MyDeviceList.GetMainControllerStatus(apToken), TypeKeyValue.type));
+                    apToKen.IPAddress.ToString(), apToKen.Port.ToString(), 
+                    MyDeviceList.GetMainControllerStatus(apToKen), TypeKeyValue.type));
                 return;
             }
 
@@ -458,22 +482,22 @@ namespace ScannerBackgrdServer.ApController
             ApManager.sendMsg_2_MainController(mt, mb);
         }
 
-        protected void Send2main_OnOffLine(string status, int allNum, AsyncUserToken apToken)
+        protected void Send2main_OnOffLine(string status, int allNum, AsyncUserToken apToKen)
         {
             //保存的状态有更改时才上报
-            string MainControllerStatus = MyDeviceList.GetMainControllerStatus(apToken);
+            string MainControllerStatus = MyDeviceList.GetMainControllerStatus(apToKen);
             if (string.IsNullOrEmpty(MainControllerStatus)) MainControllerStatus = "unknown";
 
-            this.Send2main_OnOffLine(status,allNum,apToken,MainControllerStatus);
+            this.Send2main_OnOffLine(status,allNum,apToKen,MainControllerStatus);
         }
         /// <summary>
         /// 发送AP上下线消息
         /// </summary>
         /// <param name="status">状态（OnLine：上线；OffLine:下线）</param>
         /// <param name="allNum">当前在线的AP总数</param>
-        /// <param name="apToken">Ap信息</param>
+        /// <param name="apToKen">Ap信息</param>
         /// <param name="MainControllerStatus">发送给数据库上、下线状态</param>
-        protected void Send2main_OnOffLine(string status, int allNum,AsyncUserToken apToken,string MainControllerStatus)
+        protected void Send2main_OnOffLine(string status, int allNum,AsyncUserToken apToKen,string MainControllerStatus)
         {
             //保存的状态有更改时才上报
             //string MainControllerStatus = MyDeviceList.GetMainControllerStatus(token);
@@ -487,7 +511,7 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
-            if ((String.Compare(status, OffLine, true) == 0) && (null != MyDeviceList.FindByFullname(apToken.FullName)))
+            if ((String.Compare(status, OffLine, true) == 0) && (null != MyDeviceList.FindByFullname(apToKen.FullName)))
             {
                 OnOutputLog(LogInfoType.WARN, "该设备有另外一个TCP连接在线，不向MainController模块上报下线消息！");
                 return;
@@ -499,11 +523,12 @@ namespace ScannerBackgrdServer.ApController
                     new Msg_Body_Struct(Main2ApControllerMsgType.OnOffLine,
                     "AllOnLineNum", allNum.ToString(),
                     "Status", status,
-                    "mode", apToken.Mode,
+                    "mode", apToKen.Mode.Replace("-","_"),
+                    "version", apToKen.version,
                     "timestamp", DateTime.Now.ToLocalTime().ToString());
 
                 //向Main模块发消息
-                OnSendMsg2Main(0,MsgStruct.MsgType.NOTICE,apToken, TypeKeyValue);
+                OnSendMsg2Main(0,MsgStruct.MsgType.NOTICE,apToKen, TypeKeyValue);
 
                 //修改状态----测试版本中使用，正式版本中在收到Ack后更改状态。
                 //if (DebugMode)
@@ -517,7 +542,7 @@ namespace ScannerBackgrdServer.ApController
         /// 检测数所库保存的Ap上下线状态是否正确，若不正确，向其发送正状态
         /// </summary>
         /// <param name="status">数据库保存状态</param>
-        /// <param name="apToken">ap信息</param>
+        /// <param name="apToKen">ap信息</param>
         protected void Send2main_OnOffLineCheck(string status, Ap_Info_Struct ApInfo)
         {
             string MainControllerStatus = OffLine;
@@ -563,6 +588,9 @@ namespace ScannerBackgrdServer.ApController
                 msg.Body = TypeKeyValue;
                 mb.bJson = JsonConvert.SerializeObject(msg);
 
+                OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+
                 ApManager.sendMsg_2_MainController(mt, mb);
             }
         }
@@ -600,13 +628,13 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向MainController模块发送状态改变消息(LTE/WCDMA状态)
         /// </summary>
-        /// <param name="apToken">AP信息，包含改变后的状态</param>
+        /// <param name="apToKen">AP信息，包含改变后的状态</param>
         /// <param name="OldDetail">改变前的状态</param>
-        protected void Send2ap_ApStatusChange_LTE(AsyncUserToken apToken, UInt32 detail,Byte ApReadySt)
+        protected void Send2ap_ApStatusChange_LTE(AsyncUserToken apToKen, UInt32 detail,Byte ApReadySt)
         {
-            UInt32 oldDetail = apToken.Detail;
-            byte oldApReadySt = apToken.ApReadySt;
-
+            UInt32 oldDetail = apToKen.Detail;
+            byte oldApReadySt = apToKen.ApReadySt;
+            //OnOutputLog(LogInfoType.EROR, "oldDetail=" + oldDetail + ";detail=" + detail);
             //状态改变时才发送消息
             //需去掉上下线状态，再比较
             if (((detail | AP_STATUS_LTE.OnLine) == (oldDetail | AP_STATUS_LTE.OnLine)) && (oldApReadySt == ApReadySt))
@@ -616,7 +644,7 @@ namespace ScannerBackgrdServer.ApController
             if (string.IsNullOrEmpty(st))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("收到设备[{0}:{1}]的addStatu为{2}错误。",
-                    apToken.IPAddress.ToString(),apToken.Port,ApReadySt));
+                    apToKen.IPAddress.ToString(),apToKen.Port,ApReadySt));
                 return;
             }
 
@@ -624,6 +652,7 @@ namespace ScannerBackgrdServer.ApController
 
             Msg_Body_Struct TypeKeyValue =
                 new Msg_Body_Struct(Main2ApControllerMsgType.ApStatusChange,
+                "carry", 0,
                 "detail", string.Format("0x{0:X}", detail),
                 "SCTP", ((detail & AP_STATUS_LTE.SCTP) > 0) ? 1 : 0,
                 "S1", ((detail & AP_STATUS_LTE.S1) > 0) ? 1 : 0,
@@ -637,21 +666,75 @@ namespace ScannerBackgrdServer.ApController
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
             //向Main模块发消息
-            OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToken, TypeKeyValue);
+            OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, TypeKeyValue);
         }
 
         /// <summary>
         /// 向MainController模块发送状态改变消息(GSM_ZYF/CDMA_ZYF状态)
         /// </summary>
-        /// <param name="apToken">AP信息，包含改变后的状态</param>
+        /// <param name="apToKen">AP信息，包含改变后的状态</param>
         /// <param name="OldDetail">改变前的状态</param>
-        protected void Send2ap_ApStatusChange_GSM_ZYF(AsyncUserToken apToken, UInt32 Detail,Byte ApReadySt)
+        protected void Send2ap_ApStatusChange_GSM_ZYF(AsyncUserToken apToKen, UInt32 detail,Byte ApReadySt)
         {
-            this.Send2ap_ApStatusChange_LTE(apToken,Detail,ApReadySt);
+            UInt32 oldDetail = apToKen.Detail;
+            //byte oldApReadySt = apToKen.ApReadySt;
+
+            //状态改变时才发送消息
+            //需去掉上下线状态，再比较
+            if (((detail | AP_STATUS_LTE.OnLine) == (oldDetail | AP_STATUS_LTE.OnLine)))
+                return;
+
+            string st = ApReadyStEnum.Cell_Ready.ToString();
+
+            if (((detail & AP_STATUS_LTE.RADIO2) != (oldDetail & AP_STATUS_LTE.RADIO2)))
+            {
+                Msg_Body_Struct TypeKeyValue2 =
+                    new Msg_Body_Struct(Main2ApControllerMsgType.ApStatusChange,
+                    "carry", 1,
+                    "detail", string.Format("0x{0:X}", detail),
+                    "SCTP", ((detail & AP_STATUS_LTE.SCTP) > 0) ? 1 : 0,
+                    "S1", ((detail & AP_STATUS_LTE.S1) > 0) ? 1 : 0,
+                    "GPS", ((detail & AP_STATUS_LTE.GPS) > 0) ? 1 : 0,
+                    "CELL", ((detail & AP_STATUS_LTE.CELL) > 0) ? 1 : 0,
+                    "SYNC", ((detail & AP_STATUS_LTE.SYNC) > 0) ? 1 : 0,
+                    "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
+                    "RADIO", ((detail & AP_STATUS_LTE.RADIO2) > 0) ? 1 : 0,
+                    "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                    "ApReadySt", st,
+                    "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+                //向Main模块发消息
+                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, TypeKeyValue2);
+            }
+         
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(Main2ApControllerMsgType.ApStatusChange,
+                "carry", 0,
+                "detail", string.Format("0x{0:X}", detail),
+                "SCTP", ((detail & AP_STATUS_LTE.SCTP) > 0) ? 1 : 0,
+                "S1", ((detail & AP_STATUS_LTE.S1) > 0) ? 1 : 0,
+                "GPS", ((detail & AP_STATUS_LTE.GPS) > 0) ? 1 : 0,
+                "CELL", ((detail & AP_STATUS_LTE.CELL) > 0) ? 1 : 0,
+                "SYNC", ((detail & AP_STATUS_LTE.SYNC) > 0) ? 1 : 0,
+                "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
+                "RADIO", ((detail & AP_STATUS_LTE.RADIO) > 0) ? 1 : 0,
+                "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                "ApReadySt", st,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            //向Main模块发消息
+            OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, TypeKeyValue);
+            
         }
-        protected void Send2ap_ApStatusChange_GSM_HJT(AsyncUserToken apToken, UInt32 Detail, Byte ApReadySt)
+
+        protected void Send2ap_ApStatusChange_CDMA_ZYF(AsyncUserToken apToKen, UInt32 Detail, Byte ApReadySt)
         {
-            this.Send2ap_ApStatusChange_LTE(apToken, Detail, ApReadySt);
+            this.Send2ap_ApStatusChange_LTE(apToKen, Detail, ApReadySt);
+        }
+
+        protected void Send2ap_ApStatusChange_GSM_HJT(AsyncUserToken apToKen, UInt32 Detail, Byte ApReadySt)
+        {
+            this.Send2ap_ApStatusChange_LTE(apToKen, Detail, ApReadySt);
         }
 
         /// <summary>
@@ -667,13 +750,36 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
+            int carry = GetMsgIntValueInList("carry", MainMsg.Body);
+            if (carry != 0 && carry != 1)
+            {
+                OnOutputLog(LogInfoType.EROR,
+                    "[ApStatus_Ack]Main模块返回错误。carry不为0或1!");
+                return;
+            }
+
             UInt32 detail = 0;
             string sDetail = GetMsgStringValueInList("detail", MainMsg.Body);
             if (!string.IsNullOrEmpty(sDetail))
             {
                 detail = Convert.ToUInt32(sDetail, 16);
+                //UInt32 oldDetail = MyDeviceList.GetDetail(MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+                ////OnOutputLog(LogInfoType.EROR, "oldDetail=" + oldDetail);
+                ////还原以前的射频状态
+                //if (carry == 0)
+                //{
+                //    UInt32 oleRadio = oldDetail & AP_STATUS_LTE.RADIO2;
+                //    detail |= oleRadio;
+                //}
+                //else
+                //{
+                //    UInt32 oleRadio = oldDetail & AP_STATUS_LTE.RADIO;
+                //    detail |= oleRadio;
+                //}
+                //OnOutputLog(LogInfoType.EROR, "detail=" + detail);
                 //修改状态
                 MyDeviceList.SetDetail(detail, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+
             }
             else
             {
@@ -735,11 +841,11 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向APP返回通用错误消息
         /// </summary>
-        /// <param name="apToken">ap信息</param>
+        /// <param name="apToKen">ap信息</param>
         /// <param name="appToken">app信息</param>
         /// <param name="type">app发送过来的消息类型</param>
         /// <param name="str">错误描述</param>
-        protected void Send2APP_GeneralError(AsyncUserToken apToken, AsyncUserToken appToken,string type,string str)
+        protected void Send2APP_GeneralError(AsyncUserToken apToKen, AsyncUserToken appToken,string type,string str)
         {
             MessageType mt = MessageType.MSG_JSON;
             MessageBody mb = new MessageBody();
@@ -748,17 +854,17 @@ namespace ScannerBackgrdServer.ApController
             msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             msg.MsgType = MsgStruct.MsgType.CONFIG.ToString();
 
-            if (apToken == null)
+            if (apToKen == null)
             {
                 msg.ApInfo = null;
             }
             else
             {
                 msg.ApInfo.Type = this.DeviceType;
-                msg.ApInfo.IP = apToken.IPAddress.ToString();
-                msg.ApInfo.Port = apToken.Port;
-                msg.ApInfo.SN = apToken.Sn;
-                msg.ApInfo.Fullname = apToken.FullName;
+                msg.ApInfo.IP = apToKen.IPAddress.ToString();
+                msg.ApInfo.Port = apToKen.Port;
+                msg.ApInfo.SN = apToKen.Sn;
+                msg.ApInfo.Fullname = apToKen.FullName;
             }
    
             msg.AppInfo.Type = string.Empty;
@@ -811,7 +917,7 @@ namespace ScannerBackgrdServer.ApController
             //OnReceiveMainMsg(mt, mb);
         }
 
-        protected void Send2APP_GeneralError(AsyncUserToken apToken, App_Info_Struct appInfo, string type, string str)
+        protected void Send2APP_GeneralError(AsyncUserToken apToKen, App_Info_Struct appInfo, string type, string str)
         {
             MessageType mt = MessageType.MSG_JSON;
             MessageBody mb = new MessageBody();
@@ -820,17 +926,17 @@ namespace ScannerBackgrdServer.ApController
             msg.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             msg.MsgType = MsgStruct.MsgType.CONFIG.ToString();
 
-            if (apToken == null)
+            if (apToKen == null)
             {
                 msg.ApInfo = null;
             }
             else
             {
                 msg.ApInfo.Type = this.DeviceType;
-                msg.ApInfo.IP = apToken.IPAddress.ToString();
-                msg.ApInfo.Port = apToken.Port;
-                msg.ApInfo.SN = apToken.Sn;
-                msg.ApInfo.Fullname = apToken.FullName;
+                msg.ApInfo.IP = apToKen.IPAddress.ToString();
+                msg.ApInfo.Port = apToKen.Port;
+                msg.ApInfo.SN = apToKen.Sn;
+                msg.ApInfo.Fullname = apToKen.FullName;
             }
 
             msg.AppInfo = appInfo;

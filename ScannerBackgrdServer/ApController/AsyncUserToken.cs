@@ -11,6 +11,11 @@ namespace ScannerBackgrdServer.ApController
 {
     class AsyncUserToken
     {
+        /// <summary>
+        /// 设备运行版本
+        /// </summary>
+        public string version { get; set; }
+
         /// <summary>  
         /// 客户端IP地址  
         /// </summary>  
@@ -107,6 +112,7 @@ namespace ScannerBackgrdServer.ApController
             this.msgId2App = new HashSet<MsgId2App>();
             this.Buffer = new List<byte>();
             this.MainControllerStatus = "unknown";
+            this.version = string.Empty;
         }
     }
 }

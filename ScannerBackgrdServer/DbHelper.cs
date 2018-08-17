@@ -981,6 +981,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1049,7 +1050,7 @@ namespace ScannerBackgrdServer
                 {
                     if (cmd.ExecuteNonQuery() < 0)
                     {
-                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);               
                         return (int)RC.OP_FAIL;
                     }
                 }
@@ -1057,7 +1058,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1118,7 +1119,7 @@ namespace ScannerBackgrdServer
                 {
                     if (cmd.ExecuteNonQuery() < 0)
                     {
-                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);            
                         return (int)RC.OP_FAIL;
                     }
                 }
@@ -1126,7 +1127,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
 
@@ -1146,7 +1147,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
 
@@ -1158,7 +1159,7 @@ namespace ScannerBackgrdServer
                 {
                     if (cmd.ExecuteNonQuery() < 0)
                     {
-                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I); 
                         return (int)RC.OP_FAIL;
                     }
                 }
@@ -1166,6 +1167,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1233,6 +1235,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1314,6 +1317,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1339,6 +1343,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1417,6 +1422,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1479,6 +1485,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1558,7 +1565,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1631,7 +1638,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             sql = string.Format("delete from role where roleType = '{0}'", roleType);
@@ -1649,7 +1656,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1724,6 +1731,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1786,6 +1794,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -1900,7 +1909,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1973,7 +1982,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
 
@@ -1993,7 +2002,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2086,6 +2095,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2148,6 +2158,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2199,6 +2210,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2270,7 +2282,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2330,7 +2342,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2412,6 +2424,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2460,6 +2473,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2510,6 +2524,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2573,6 +2588,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2673,7 +2689,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2735,7 +2751,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2828,6 +2844,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -2897,6 +2914,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3240,7 +3258,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3344,7 +3362,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3404,7 +3422,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3497,6 +3515,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3573,6 +3592,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3678,6 +3698,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3767,6 +3788,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3814,6 +3836,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3874,6 +3897,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3918,6 +3942,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -3983,7 +4008,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -4034,7 +4059,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -4132,7 +4157,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4205,7 +4230,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4289,7 +4314,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             //再删除节点下面的所有子孙节点
@@ -4313,7 +4338,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             List<string> listDevId = new List<string>();
@@ -4444,7 +4469,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             //重命名本节点本身下的所有子节点           
@@ -4464,7 +4489,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4538,7 +4563,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }           
 
             return (int)RC.SUCCESS;
@@ -4656,7 +4681,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4704,7 +4729,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5082,7 +5107,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5192,7 +5217,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5295,7 +5320,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5340,7 +5365,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5402,7 +5427,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -5455,7 +5480,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -5619,7 +5644,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5687,7 +5712,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5799,7 +5824,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5880,7 +5905,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5935,7 +5960,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -6008,7 +6033,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -6085,7 +6110,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
 
@@ -6170,7 +6195,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6221,7 +6246,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6446,7 +6471,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             int id = -1;
@@ -6684,7 +6709,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6941,7 +6966,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7171,7 +7196,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7277,7 +7302,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (rtv != 0)
@@ -7459,7 +7484,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7522,7 +7547,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7680,7 +7705,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7791,7 +7816,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7851,7 +7876,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8026,7 +8051,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8081,7 +8106,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8137,7 +8162,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             count = cnt;
@@ -8362,7 +8387,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8608,7 +8633,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8847,7 +8872,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8897,7 +8922,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8960,7 +8985,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9023,7 +9048,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9071,7 +9096,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9132,7 +9157,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9326,7 +9351,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9434,7 +9459,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9480,7 +9505,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9558,7 +9583,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9639,7 +9664,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9720,7 +9745,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9801,7 +9826,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -10049,7 +10074,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10177,7 +10202,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10450,7 +10475,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
            return (int)RC.SUCCESS;
@@ -10691,7 +10716,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10775,7 +10800,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10859,7 +10884,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10922,7 +10947,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11006,7 +11031,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11053,7 +11078,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11197,7 +11222,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11373,7 +11398,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11450,7 +11475,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11574,7 +11599,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11778,7 +11803,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11826,7 +11851,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -11893,7 +11918,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12510,7 +12535,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12753,7 +12778,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12884,7 +12909,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12946,7 +12971,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13011,7 +13036,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13080,7 +13105,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13140,7 +13165,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13219,7 +13244,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13288,7 +13313,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13369,7 +13394,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;           
@@ -13572,7 +13597,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13639,7 +13664,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13679,7 +13704,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13837,7 +13862,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14018,7 +14043,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14067,7 +14092,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -14135,7 +14160,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14357,7 +14382,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14463,7 +14488,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14510,7 +14535,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14559,7 +14584,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -14621,7 +14646,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14801,7 +14826,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14892,7 +14917,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14939,7 +14964,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14988,7 +15013,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -15050,7 +15075,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15318,7 +15343,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15445,7 +15470,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15492,7 +15517,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15657,7 +15682,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15758,7 +15783,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15805,7 +15830,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15857,7 +15882,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -15928,7 +15953,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16221,7 +16246,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16330,7 +16355,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16380,7 +16405,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16590,7 +16615,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16877,7 +16902,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16994,7 +17019,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17058,7 +17083,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -17126,7 +17151,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17413,7 +17438,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17547,7 +17572,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17600,7 +17625,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17664,7 +17689,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -17732,7 +17757,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18203,7 +18228,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18432,7 +18457,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18479,7 +18504,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18556,7 +18581,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -18636,7 +18661,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18707,7 +18732,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);       
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
                 return (int)RC.OP_FAIL;
             }
 
@@ -18748,7 +18774,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18806,7 +18832,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18870,7 +18896,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -18938,7 +18964,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19320,7 +19346,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19483,7 +19509,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19536,7 +19562,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;

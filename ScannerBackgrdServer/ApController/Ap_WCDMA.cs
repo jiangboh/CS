@@ -42,28 +42,28 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 重载收到Ap侧消息处理
         /// </summary>
-        /// <param name="apToken">Ap信息</param>
+        /// <param name="apToKen">Ap信息</param>
         /// <param name="buff">消息内容</param>
-        public override void OnReceiveDeviceMsg(AsyncUserToken apToken, byte[] buff)
+        public override void OnReceiveDeviceMsg(AsyncUserToken apToKen, byte[] buff)
         {
             while (true)
             {
-                string msg = GetDeviceMsg_XML(apToken);
+                string msg = GetDeviceMsg_XML(apToKen);
                 if (string.IsNullOrEmpty(msg))
                 {
                     //OnOutputLog(LogInfoType.DEBG, "消息已解析完。缓存里没有完整消息了！");
                     return;
                 }
-                HandleApMsg(apToken, msg);
+                HandleApMsg(apToKen, msg);
             }
         }
 
         /// <summary>
         /// 处理收到的AP消息
         /// </summary>
-        /// <param name="apToken"></param>
+        /// <param name="apToKen"></param>
         /// <param name="msg"></param>
-        private void HandleApMsg(AsyncUserToken apToken, string msg)
+        private void HandleApMsg(AsyncUserToken apToKen, string msg)
         {
             //解析AP发过来的消息
             UInt16 msgId = 0;
@@ -75,7 +75,7 @@ namespace ScannerBackgrdServer.ApController
             catch (Exception)
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("解析收到的Ap[{0}:{1}]消息出错！",
-                    apToken.IPAddress.ToString(), apToken.Port.ToString()));
+                    apToKen.IPAddress.ToString(), apToKen.Port.ToString()));
                 return;
             }
 
@@ -91,7 +91,7 @@ namespace ScannerBackgrdServer.ApController
                 if (msgBody.type != ApMsgType.get_general_para_response) //参数上报消息不透传
                 {
                     Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.transparent_msg_response, "transparent_msg", msg);
-                    OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToken, body);
+                    OnSendMsg2Main(msgId, MsgStruct.MsgType.TRANSPARENT, apToKen, body);
                     return;
                 }
             }
@@ -105,40 +105,41 @@ namespace ScannerBackgrdServer.ApController
                 else
                     heartbeatMsgNum++;
 
-                //UInt32 oldDetail = apToken.Detail;
+                //UInt32 oldDetail = apToKen.Detail;
                 UInt32 detail = 0;
                 string sDetail = GetMsgStringValueInList("detail", msgBody);
                 if (!string.IsNullOrEmpty(sDetail))
                     detail = Convert.ToUInt32(sDetail, 16);
 
-                //Byte oldApReadySt = apToken.ApReadySt;
+                //Byte oldApReadySt = apToKen.ApReadySt;
                 Byte ApReadySt = 5;
                 string sApReadySt = GetMsgStringValueInList("addStatus", msgBody);
                 if (!string.IsNullOrEmpty(sApReadySt))
                     ApReadySt = Convert.ToByte(sApReadySt);
 
-                apToken.Mode = GetMsgStringValueInList("mode", msgBody);
-                apToken.Sn = GetMsgStringValueInList("sn", msgBody);
-                apToken.FullName = GetMsgStringValueInList("fullname", msgBody);
-                if (string.IsNullOrEmpty(apToken.FullName))   //兼容老Agent拼写错误
+                apToKen.version = GetMsgStringValueInList("version", msgBody);
+                apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
+                apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
+                apToKen.FullName = GetMsgStringValueInList("fullname", msgBody);
+                if (string.IsNullOrEmpty(apToKen.FullName))   //兼容老Agent拼写错误
                 {
-                    apToken.FullName = GetMsgStringValueInList("fullaname", msgBody);
+                    apToKen.FullName = GetMsgStringValueInList("fullaname", msgBody);
                 }
-                apToken.Id = GetMsgStringValueInList("id", msgBody);
-                //apToken.Detail = detail;
+                apToKen.Id = GetMsgStringValueInList("id", msgBody);
+                //apToKen.Detail = detail;
 
-                int i = MyDeviceList.add(apToken);
-                Send2main_OnOffLine(OnLine, i, apToken);
+                int i = MyDeviceList.add(apToKen);
+                Send2main_OnOffLine(OnLine, i, apToKen);
 
                 //判断是周期心跳，还是上线心跳
                 if ((detail & (int)AP_STATUS_LTE.OnLine) > 0) //上线
                 {
                     //OnOutputLog(LogInfoType.DEBG, "上线消息");
-                    if (OnLine.Equals(MyDeviceList.GetMainControllerStatus(apToken)))
+                    if (OnLine.Equals(MyDeviceList.GetMainControllerStatus(apToKen)))
                     {
-                        Send2ap_status_request(apToken);
+                        Send2ap_status_request(apToKen);
                         Thread.Sleep(1000);
-                        Send2ap_get_general_para_request(apToken);
+                        Send2ap_get_general_para_request(apToKen);
                     }
                     else
                     {
@@ -150,28 +151,28 @@ namespace ScannerBackgrdServer.ApController
                     //OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
                 }
                 //发送状态改变
-                Send2ap_ApStatusChange_LTE(apToken, detail, ApReadySt);
+                Send2ap_ApStatusChange_LTE(apToKen, detail, ApReadySt);
             }
             else if (msgBody.type == ApMsgType.get_general_para_response)
             {
                 Msg_Body_Struct SendMsgBody = msgBody;
                 SendMsgBody.type = Main2ApControllerMsgType.ReportGenPara;
                 // 向Main模块发消息
-                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToken, SendMsgBody);
+                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
             }
             else if (msgBody.type == ApMsgType.imsi_list_config_result)
             {
                 Msg_Body_Struct SendMsgBody = msgBody;
                 SendMsgBody.type = Main2ApControllerMsgType.app_add_bwlist_response;
                 // 向Main模块发消息
-                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToken, SendMsgBody);
+                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
             }
             else if (msgBody.type == ApMsgType.imsi_list_delconfig_result)
             {
                 Msg_Body_Struct SendMsgBody = msgBody;
                 SendMsgBody.type = Main2ApControllerMsgType.app_del_bwlist_response;
                 // 向Main模块发消息
-                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToken, SendMsgBody);
+                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
             }
             else if (msgBody.type == ApMsgType.scanner)
             {
@@ -200,13 +201,13 @@ namespace ScannerBackgrdServer.ApController
                     Msg_Body_Struct body = new Msg_Body_Struct(msgBody.type, msgBody.dic);
 
                     OnOutputLog(LogInfoType.DEBG, string.Format("上报imsi:{0}", imsi));
-                    OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToken, body);
+                    OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, body);
                 }
             }
             else
             {
                 Msg_Body_Struct body = new Msg_Body_Struct(msgBody.type, msgBody.dic);
-                OnSendMsg2Main(msgId, MsgStruct.MsgType.CONFIG, apToken, body);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.CONFIG, apToKen, body);
             }
 
             msgBody = null;
@@ -281,6 +282,47 @@ namespace ScannerBackgrdServer.ApController
                     }
                 }
             }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApDelete)
+            {
+                //修改状态为下线状态
+                MyDeviceList.SetMainControllerStatus(OffLine, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApSetRadio)
+            {
+                AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
+                if (apToKen == null)
+                {
+                    OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                        MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
+                    return;
+                }
+
+                byte carry = GetMsgByteValueInList("carry", MainMsg.Body.dic, Byte.MaxValue);
+                if (carry != 0)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，carry字段非法!",
+                        Main2ApControllerMsgType.ApSetRadio));
+                    return;
+                }
+
+                Byte active_mode = GetMsgByteValueInList("active_mode", MainMsg.Body.dic, Byte.MaxValue);
+                if (active_mode != 1 && active_mode != 2)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，active_mode字段非法!",
+                        Main2ApControllerMsgType.ApSetRadio));
+                    return;
+                }
+
+                Byte mode = GetMsgByteValueInList("mode", MainMsg.Body.dic, Byte.MaxValue);
+                if (mode != 1 && mode != 2)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，mode字段非法!",
+                        Main2ApControllerMsgType.ApSetRadio));
+                    return;
+                }
+
+                Send2ap_activate_nodeb_request(apToKen, active_mode, mode);
+            }
             //状态改变回复
             else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
             {
@@ -334,44 +376,34 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向Ap发送Main模块过来的消息
         /// </summary>
-        /// <param name="msgBody"></param>
-        private void Send2ap_RecvMainMsg(InterModuleMsgStruct msgBody)
+        /// <param name="MainMsg"></param>
+        private void Send2ap_RecvMainMsg(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
             if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToKen = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToKen == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
 
             MsgId2App msgId2App = new MsgId2App();
             msgId2App.id = ApMsgIdClass.addNormalMsgId();
-            msgId2App.AppInfo = msgBody.AppInfo;
+            msgId2App.AppInfo = MainMsg.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("添加消息Id到设备列表出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("添加消息Id到设备列表出错！"));
                 return;
             }
 
-            byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, msgBody.Body);
+            byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, MainMsg.Body);
             if (sendMsg == null)
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(RecvMainMsg)出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("封装向AP发送的XML消息出错！"));
                 return;
             }
@@ -383,32 +415,22 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 透传MainController模块过来的消息给设备
         /// </summary>
-        /// <param name="msgBody"></param>
-        private void Send2ap_TransparentMsg(InterModuleMsgStruct msgBody)
+        /// <param name="MainMsg"></param>
+        private void Send2ap_TransparentMsg(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
             if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToKen = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToKen == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
 
-            string sendMsg = GetMsgStringValueInList("transparent_msg", msgBody.Body);
+            string sendMsg = GetMsgStringValueInList("transparent_msg", MainMsg.Body);
             if (string.IsNullOrEmpty(sendMsg))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("透传XML消息为空！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("透传XML消息为空！"));
                 return;
             }
@@ -416,7 +438,7 @@ namespace ScannerBackgrdServer.ApController
             if (!Regex.IsMatch(sendMsg, "<\\s*id\\s*>.+<\\s*/\\s*id\\s*>"))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("透传的XML消息中没有id项！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("透传的XML消息中没有id项！"));
                 return;
             }
@@ -426,12 +448,12 @@ namespace ScannerBackgrdServer.ApController
 
             MsgId2App msgId2App = new MsgId2App();
             msgId2App.id = id;
-            msgId2App.AppInfo = msgBody.AppInfo;
+            msgId2App.AppInfo = MainMsg.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("添加消息Id到设备列表出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("添加消息Id到设备列表出错！"));
                 return;
             }
@@ -441,31 +463,33 @@ namespace ScannerBackgrdServer.ApController
         }
 
         /// <summary>
-        /// 向AP回应心跳消息
+        /// 封装激活、去激活消息
         /// </summary>
-        /// <param name="apToken">AP信息</param>
-        private void Send2ap_status_request(AsyncUserToken apToken)
+        /// <param name="apToKen">ap信息</param>
+        /// <param name="active_mode">1(start), 2(stop)</param>
+        /// <param name="mode">1:scanner mode 2: audit mode</param>
+        private void Send2ap_activate_nodeb_request(AsyncUserToken apToKen, Byte active_mode, Byte mode)
         {
-            //向AP回复心跳
             Msg_Body_Struct TypeKeyValue =
-                new Msg_Body_Struct(ApMsgType.status_request,
-                "timeout", 5,
-                "timestamp", DateTime.Now.ToLocalTime().ToString());
+                new Msg_Body_Struct(ApMsgType.activate_nodeb_request,
+                "active_mode", active_mode,
+                "mode", mode,
+                "timeout", 0);
 
             byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
             if (sendMsg == null)
             {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(status_request)出错！"));
+                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(activate_nodeb_request)出错！"));
                 return;
             }
-            SendMsg2Ap(apToken, sendMsg);
+            SendMsg2Ap(apToKen, sendMsg);
         }
 
         /// <summary>
         /// 获取AP的配置信息
         /// </summary>
-        /// <param name="apToken">AP信息</param>
-        private void Send2ap_get_general_para_request(AsyncUserToken apToken)
+        /// <param name="apToKen">AP信息</param>
+        private void Send2ap_get_general_para_request(AsyncUserToken apToKen)
         {
             Msg_Body_Struct TypeKeyValue =
                 new Msg_Body_Struct(ApMsgType.get_general_para_request,
@@ -478,36 +502,26 @@ namespace ScannerBackgrdServer.ApController
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(get_general_para_request)出错！"));
                 return;
             }
-            SendMsg2Ap(apToken, sendMsg);
+            SendMsg2Ap(apToKen, sendMsg);
         }
 
         /// <summary>
         /// 向AP添加黑白名单
         /// </summary>
         /// <param name="token">AP信息</param>
-        private void Send2ap_imsi_list_setconfig(InterModuleMsgStruct msgBody)
+        private void Send2ap_imsi_list_setconfig(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToken = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
-            if (apToken == null)
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
+            if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToken = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToken == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
 
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.imsi_list_setconfig);
             int i = 0;
-            foreach (Name_DIC_Struct n_dicList in msgBody.Body.n_dic)
+            foreach (Name_DIC_Struct n_dicList in MainMsg.Body.n_dic)
             {
                 Dictionary<string, object> dic = n_dicList.dic;
 
@@ -515,7 +529,7 @@ namespace ScannerBackgrdServer.ApController
                 if (!bwFlag.Equals("black") && !bwFlag.Equals("white"))
                 {
                     OnOutputLog(LogInfoType.WARN, "添加黑白名单参数错误。bwFlag字段错误!");
-                    Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                         "添加黑白名单参数错误。bwFlag字段错误!");
                     continue;
                 }
@@ -526,7 +540,7 @@ namespace ScannerBackgrdServer.ApController
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "添加白名单参数错误。imsi字段错误!");
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "添加白名单参数错误。imsi字段错误!");
                         continue;
                     }
@@ -541,7 +555,7 @@ namespace ScannerBackgrdServer.ApController
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "添加黑名单参数错误。imsi字段错误!");
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "添加黑名单参数错误。imsi字段错误!");
                         continue;
                     }
@@ -550,7 +564,7 @@ namespace ScannerBackgrdServer.ApController
                     {
                         string str = string.Format("添加黑名单参数错误。imsi({0})rbStart字段错误!", imsi);
                         OnOutputLog(LogInfoType.WARN, str);
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type, str);
                         continue;
                     }
                     String rbEnd = GetMsgStringValueInList("rbEnd", dic);
@@ -558,7 +572,7 @@ namespace ScannerBackgrdServer.ApController
                     {
                         string str = string.Format("添加黑名单参数错误。imsi({0})rbEnd字段错误!", imsi);
                         OnOutputLog(LogInfoType.WARN, str);
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type, str);
                         continue;
                     }
                     Name_DIC_Struct n_dic = new Name_DIC_Struct("name" + i++);
@@ -572,7 +586,7 @@ namespace ScannerBackgrdServer.ApController
             if (i == 0)
             {
                 OnOutputLog(LogInfoType.EROR, "添加黑白名单参数错误。没有要发送的名单!");
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "添加黑白名单参数错误。没有要发送的名单!");
                 return;
             }
@@ -580,40 +594,30 @@ namespace ScannerBackgrdServer.ApController
             if (sendMsg == null)
             {
                 OnOutputLog(LogInfoType.EROR, "封装XML消息(imsi_list_setconfig)出错！");
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "封装XML消息(imsi_list_setconfig)出错！");
                 return;
             }
-            SendMsg2Ap(apToken, sendMsg);
+            SendMsg2Ap(apToKen, sendMsg);
         }
 
         /// <summary>
         /// 向AP删除黑白名单
         /// </summary>
         /// <param name="token">AP信息</param>
-        private void Send2ap_imsi_list_delconfig(InterModuleMsgStruct msgBody)
+        private void Send2ap_imsi_list_delconfig(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToken = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
-            if (apToken == null)
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
+            if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToken = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToken == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
 
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.imsi_list_delconfig);
             int i = 0;
-            foreach (Name_DIC_Struct n_dicList in msgBody.Body.n_dic)
+            foreach (Name_DIC_Struct n_dicList in MainMsg.Body.n_dic)
             {
                 Dictionary<string, object> dic = n_dicList.dic;
 
@@ -621,7 +625,7 @@ namespace ScannerBackgrdServer.ApController
                 if (!bwFlag.Equals("black") && !bwFlag.Equals("white"))
                 {
                     OnOutputLog(LogInfoType.WARN, "删除黑白名单参数错误。bwFlag字段错误!");
-                    Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "删除黑白名单参数错误。bwFlag字段错误！");
                     continue;
                 }
@@ -632,7 +636,7 @@ namespace ScannerBackgrdServer.ApController
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "删除白名单参数错误。imsi字段错误!");
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "删除白名单参数错误。imsi字段错误！");
                         continue;
                     }
@@ -647,7 +651,7 @@ namespace ScannerBackgrdServer.ApController
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "删除黑名单参数错误。imsi字段错误!");
-                        Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                        Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "删除黑名单参数错误。imsi字段错误！");
                         continue;
                     }
@@ -661,7 +665,7 @@ namespace ScannerBackgrdServer.ApController
             if (i == 0)
             {
                 OnOutputLog(LogInfoType.EROR, "删除黑名单参数错误。没有要发送的名单!");
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "删除黑名单参数错误。没有要发送的名单！");
                 return;
             }
@@ -669,11 +673,11 @@ namespace ScannerBackgrdServer.ApController
             if (sendMsg == null)
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(imsi_list_delconfig)出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "封装XML消息(imsi_list_delconfig)出错！");
                 return;
             }
-            SendMsg2Ap(apToken, sendMsg);
+            SendMsg2Ap(apToKen, sendMsg);
         }
         #endregion
     }

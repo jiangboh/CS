@@ -20,7 +20,7 @@ namespace ScannerBackgrdServer.ApController
         }
         private enum Protocol_Sap
         {
-            GSN = 241,
+            GSM = 241,
             CDMA = 242
         }
         private enum Msg_Type
@@ -431,6 +431,7 @@ namespace ScannerBackgrdServer.ApController
                 if (!string.IsNullOrEmpty(sApReadySt))
                     ApReadySt = Convert.ToByte(sApReadySt);
 
+                apToKen.version = GetMsgStringValueInList("version", msgBody);
                 apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
                 apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
                 apToKen.FullName = GetMsgStringValueInList("fullname", msgBody);
@@ -441,18 +442,26 @@ namespace ScannerBackgrdServer.ApController
                 Send2main_OnOffLine(OnLine, i, apToKen);
 
                 //判断是周期心跳，还是上线心跳
-                //if ((detail & (int)AP_STATUS.OnLine) > 0) //上线
-                //{
-                //    OnOutputLog(LogInfoType.DEBG, "上线消息");
-                //    Send2ap_status_request(token);
-                //}
-                //else //周期心跳
-                //{
-                //    OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
-                //}
-                ////发送状态改变
-
-                Send2ap_ApStatusChange_GSM_ZYF(apToKen, detail, ApReadySt);
+                if ((detail & (int)AP_STATUS_LTE.OnLine) > 0) //上线
+                {
+                    //OnOutputLog(LogInfoType.DEBG, "上线消息");
+                    if (OnLine.Equals(MyDeviceList.GetMainControllerStatus(apToKen)))
+                    {
+                        Send2ap_status_request(apToKen);
+                        //Thread.Sleep(1000);
+                        //Send2ap_get_general_para_request(apToKen);
+                    }
+                    else
+                    {
+                        OnOutputLog(LogInfoType.DEBG, "MainController未回复上线成功消息！");
+                    }
+                }
+                else //周期心跳
+                {
+                    //OnOutputLog(LogInfoType.DEBG, "周期心跳消息");
+                }
+                //发送状态改变
+                Send2ap_ApStatusChange_CDMA_ZYF(apToKen, detail, ApReadySt);
             }
             else if (msgBody.type == ApMsgType.agent_straight_msg)
             {
@@ -796,24 +805,14 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 透传MainController模块过来的消息给设备
         /// </summary>
-        /// <param name="msgBody"></param>
-        private void Send2ap_TransparentMsg(InterModuleMsgStruct msgBody)
+        /// <param name="MainMsg"></param>
+        private void Send2ap_TransparentMsg(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
             if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToKen = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToKen == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
 
@@ -821,21 +820,21 @@ namespace ScannerBackgrdServer.ApController
 
             MsgId2App msgId2App = new MsgId2App();
             msgId2App.id = msgId;
-            msgId2App.AppInfo = msgBody.AppInfo;
+            msgId2App.AppInfo = MainMsg.AppInfo;
 
             if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("添加消息Id到设备列表出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("添加消息Id到设备列表出错！"));
                 return;
             }
 
-            string sendMsg = GetMsgStringValueInList("transparent_msg", msgBody.Body);
+            string sendMsg = GetMsgStringValueInList("transparent_msg", MainMsg.Body);
             if (string.IsNullOrEmpty(sendMsg))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(Send2ap_TransparentMsg)出错！"));
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                     string.Format("封装向AP发送的XML消息出错！"));
                 return;
             }
@@ -860,9 +859,9 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向AP发送消息
         /// </summary>
-        /// <param name="ApToken">AP信息</param
+        /// <param name="apToKen">AP信息</param
         /// <param name="msg">GSM文档格式的消息内容，十六进制“AA AA 01 00 15 0E 55 66 00 4B 00 54 02 2A 00 00 00 00 00 00”</param>
-        private void Send2ap_CDMA(AsyncUserToken ApToken, App_Info_Struct AppInfo, MsgSendStruct sendMsg)
+        private void Send2ap_CDMA(AsyncUserToken apToKen, App_Info_Struct AppInfo, MsgSendStruct sendMsg)
         {
             string data = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}",
                 ((byte)sendMsg.bProtocolSap).ToString("X").PadLeft(2, '0'),
@@ -881,10 +880,10 @@ namespace ScannerBackgrdServer.ApController
             msgId2App.id = sendMsg.wSqn;
             msgId2App.AppInfo = AppInfo;
 
-            if (!MyDeviceList.AddMsgId2App(ApToken, msgId2App))
+            if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("添加消息Id到设备列表出错！"));
-                Send2APP_GeneralError(ApToken, AppInfo, sendMsg.bMsgId.ToString(),
+                Send2APP_GeneralError(apToKen, AppInfo, sendMsg.bMsgId.ToString(),
                     string.Format("添加消息Id到设备列表出错！"));
                 return;
             }
@@ -899,15 +898,15 @@ namespace ScannerBackgrdServer.ApController
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(Send2ap_CDMA)出错！"));
                 return;
             }
-            SendMsg2Ap(ApToken, bMsg);
+            SendMsg2Ap(apToKen, bMsg);
         }
 
-        private void Send2ap_QUERY_NB_CELL_INFO_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo , Device_Sys sys)
+        private void Send2ap_QUERY_NB_CELL_INFO_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo , Device_Sys sys)
         {
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_NB_CELL_INFO_MSG,sys, getReservedString(32)));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_NB_CELL_INFO_MSG,sys, getReservedString(32)));
         }
 
-        private void Send2ap_CONFIG_FAP_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_FAP_MSG para)
+        private void Send2ap_CONFIG_FAP_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_FAP_MSG para)
         {
             string paraMnc = string.Empty;
 
@@ -933,17 +932,17 @@ namespace ScannerBackgrdServer.ApController
                 getReservedString(2),
                 para.dwCellId.ToString("X").PadLeft(8, '0'),
                 getReservedString(16));
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_FAP_MSG,sys, data));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_FAP_MSG,sys, data));
         }
 
-        private void Send2ap_CONFIG_SMS_CONTENT_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, string num,string text)
+        private void Send2ap_CONFIG_SMS_CONTENT_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, string num,string text)
         {
             int len = num.Length;
             string phoneNum  = CodeConver.String2HexString(num);
             string phoneText = CodeConver.String2Unicode(text,false);
             if(phoneText.Length >40 || phoneText.Length<=0)
             {
-                Send2APP_GeneralError(ApToken,AppInfo,Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(),
+                Send2APP_GeneralError(apToKen,AppInfo,Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(),
                     "编码后的消息内容长度错误!");
                 return;
             }
@@ -953,33 +952,33 @@ namespace ScannerBackgrdServer.ApController
                  fullString(36,phoneNum),
                  text.Length.ToString("X").PadLeft(2, '0'),
                  phoneText);
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG, sys, data));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG, sys, data));
         }
 
-        private void Send2ap_CONTROL_FAP_REBOOT_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys,byte flag)
+        private void Send2ap_CONTROL_FAP_REBOOT_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys,byte flag)
         {
             string data = string.Format("{0}{1}",
                  flag.ToString("X").PadLeft(2, '0'),
                  getReservedString(3));
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_REBOOT_MSG, sys,data));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_REBOOT_MSG, sys,data));
         }
 
-        private void Send2ap_CONTROL_FAP_RADIO_ON_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys)
+        private void Send2ap_CONTROL_FAP_RADIO_ON_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys)
         {
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RADIO_ON_MSG, sys, string.Empty));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RADIO_ON_MSG, sys, string.Empty));
         }
 
-        private void Send2ap_CONTROL_FAP_RADIO_OFF_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys)
+        private void Send2ap_CONTROL_FAP_RADIO_OFF_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys)
         {
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG, sys, string.Empty));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG, sys, string.Empty));
         }
 
-        private void Send2ap_CONTROL_FAP_RESET_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys)
+        private void Send2ap_CONTROL_FAP_RESET_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys)
         {
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RESET_MSG, sys, string.Empty));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONTROL_FAP_RESET_MSG, sys, string.Empty));
         }
 
-        private void Send2ap_CONFIG_CDMA_CARRIER_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_CDMA_CARRIER_MSG para)
+        private void Send2ap_CONFIG_CDMA_CARRIER_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_CDMA_CARRIER_MSG para)
         {
             string data = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}{12}{13}{14}{15}{16}{17}{18}{19}",
                 para.wARFCN1.ToString("X").PadLeft(4, '0'),
@@ -1002,15 +1001,15 @@ namespace ScannerBackgrdServer.ApController
                 getReservedString(1),
                 para.wARFCN4Duration.ToString("X").PadLeft(4, '0'),
                 para.wARFCN4Period.ToString("X").PadLeft(4, '0'));
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG, sys, data));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG, sys, data));
         }
 
-        private void Send2ap_QUERY_FAP_PARAM_MSG(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys)
+        private void Send2ap_QUERY_FAP_PARAM_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys)
         {
-            Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_FAP_PARAM_MSG, sys, string.Empty));
+            Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_FAP_PARAM_MSG, sys, string.Empty));
         }
 
-        private void Send2ap_CONFIG_IMSI_MSG_V3(AsyncUserToken ApToken, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_IMSI_MSG_V3 para)
+        private void Send2ap_CONFIG_IMSI_MSG_V3(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_IMSI_MSG_V3 para)
         {
             
             if (para.wTotalImsi <= 50 || para.bActionType == 1)
@@ -1041,7 +1040,7 @@ namespace ScannerBackgrdServer.ApController
                     data = data + getReservedString(1);
                 }
 
-                Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
+                Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
             }
             else
             {
@@ -1099,12 +1098,12 @@ namespace ScannerBackgrdServer.ApController
                         }
                     }
 
-                    Send2ap_CDMA(ApToken, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
+                    Send2ap_CDMA(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID, sys, data));
                 }
             }
         }
 
-        //private void Send2ap_SET_PARA_REQ(AsyncUserToken ApToken, App_Info_Struct AppInfo, Gsm_Device_Sys sys, int Flag,
+        //private void Send2ap_SET_PARA_REQ(AsyncUserToken apToKen, App_Info_Struct AppInfo, Gsm_Device_Sys sys, int Flag,
         //    RecvSysPara para, RecvSysOption option, RecvRfOption rf, byte mode)
         //{
         //    UInt16 msgId = addMsgId();
@@ -1214,10 +1213,10 @@ namespace ScannerBackgrdServer.ApController
         //    msgId2App.id = msgId;
         //    msgId2App.AppInfo = AppInfo;
 
-        //    if (!MyDeviceList.AddMsgId2App(ApToken, msgId2App))
+        //    if (!MyDeviceList.AddMsgId2App(apToKen, msgId2App))
         //    {
         //        OnOutputLog(LogInfoType.EROR, string.Format("添加消息Id到设备列表出错！"));
-        //        Send2APP_GeneralError(ApToken, AppInfo, ApMsgType.set_general_para_request.ToString(),
+        //        Send2APP_GeneralError(apToKen, AppInfo, ApMsgType.set_general_para_request.ToString(),
         //            string.Format("添加消息Id到设备列表出错！"));
         //        return;
         //    }
@@ -1228,7 +1227,7 @@ namespace ScannerBackgrdServer.ApController
         //        OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(Send2ap_SET_PARA_REQ)出错！"));
         //        return;
         //    }
-        //    SendMsg2Ap(ApToken, bMsg);
+        //    SendMsg2Ap(apToKen, bMsg);
         //}
 
         #endregion
@@ -1304,6 +1303,46 @@ namespace ScannerBackgrdServer.ApController
                         OnOutputLog(LogInfoType.EROR, "Main模块返回消息中，Status字段错误!");
                     }
                 }
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApDelete)
+            {
+                //修改状态为下线状态
+                MyDeviceList.SetMainControllerStatus(OffLine, MainMsg.ApInfo.IP, MainMsg.ApInfo.Port);
+            }
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.ApSetRadio)
+            {
+                AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
+                if (apToKen == null)
+                {
+                    OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                        MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(),MainMsg.ApInfo.Fullname));
+                    return;
+                }
+
+                byte carry = GetMsgByteValueInList("carry", MainMsg.Body.dic, Byte.MaxValue);
+                if (carry != 0)
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，carry字段非法!",
+                        Main2ApControllerMsgType.ApSetRadio));
+                    return;
+                }
+                
+                Byte RADIO = GetMsgByteValueInList("RADIO", MainMsg.Body.dic, Byte.MaxValue);
+                if (RADIO == 1 )
+                {
+                    Send2ap_CONTROL_FAP_RADIO_ON_MSG(apToKen, MainMsg.AppInfo, (Device_Sys)carry);
+                }
+                else if (RADIO == 0)
+                {
+                    Send2ap_CONTROL_FAP_RADIO_OFF_MSG(apToKen, MainMsg.AppInfo, (Device_Sys)carry);
+                }
+                else
+                {
+                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，RADIO字段非法!",
+                        Main2ApControllerMsgType.ApSetRadio));
+                    return;
+                }
+               
             }
             //状态改变回复
             else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
@@ -1418,27 +1457,17 @@ namespace ScannerBackgrdServer.ApController
         /// <param name="n_dic"></param>
         private void EncodeMainMsg(Ap_Info_Struct ApInfo, App_Info_Struct AppInfo, Device_Sys sys, Name_DIC_Struct n_dic)
         {
-            AsyncUserToken ApToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
-            if (ApToKen == null)
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(ApInfo);
+            if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    ApInfo.IP, ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                ApToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
-            }
-
-            if (ApToKen == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(ApInfo, AppInfo, Main2ApControllerMsgType.gsm_msg_send, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname));
                 return;
             }
 
             if (n_dic.name.Equals(Send_Msg_Id.QUERY_NB_CELL_INFO_MSG.ToString()))
             {
-                Send2ap_QUERY_NB_CELL_INFO_MSG(ApToKen, AppInfo, sys);
+                Send2ap_QUERY_NB_CELL_INFO_MSG(apToKen, AppInfo, sys);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_FAP_MSG.ToString()))
             {
@@ -1521,7 +1550,7 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
 
-                Send2ap_CONFIG_FAP_MSG(ApToKen, AppInfo, sys, para);
+                Send2ap_CONFIG_FAP_MSG(apToKen, AppInfo, sys, para);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_REBOOT_MSG.ToString()))
             {
@@ -1532,7 +1561,7 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
 
-                Send2ap_CONTROL_FAP_REBOOT_MSG(ApToKen, AppInfo, sys, bRebootFlag);
+                Send2ap_CONTROL_FAP_REBOOT_MSG(apToKen, AppInfo, sys, bRebootFlag);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString()))
             {
@@ -1548,19 +1577,19 @@ namespace ScannerBackgrdServer.ApController
                     SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(), "bSMSContent");
                     return;
                 }
-                Send2ap_CONFIG_SMS_CONTENT_MSG(ApToKen, AppInfo, sys, bSMSOriginalNum, bSMSContent);
+                Send2ap_CONFIG_SMS_CONTENT_MSG(apToKen, AppInfo, sys, bSMSOriginalNum, bSMSContent);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_RADIO_ON_MSG.ToString()))
             {
-                Send2ap_CONTROL_FAP_RADIO_ON_MSG(ApToKen, AppInfo, sys);
+                Send2ap_CONTROL_FAP_RADIO_ON_MSG(apToKen, AppInfo, sys);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG.ToString()))
             {
-                Send2ap_CONTROL_FAP_RADIO_OFF_MSG(ApToKen, AppInfo, sys);
+                Send2ap_CONTROL_FAP_RADIO_OFF_MSG(apToKen, AppInfo, sys);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_RESET_MSG.ToString()))
             {
-                Send2ap_CONTROL_FAP_RESET_MSG(ApToKen, AppInfo, sys);
+                Send2ap_CONTROL_FAP_RESET_MSG(apToKen, AppInfo, sys);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString()))
             {
@@ -1677,11 +1706,11 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
 
-                Send2ap_CONFIG_CDMA_CARRIER_MSG(ApToKen, AppInfo, sys, para);
+                Send2ap_CONFIG_CDMA_CARRIER_MSG(apToKen, AppInfo, sys, para);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.QUERY_FAP_PARAM_MSG.ToString()))
             {
-                Send2ap_QUERY_FAP_PARAM_MSG(ApToKen, AppInfo, sys);
+                Send2ap_QUERY_FAP_PARAM_MSG(apToKen, AppInfo, sys);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString()))
             {
@@ -1740,7 +1769,7 @@ namespace ScannerBackgrdServer.ApController
                         return;
                     }
                 }
-                Send2ap_CONFIG_IMSI_MSG_V3(ApToKen, AppInfo, sys, para);
+                Send2ap_CONFIG_IMSI_MSG_V3(apToKen, AppInfo, sys, para);
             }
             else
             {
@@ -1758,16 +1787,16 @@ namespace ScannerBackgrdServer.ApController
         //        RecvRfOption rf = new RecvRfOption();
         //        byte regMode = 0;
 
-        //        AsyncUserToken ApToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
-        //        if (ApToKen == null)
+        //        AsyncUserToken apToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
+        //        if (apToKen == null)
         //        {
         //            string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
         //                ApInfo.IP, ApInfo.Port.ToString());
         //            OnOutputLog(LogInfoType.WARN, str);
-        //            ApToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
+        //            apToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
         //        }
 
-        //        if (ApToKen == null)
+        //        if (apToKen == null)
         //        {
         //            string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
         //                ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname);
@@ -1924,7 +1953,7 @@ namespace ScannerBackgrdServer.ApController
         //            return;
         //        }
 
-        //        Send2ap_SET_PARA_REQ(ApToKen, AppInfo, sys, Flag, para, option, rf, regMode);
+        //        Send2ap_SET_PARA_REQ(apToKen, AppInfo, sys, Flag, para, option, rf, regMode);
         //    }
 
         #region 封装发送给Main模块消息
@@ -1942,7 +1971,7 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向Main模块发送系统参数设备更改通知
         /// </summary>
-        /// <param name="apToken">AP设备信息</param>
+        /// <param name="apToKen">AP设备信息</param>
         /// <param name="recv">收到的参数</param>
         private void Send2Main_SEND_REQ_CNF(AsyncUserToken apToKen, MsgRecvStruct recv)
         {

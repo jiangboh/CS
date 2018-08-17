@@ -47,9 +47,8 @@ namespace ScannerBackgrdServer.AppController
         {
             int count = 0;
 
-            string outStr = string.Format("AppContr收到Main侧消息。消息内容:\n{0}\n", mb.bJson);
-
-            Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APPContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.INFO, "AppContr收到Main侧消息。", "APPContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), "APPContr", LogCategory.R);
 
             lock (mutex_Main2App_Msg)
             {
@@ -63,7 +62,7 @@ namespace ScannerBackgrdServer.AppController
                 count = rMain2AppMsgQueue.Count;
             }
 
-            outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{1}！", recvMain2AppContrMsgNum,count);
+            string outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{1}！", recvMain2AppContrMsgNum,count);
             Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
         }
     }

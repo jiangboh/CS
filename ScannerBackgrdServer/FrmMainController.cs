@@ -4772,6 +4772,9 @@ namespace ScannerBackgrdServer
                                                     Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ApStatusChange_Ack, 0, INFO, true, null, null);
                                                     gApLower.Body.dic.Add("detail", detail);
                                                     gApLower.Body.dic.Add("ApReadySt", gm.ApReadySt);
+
+                                                    // 2018-08-16
+                                                    gApLower.Body.dic.Add("carry", carry.ToString());
                                                     Send_Msg_2_ApCtrl_Lower(gApLower);
                                                     break;
                                                 }
@@ -4784,6 +4787,9 @@ namespace ScannerBackgrdServer
                                                     Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ApStatusChange_Ack, -1, INFO, true, null, null);
                                                     gApLower.Body.dic.Add("detail", detail);
                                                     gApLower.Body.dic.Add("ApReadySt", gm.ApReadySt);
+
+                                                    // 2018-08-16
+                                                    gApLower.Body.dic.Add("carry", carry.ToString());
                                                     Send_Msg_2_ApCtrl_Lower(gApLower);
                                                     break;
                                                 }
@@ -11372,7 +11378,8 @@ namespace ScannerBackgrdServer
                                             break;
                                         }
 
-                                        gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
+                                        //gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
+
                                         ndic = new Name_DIC_Struct();
 
                                         ndic.name = "carry1";
@@ -17011,7 +17018,7 @@ namespace ScannerBackgrdServer
              * wait_timeout = 8*3600
              * 即每隔fix_for_wait_timeout的时间（秒数）就访问一下数据库
              */
-            int fix_for_wait_timeout = 10*60;
+            int fix_for_wait_timeout = 8; //10*60;
 
             DateTime startTimeConn = System.DateTime.Now;
             DateTime endTimeConn = System.DateTime.Now;
@@ -18446,7 +18453,7 @@ namespace ScannerBackgrdServer
 
                 button1.Visible = false;
                 button2.Visible = false;
-                button3.Visible = false;
+               // button3.Visible = false;
                 button4.Visible = false;
                 button5.Visible = false;
                 button6.Visible = false;
@@ -18786,41 +18793,43 @@ namespace ScannerBackgrdServer
 
         private void button3_Click(object sender, EventArgs e)
         {
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            gDbHelper.CloseDbConn();
 
-            add_log_info(LogInfoType.WARN, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.WARN, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
 
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.WARN, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.WARN, "11111111111111111111", "Main", LogCategory.I);
 
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
 
 
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
-            add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
+            //add_log_info(LogInfoType.EROR, "11111111111111111111", "Main", LogCategory.I);
 
 
             ////GetProcessThreadInfomation();
