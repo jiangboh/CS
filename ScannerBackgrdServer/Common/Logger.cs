@@ -476,40 +476,37 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         /// <param name="obj"></param>
         private static void thread_for_logger(object obj)
-        {                
+        {
             bool noMsg = false;
             string info = "";
-            List<string> lstData = new List<string>();            
+            List<string> lstData = new List<string>();
 
             DateTime startTime = System.DateTime.Now;
             DateTime endTime = System.DateTime.Now;
             TimeSpan ts = endTime.Subtract(startTime);
-          
+
             List<string> batchData = new List<string>();
 
             DateTime startTimeConn = System.DateTime.Now;
             DateTime endTimeConn = System.DateTime.Now;
             TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
-            try
+
+            while (true)
             {
-                while (true)
+                if (noMsg)
                 {
-                    #region Sleep处理
+                    //没消息时Sleep一大点
+                    Thread.Sleep(100);
+                }
+                else
+                {
+                    //有消息时Sleep一小点
+                    Thread.Sleep(2);
+                }
 
-                    if (noMsg)
-                    {
-                        //没消息时Sleep一大点
-                        Thread.Sleep(100);
-                    }
-                    else
-                    {
-                        //有消息时Sleep一小点
-                        Thread.Sleep(2);
-                    }
-
-                    #endregion
-
+                try
+                {
                     #region keepAlive处理
 
                     if (logOutType == LogOutType.OT_Net || logOutType == LogOutType.OT_Both)
@@ -522,11 +519,11 @@ namespace ScannerBackgrdServer.Common
                             string str = string.Format("[{0}]--keepAlive-UDP", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff"));
                             byte[] sendBytes = System.Text.Encoding.Default.GetBytes(str);
 
-                            udpSender.Connect(DataController.StrLogIpAddr, int.Parse(DataController.StrLogPort));                         
-                            
+                            udpSender.Connect(DataController.StrLogIpAddr, int.Parse(DataController.StrLogPort));
+
                             //udpSender.Send(sendBytes, sendBytes.Length);
 
-                            Trace(LogInfoType.INFO,str, "Logger", LogCategory.S);
+                            Trace(LogInfoType.INFO, str, "Logger", LogCategory.S);
                             FrmMainController.add_log_info(LogInfoType.INFO, str, "Logger", LogCategory.S);
 
                             //计时复位
@@ -535,7 +532,15 @@ namespace ScannerBackgrdServer.Common
                     }
 
                     #endregion
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+                    continue;
+                }
 
+                try
+                {
                     #region 保存Logger
 
                     lock (mutex_Logger)
@@ -561,9 +566,9 @@ namespace ScannerBackgrdServer.Common
 
                                 //拷贝数据
                                 while (gQueueLogger.Count > 0)
-                                {                              
-                                    lstData.Add(gQueueLogger.Dequeue());                                                     
-                                }                                
+                                {
+                                    lstData.Add(gQueueLogger.Dequeue());
+                                }
 
                                 //复位计时
                                 startTime = System.DateTime.Now;
@@ -580,17 +585,17 @@ namespace ScannerBackgrdServer.Common
 
                             //拷贝数据
                             for (int i = 0; i < BatchValue; i++)
-                            {                                
-                                lstData.Add(gQueueLogger.Dequeue());                              
+                            {
+                                lstData.Add(gQueueLogger.Dequeue());
                             }
-                          
+
                             //复位起始时间
                             startTime = System.DateTime.Now;
-                           
+
                             #endregion
-                        }                               
+                        }
                     }
-                                       
+
                     noMsg = false;
                     switch (logOutType)
                     {
@@ -652,10 +657,11 @@ namespace ScannerBackgrdServer.Common
 
                     #endregion
                 }
-            }
-            catch (Exception ee)
-            {
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+                    continue;
+                }
             }
         }
 

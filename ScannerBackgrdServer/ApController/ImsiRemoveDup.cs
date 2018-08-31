@@ -15,7 +15,7 @@ namespace ScannerBackgrdServer.ApController
 
         static ImsiRemoveDup()
         {
-            //Console.WriteLine("\n\n ImsiRemoveDup构造 \n\n");
+            //Console.WriteLine("\n\n ImsiRemoveDup构造 ");
             dic = new Dictionary<string, DateTime>();
 
             Thread t = new Thread(new ThreadStart(CheckImsiList));
@@ -57,7 +57,7 @@ namespace ScannerBackgrdServer.ApController
                         del(x);
                     }
 
-                    //Console.WriteLine("\n\n当前缓存Imsi数量: {0}\n\n", GetCount());
+                    //Console.WriteLine("\n\n当前缓存Imsi数量: {0}", GetCount());
                     RemovList.Clear();
                     RemovList.TrimExcess();
 

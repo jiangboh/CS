@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using ScannerBackgrdServer.Common;
 using static ScannerBackgrdServer.Common.MsgStruct;
@@ -764,37 +765,27 @@ namespace ScannerBackgrdServer.ApController
         /// <summary>
         /// 向Ap发送Main模块过来的消息
         /// </summary>
-        /// <param name="msgBody"></param>
-        private void Send2ap_RecvMainMsg(InterModuleMsgStruct msgBody)
+        /// <param name="MainMsg"></param>
+        private void Send2ap_RecvMainMsg(InterModuleMsgStruct MainMsg)
         {
-            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(msgBody.ApInfo.IP, msgBody.ApInfo.Port);
+            AsyncUserToken apToKen = MyDeviceList.FindByApInfo(MainMsg.ApInfo);
             if (apToKen == null)
             {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString());
-                OnOutputLog(LogInfoType.WARN, str);
-                apToKen = MyDeviceList.FindByFullname(msgBody.ApInfo.Fullname);
-            }
-
-            if (apToKen == null)
-            {
-                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-                    msgBody.ApInfo.IP, msgBody.ApInfo.Port.ToString(), msgBody.ApInfo.Fullname);
-                OnOutputLog(LogInfoType.WARN, str);
-                Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type, str);
+                OnOutputLog(LogInfoType.WARN, string.Format("在线AP列表中找不到Ap[{0}:{1}]设备({2})!",
+                    MainMsg.ApInfo.IP, MainMsg.ApInfo.Port.ToString(), MainMsg.ApInfo.Fullname));
                 return;
             }
             MsgId2App msgId2App = new MsgId2App();
             msgId2App.id = ApMsgIdClass.addNormalMsgId();
-            msgId2App.AppInfo = msgBody.AppInfo;
+            msgId2App.AppInfo = MainMsg.AppInfo;
 
             if (MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
-                byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, msgBody.Body);
+                byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, MainMsg.Body);
                 if (sendMsg == null)
                 {
                     OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(RecvMainMsg)出错！"));
-                    Send2APP_GeneralError(msgBody.ApInfo, msgBody.AppInfo, msgBody.Body.type,
+                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                         string.Format("封装向AP发送的XML消息出错！"));
                     return;
                 }
@@ -1010,8 +1001,7 @@ namespace ScannerBackgrdServer.ApController
         }
 
         private void Send2ap_CONFIG_IMSI_MSG_V3(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_IMSI_MSG_V3 para)
-        {
-            
+        {  
             if (para.wTotalImsi <= 50 || para.bActionType == 1)
             {
                 string data = string.Empty;
@@ -1049,6 +1039,8 @@ namespace ScannerBackgrdServer.ApController
                 byte bSegmentID = 0;
                 for (int j = 0; j < para.wTotalImsi; j += 50)
                 {
+                    Thread.Sleep(300);
+
                     int lastId = j + 50;
                     if (j == 0)
                         bSegmentType = 1;
@@ -1326,9 +1318,9 @@ namespace ScannerBackgrdServer.ApController
                         Main2ApControllerMsgType.ApSetRadio));
                     return;
                 }
-                
+
                 Byte RADIO = GetMsgByteValueInList("RADIO", MainMsg.Body.dic, Byte.MaxValue);
-                if (RADIO == 1 )
+                if (RADIO == 1)
                 {
                     Send2ap_CONTROL_FAP_RADIO_ON_MSG(apToKen, MainMsg.AppInfo, (Device_Sys)carry);
                 }
@@ -1342,7 +1334,7 @@ namespace ScannerBackgrdServer.ApController
                         Main2ApControllerMsgType.ApSetRadio));
                     return;
                 }
-               
+
             }
             //状态改变回复
             else if (MainMsg.Body.type == Main2ApControllerMsgType.ApStatusChange_Ack)
@@ -2017,9 +2009,9 @@ namespace ScannerBackgrdServer.ApController
 
             for (int i = 0; i < bFapNbCellNum; i++)
             {
-                UInt16 bGlobalCellId = GetValueByString_U16(ref data);
-                nDic.dic.Add(string.Format("Cell_#{0}#/bGlobalCellId", i), bFapNbCellNum.ToString());
-                string bPLMNId = GetValueByString_String(10, ref data);
+                UInt32 bGlobalCellId = GetValueByString_U32(ref data);
+                nDic.dic.Add(string.Format("Cell_#{0}#/bGlobalCellId", i), bGlobalCellId.ToString());
+                string bPLMNId = StringDelZero(GetValueByString_String(10, ref data));
                 nDic.dic.Add(string.Format("Cell_#{0}#/bPLMNId", i), bPLMNId.ToString());
                 SByte cRSRP = GetValueByString_SByte(ref data);
                 nDic.dic.Add(string.Format("Cell_#{0}#/cRSRP", i), cRSRP.ToString());
@@ -2038,9 +2030,10 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
                 nDic.dic.Add(string.Format("Cell_#{0}#/bNbCellNum", i), bNbCellNum.ToString());
-                nDic.dic.Add(string.Format("Cell_#{0}#/bReserved1", i), GetValueByString_String(2,ref data));
+                nDic.dic.Add(string.Format("Cell_#{0}#/bReserved", i), GetValueByString_String(2,ref data));
                 Byte bC2 = GetValueByString_Byte(ref data);
                 nDic.dic.Add(string.Format("Cell_#{0}#/bC2", i), bC2.ToString());
+                nDic.dic.Add(string.Format("Cell_#{0}#/bReserved1", i), GetValueByString_String(8, ref data));
 
                 for (int j = 0; j < bNbCellNum; j++)
                 {
@@ -2051,10 +2044,15 @@ namespace ScannerBackgrdServer.ApController
                     SByte cRSRP1 = GetValueByString_SByte(ref data);
                     nDic.dic.Add(string.Format("Cell_#{0}#/NeighCell_#{1}#/cRSRP", i, j), cRSRP1.ToString());
                     GetValue_Reserved(1, ref data);
-                    UInt16 cC1 = GetValueByString_U16(ref data);
+                    SByte cC1 = GetValueByString_SByte(ref data);
                     nDic.dic.Add(string.Format("Cell_#{0}#/NeighCell_#{1}#/cC1", i, j), cC1.ToString());
-                    UInt16 bC21 = GetValueByString_U16(ref data);
+                    Byte bC21 = GetValueByString_Byte(ref data);
                     nDic.dic.Add(string.Format("Cell_#{0}#/NeighCell_#{1}#/bC2", i, j), bC21.ToString());
+                }
+
+                for (int j = bNbCellNum; j < 32; j++)
+                {
+                    GetValue_Reserved(8, ref data);
                 }
             }
 
@@ -2169,9 +2167,9 @@ namespace ScannerBackgrdServer.ApController
                 string imsi = string.Empty;
                 for (int i = 0; i < len; i++)
                 {
-                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString("X"));
                 }
-                nDic.dic.Add("tmsi", imsi.ToString());
+                nDic.dic.Add("tmsi", "0x" + imsi.ToString());
                 addFlag |= 0x2;
             }
             else if (type1 == 3)
@@ -2205,9 +2203,9 @@ namespace ScannerBackgrdServer.ApController
                 string imsi = string.Empty;
                 for (int i = 0; i < len; i++)
                 {
-                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString("X"));
                 }
-                nDic.dic.Add("tmsi", imsi.ToString());
+                nDic.dic.Add("tmsi", "0x" + imsi.ToString());
                 addFlag |= 0x2;
             }
             else if (type2 == 3)
@@ -2241,9 +2239,9 @@ namespace ScannerBackgrdServer.ApController
                 string imsi = string.Empty;
                 for (int i = 0; i < len; i++)
                 {
-                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString());
+                    imsi = string.Format("{0}{1}", imsi, GetValueByString_Byte(ref msg).ToString("X"));
                 }
-                nDic.dic.Add("tmsi", imsi.ToString());
+                nDic.dic.Add("tmsi", "0x" + imsi.ToString());
                 addFlag |= 0x2;
             }
             else if (type3 == 3)
@@ -2493,8 +2491,25 @@ namespace ScannerBackgrdServer.ApController
 
             for (int i = 0; i < bIMSINum; i++)
             {
-                nDic.dic.Add(string.Format("bIMSI_#{0}#",i), GetValueByString_String(30,ref data).ToString());
+                nDic.dic.Add(string.Format("bIMSI_#{0}#",i), 
+                    StringDelZero(GetValueByString_String(30,ref data).ToString()));
+                //nDic.dic.Add(string.Format("bUeActionFlag_#{0}#", i), GetValueByString_Byte(ref data).ToString());
+            }
+
+            for (int i = bIMSINum; i < 50; i++)
+            {
+                GetValue_Reserved(15, ref data);
+            }
+
+            for (int i = 0; i < bIMSINum; i++)
+            {
+                //nDic.dic.Add(string.Format("bIMSI_#{0}#", i), GetValueByString_String(30, ref data).ToString());
                 nDic.dic.Add(string.Format("bUeActionFlag_#{0}#", i), GetValueByString_Byte(ref data).ToString());
+            }
+
+            for (int i = bIMSINum; i < 50; i++)
+            {
+                GetValue_Reserved(1, ref data);
             }
 
             TypeKeyValue.n_dic.Add(nDic);

@@ -339,7 +339,7 @@ namespace ScannerBackgrdServer
             imms.Body.dic.Add("timestamp", DateTime.Now.ToString());
 
             Send_Msg_2_AppCtrl_Upper(imms);
-            tt.TimeOutFlag = true;
+            tt.TimeOutFlag = true;            
         }
 
         public class TaskTimer : System.Timers.Timer
@@ -468,6 +468,11 @@ namespace ScannerBackgrdServer
         /// </summary>
         private delegate void check_online_offline_delegate();
 
+        /// <summary>
+        /// 声明委托类型，用于Monitor各个线程
+        /// </summary>
+        private delegate void monitor_thread_status_delegate(int type,string text);
+
         #endregion
 
         #region 定义类型
@@ -536,7 +541,10 @@ namespace ScannerBackgrdServer
         }
 
         public struct strBwListSetInfo
-        {            
+        {
+            // 2018-08-23
+            public bool hasProcess;
+
             public string devId;
             public string domainId;
             public List<strBwList> listBwInfo;
@@ -553,7 +561,21 @@ namespace ScannerBackgrdServer
 
         #region 定义变量
 
-        private static DbHelper gDbHelper;
+        /// <summary>
+        /// 专门用于和设备的交互，2018-08-22
+        /// </summary>
+        private static DbHelper gDbHelperLower;
+
+        /// <summary>
+        /// 专门用于和界面的交互，2018-08-22
+        /// </summary>
+        private static DbHelper gDbHelperUpper;
+
+        /// <summary>
+        /// 专门用于和其他的交互，2018-08-22
+        /// </summary>
+        private static DbHelper gDbHelperOther;
+
 
         /// <summary>
         /// 专门用于IMSI处理
@@ -990,31 +1012,58 @@ namespace ScannerBackgrdServer
                 {
                     if (batchFlag)
                     {
-                        #region Batch
-
-                        // 动态计算批量更新的数量
-                        // batchValue = (4 - (int)DataController.LogOutputLevel) * 5;
-                        batchValue = get_ui_level_value();
-
-                        if (gListLog.Count < batchValue)
+                        try
                         {
-                            #region 数量不足
+                            #region Batch
 
-                            endTime = System.DateTime.Now;
-                            ts = endTime.Subtract(startTime);
+                            // 动态计算批量更新的数量
+                            // batchValue = (4 - (int)DataController.LogOutputLevel) * 5;
+                            batchValue = get_ui_level_value();
 
-                            if (ts.TotalSeconds < 10)
+                            if (gListLog.Count < batchValue)
                             {
-                                Thread.Sleep(2);
-                                continue;
+                                #region 数量不足
+
+                                endTime = System.DateTime.Now;
+                                ts = endTime.Subtract(startTime);
+
+                                if (ts.TotalSeconds < 10)
+                                {
+                                    Thread.Sleep(2);
+                                    continue;
+                                }
+                                else
+                                {
+                                    //清空数据                                
+                                    listLog = new List<strLogInfo>();
+
+                                    //拷贝数据
+                                    while (gListLog.Count > 0)
+                                    {
+                                        listLog.Add(gListLog.Dequeue());
+                                    }
+
+                                    /*
+                                     * 线程通过方法的委托执行show_log_info()，实现对richTextBoxLog控件的访问
+                                     * public object Invoke(Delegate method, params object[] args);
+                                     */
+                                    BeginInvoke(new show_log_info_delegate_list(show_log_info_list), new object[] { listLog });
+
+                                    //复位计时
+                                    startTime = System.DateTime.Now;
+                                }
+
+                                #endregion
                             }
                             else
                             {
-                                //清空数据                                
+                                #region 数量充足
+
+                                //清空数据                            
                                 listLog = new List<strLogInfo>();
 
                                 //拷贝数据
-                                while (gListLog.Count > 0)
+                                for (int i = 0; i < batchValue; i++)
                                 {
                                     listLog.Add(gListLog.Dequeue());
                                 }
@@ -1025,62 +1074,53 @@ namespace ScannerBackgrdServer
                                  */
                                 BeginInvoke(new show_log_info_delegate_list(show_log_info_list), new object[] { listLog });
 
-                                //复位计时
+                                //复位起始时间
                                 startTime = System.DateTime.Now;
+
+                                #endregion
                             }
 
                             #endregion
                         }
-                        else
+                        catch (Exception ee)
                         {
-                            #region 数量充足
+                            add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            #region OneByOne
 
-                            //清空数据                            
-                            listLog = new List<strLogInfo>();
-
-                            //拷贝数据
-                            for (int i = 0; i < batchValue; i++)
+                            if (gListLog.Count <= 0)
                             {
-                                listLog.Add(gListLog.Dequeue());
+                                Thread.Sleep(100);
+                                continue;
                             }
+                            else
+                            {
+                                Thread.Sleep(2);
+                            }
+
+                            tmp = gListLog.Dequeue();
 
                             /*
                              * 线程通过方法的委托执行show_log_info()，实现对richTextBoxLog控件的访问
                              * public object Invoke(Delegate method, params object[] args);
                              */
-                            BeginInvoke(new show_log_info_delegate_list(show_log_info_list), new object[] { listLog });
-
-                            //复位起始时间
-                            startTime = System.DateTime.Now;
+                            BeginInvoke(new show_log_info_delegate(show_log_info), new object[] { tmp.info, tmp.type });
 
                             #endregion
-                        }                      
-
-                        #endregion
-                    }
-                    else
-                    {
-                        #region OneByOne
-
-                        if (gListLog.Count <= 0)
+                        }
+                        catch (Exception ee)
                         {
-                            Thread.Sleep(100);
+                            add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
                             continue;
                         }
-                        else
-                        {
-                            Thread.Sleep(2);
-                        }
-
-                        tmp = gListLog.Dequeue();
-
-                        /*
-                         * 线程通过方法的委托执行show_log_info()，实现对richTextBoxLog控件的访问
-                         * public object Invoke(Delegate method, params object[] args);
-                         */
-                        BeginInvoke(new show_log_info_delegate(show_log_info), new object[] { tmp.info, tmp.type });
-
-                        #endregion
                     }
                 }
             }
@@ -1252,7 +1292,7 @@ namespace ScannerBackgrdServer
 
             DataTable dt = new DataTable();
 
-            int rv = gDbHelper.device_record_entity_get_by_name_affdomainid(name, affDomainId, ref dt);
+            int rv = gDbHelperLower.device_record_entity_get_by_name_affdomainid(name, affDomainId, ref dt);
             if (rv != 0)
             {
                 add_log_info(LogInfoType.EROR, "device_record_entity_get_by_name_affdomainid失败", "Main", LogCategory.I);
@@ -1347,6 +1387,16 @@ namespace ScannerBackgrdServer
                 else
                 {
                     ndic.dic.Add("innerType", dr["innerType"].ToString());
+                }
+
+                // 2018-08-17
+                if (string.IsNullOrEmpty(dr["apVersion"].ToString()))
+                {
+                    ndic.dic.Add("apVersion", "");
+                }
+                else
+                {
+                    ndic.dic.Add("apVersion", dr["apVersion"].ToString());
                 }
             }
 
@@ -1597,10 +1647,10 @@ namespace ScannerBackgrdServer
 
             if (wSelfStudy.Equals("1"))
             {
-                int rtv = gDbHelper.bwlist_record_insert(cap, int.Parse(cap.affDeviceId));
+                int rtv = gDbHelperLower.bwlist_record_insert(cap, int.Parse(cap.affDeviceId));
                 if ((int)RC.SUCCESS != rtv)
                 {
-                    string errInfo = string.Format("白名单自学习:bwlist_record_insert失败{0}.", gDbHelper.get_rtv_str(rtv));
+                    string errInfo = string.Format("白名单自学习:bwlist_record_insert失败{0}.", gDbHelperLower.get_rtv_str(rtv));
                     add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
                     Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.I);
                 }
@@ -1680,12 +1730,15 @@ namespace ScannerBackgrdServer
                     cap.affDeviceId = gDicDeviceId[Fullname].id.ToString();
                     cap.name = gDicDeviceId[Fullname].name;
                 }
-            }          
+            }
 
             /*
              * GSM直接固定为白名单
              */
-            cap.bwFlag = bwType.BWTYPE_WHITE;
+            //cap.bwFlag = bwType.BWTYPE_WHITE;
+
+            // 2018-08-22
+            cap.bwFlag = bwType.BWTYPE_OTHER;
 
             if (ndic.dic.ContainsKey("ueImsi"))
             {
@@ -1819,7 +1872,10 @@ namespace ScannerBackgrdServer
             /*
              * GSM-V2/CDMA直接固定为白名单(暂时)
              */
-            cap.bwFlag = bwType.BWTYPE_WHITE;
+            //cap.bwFlag = bwType.BWTYPE_WHITE;
+
+            // 2018-08-22
+            cap.bwFlag = bwType.BWTYPE_OTHER;
 
             if (ndic.dic.ContainsKey("imsi"))
             {
@@ -1938,7 +1994,7 @@ namespace ScannerBackgrdServer
             if (imms.Body.dic.ContainsKey("mode"))
             {
                 mode = imms.Body.dic["mode"].ToString();
-                devMode dm = gDbHelper.get_device_mode(mode);
+                devMode dm = gDbHelperUpper.get_device_mode(mode);
 
                 if (dm == devMode.MODE_UNKNOWN)
                 {
@@ -1991,27 +2047,27 @@ namespace ScannerBackgrdServer
             {
                 #region 上线处理
 
-                if ((int)RC.EXIST == gDbHelper.device_unknown_record_exist(dev.ipAddr, int.Parse(dev.port)))
+                if ((int)RC.EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr))
                 {
                     //设备(未指派)记录已经存在
                     string errInfo = string.Format("未指派设备[{0}:{1}]已经存在", dev.ipAddr, int.Parse(dev.port));
-                    Logger.Trace(LogInfoType.DEBG, errInfo, "Main", LogCategory.I);                    
-
+                    Logger.Trace(LogInfoType.DEBG, errInfo, "Main", LogCategory.I);
+                    add_log_info(LogInfoType.DEBG, errInfo, "Main", LogCategory.I);
                     return;
                 }
 
                 //插入新记录
-                rtv = gDbHelper.device_unknown_record_insert(dev.ipAddr, int.Parse(dev.port),imms.ApInfo.Fullname);
+                rtv = gDbHelperLower.device_unknown_record_insert(dev.ipAddr, int.Parse(dev.port),imms.ApInfo.Fullname);
                 if (rtv == 0)
                 {
                     //更新新记录
-                    rtv = gDbHelper.device_unknown_record_update(dev.ipAddr, int.Parse(dev.port), dev);
+                    rtv = gDbHelperLower.device_unknown_record_update(dev.ipAddr, int.Parse(dev.port), dev);
                     if (rtv == 0)
                     {
                         imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
                         imms.Body.dic = new Dictionary<string, object>();
                         imms.Body.dic.Add("ReturnCode", rtv);
-                        imms.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                        imms.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                         imms.Body.dic.Add("Status", Status);
                      
                         Send_Msg_2_ApCtrl_Lower(imms);
@@ -2022,12 +2078,12 @@ namespace ScannerBackgrdServer
 
                         //2018-06-26
                         DataTable dt = new DataTable();
-                        rtv = gDbHelper.device_unknown_record_entity_get(ref dt);
+                        rtv = gDbHelperLower.device_unknown_record_entity_get(ref dt);
 
                         imms.Body.type = Main2ApControllerMsgType.app_all_device_response;
                         imms.Body.dic = new Dictionary<string, object>();
                         imms.Body.dic.Add("ReturnCode", rtv);
-                        imms.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                        imms.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
 
                         if (rtv == 0)
                         {
@@ -2052,7 +2108,7 @@ namespace ScannerBackgrdServer
                         imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
                         imms.Body.dic = new Dictionary<string, object>();
                         imms.Body.dic.Add("ReturnCode", rtv);
-                        imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                        imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
 
                         Send_Msg_2_ApCtrl_Lower(imms);
                     }
@@ -2063,7 +2119,7 @@ namespace ScannerBackgrdServer
                     imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
                     imms.Body.dic = new Dictionary<string, object>();
                     imms.Body.dic.Add("ReturnCode", rtv);
-                    imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                    imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
 
                     Send_Msg_2_ApCtrl_Lower(imms);
                 }
@@ -2074,7 +2130,7 @@ namespace ScannerBackgrdServer
             {
                 #region 下线处理
 
-                if ((int)RC.NO_EXIST == gDbHelper.device_unknown_record_exist(dev.ipAddr, int.Parse(dev.port)))
+                if ((int)RC.NO_EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr))
                 {
                     //设备(未指派)记录不存在
 
@@ -2082,13 +2138,13 @@ namespace ScannerBackgrdServer
                 }
 
                 //更新新记录
-                rtv = gDbHelper.device_unknown_record_delete(dev.ipAddr, int.Parse(dev.port));
+                rtv = gDbHelperLower.device_unknown_record_delete(dev.ipAddr, int.Parse(dev.port));
                 if (rtv == 0)
                 {
                     imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
                     imms.Body.dic = new Dictionary<string, object>();
                     imms.Body.dic.Add("ReturnCode", rtv);
-                    imms.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                    imms.Body.dic.Add("ReturnStr", gDbHelperLower.get_rtv_str(rtv));
                     imms.Body.dic.Add("Status", Status);
 
                     Send_Msg_2_ApCtrl_Lower(imms);
@@ -2097,12 +2153,12 @@ namespace ScannerBackgrdServer
 
                     //2018-06-26
                     DataTable dt = new DataTable();
-                    rtv = gDbHelper.device_unknown_record_entity_get(ref dt);
+                    rtv = gDbHelperLower.device_unknown_record_entity_get(ref dt);
                                        
                     imms.Body.type = Main2ApControllerMsgType.app_all_device_response;
                     imms.Body.dic = new Dictionary<string, object>();
                     imms.Body.dic.Add("ReturnCode", rtv);
-                    imms.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));                    
+                    imms.Body.dic.Add("ReturnStr", gDbHelperLower.get_rtv_str(rtv));                    
 
                     if (rtv == 0)
                     {
@@ -2127,7 +2183,7 @@ namespace ScannerBackgrdServer
                     imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
                     imms.Body.dic = new Dictionary<string, object>();
                     imms.Body.dic.Add("ReturnCode", rtv);
-                    imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                    imms.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperLower.get_rtv_str(rtv));
 
                     Send_Msg_2_ApCtrl_Lower(imms);
                 }
@@ -3103,7 +3159,7 @@ namespace ScannerBackgrdServer
                             all.gcImsiActionFlag = true;
                             all.listGcImsiAction = new List<strGcImsiAction>();
 
-                            for (int j = 1; j <= bIMSINum; j++)
+                            for (int j = 0; j < bIMSINum; j++)
                             {
                                 strGcImsiAction str = new strGcImsiAction();
 
@@ -3112,16 +3168,22 @@ namespace ScannerBackgrdServer
                                 str.res3 = "";
                                 str.bindingDevId = "-1";
                                
-                                field = string.Format("bIMSI_#n#", j);
+                                field = string.Format("bIMSI_#{0}#", j);
                                 if (imms.Body.n_dic[i].dic.ContainsKey(field))
                                 {
-                                    str.bIMSI= imms.Body.n_dic[i].dic.ContainsKey(field).ToString();
+                                    if (imms.Body.n_dic[i].dic[field].ToString() != "")
+                                    {
+                                        str.bIMSI = imms.Body.n_dic[i].dic[field].ToString();
+                                    }                                    
                                 }
 
-                                field = string.Format("bUeActionFlag_#n#", j);
+                                field = string.Format("bUeActionFlag_#{0}#", j);
                                 if (imms.Body.n_dic[i].dic.ContainsKey(field))
                                 {
-                                    str.bUeActionFlag = imms.Body.n_dic[i].dic.ContainsKey(field).ToString();
+                                    if (imms.Body.n_dic[i].dic[field].ToString() != "")
+                                    {
+                                        str.bUeActionFlag = imms.Body.n_dic[i].dic[field].ToString();
+                                    }
                                 }
 
                                 all.listGcImsiAction.Add(str);
@@ -3737,8 +3799,8 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception e)
                 {
-                    add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                    add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                     return -1;
                 }
 
@@ -3805,8 +3867,8 @@ namespace ScannerBackgrdServer
                         }
                         catch (Exception ee)
                         {
-                            add_log_info(LogInfoType.EROR, "RB Parse Error." + ee.Message, "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.EROR, "RB Parse Error." + ee.Message, "Main", LogCategory.R);
+                            add_log_info(LogInfoType.EROR, "RB Parse Error." + ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.R);
+                            Logger.Trace(LogInfoType.EROR, "RB Parse Error." + ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.R);
                             continue;
                         }
 
@@ -3839,10 +3901,10 @@ namespace ScannerBackgrdServer
                 int rtv = -1;
                 Dictionary<string, strDevice> dicDeviceIdCheck = new Dictionary<string, strDevice>();
 
-                rtv = gDbHelper.domain_dictionary_info_join_get(ref dicDeviceIdCheck);
+                rtv = gDbHelperLower.domain_dictionary_info_join_get(ref dicDeviceIdCheck);
                 if ((int)RC.SUCCESS != rtv)
                 {
-                    string errInfo = string.Format("dicDeviceIdCheck -> ({0})获取FAILED！",gDbHelper.get_rtv_str(rtv));
+                    string errInfo = string.Format("dicDeviceIdCheck -> ({0})获取FAILED！", gDbHelperLower.get_rtv_str(rtv));
                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                     return;
@@ -3915,8 +3977,52 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.INFO, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.INFO, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.INFO, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+            }
+
+            return;
+        }
+
+        /// <summary>
+        /// 确认上下线的状态
+        /// </summary>
+        private void monitor_thread_status_delegate_fun(int type,string text)
+        {
+            try
+            {
+                switch (type)
+                {
+                    case 0:
+                        {
+                            labelAp.Text = text;
+                            labelAp1.Text = text;
+                            break;
+                        }
+                    case 1:
+                        {
+                            labelApp.Text = text;
+                            labelApp1.Text = text;
+                            break;
+                        }
+                    case 2:
+                        {
+                            labelDb.Text = text;
+                            labelDb1.Text = text;
+                            break;
+                        }
+                    case 3:
+                        {
+                            labelFtp.Text = text;
+                            labelFtp1.Text = text;
+                            break;
+                        }
+                }
+            }
+            catch (Exception ee)
+            {
+                add_log_info(LogInfoType.INFO, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
             }
 
             return;
@@ -4018,7 +4124,24 @@ namespace ScannerBackgrdServer
 
             DateTime startTime = System.DateTime.Now;
             DateTime endTime = System.DateTime.Now;
-            TimeSpan ts = endTime.Subtract(startTime);            
+            TimeSpan ts = endTime.Subtract(startTime);
+
+            long monitorCnt = 0;
+            DateTime startMonitor = System.DateTime.Now;
+            DateTime endedMonitor = System.DateTime.Now;
+            TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
+
+            /*
+             * 用于修复mysql连接的空闲时间超过8小时后，MySQL自动断开该连接的问题
+             * wait_timeout = 8*3600
+             * 即每隔fix_for_wait_timeout的时间（秒数）就访问一下数据库
+             */
+            int fix_for_wait_timeout = 60; //10*60;
+            int reConnCnt = 0;
+
+            DateTime startTimeConn = System.DateTime.Now;
+            DateTime endTimeConn = System.DateTime.Now;
+            TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
             /*
              * 每隔10分钟确认一次
@@ -4037,105 +4160,200 @@ namespace ScannerBackgrdServer
                     //Thread.Sleep(1);
                 }
 
-                #region 确认上下线状态一致
-
-                if (check_onoffline_time_switch)
+                try
                 {
-                    endTime = System.DateTime.Now;
-                    ts = endTime.Subtract(startTime);
+                    #region 显示运行状态
 
-                    if (ts.TotalSeconds >= check_onoffline_time)
+                    endedMonitor = System.DateTime.Now;
+                    tsMonitor = endedMonitor.Subtract(startMonitor);
+
+                    if (tsMonitor.TotalSeconds >= 10)
                     {
-                        string info = string.Format("对所有AP发送OnOffLineCheck进行上下线状态是否一致的确认!");
-                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
-                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                        monitorCnt++;
+                        string info = string.Format("A{0}", monitorCnt % 10);                        
 
-                        BeginInvoke(new check_online_offline_delegate(check_online_offline_delegate_fun), new object[] { });
+                        BeginInvoke(new monitor_thread_status_delegate(monitor_thread_status_delegate_fun), new object[] { 0, info });
 
                         // 复位计时器
-                        startTime = System.DateTime.Now;
+                        startMonitor = System.DateTime.Now;
                     }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
 
-                #endregion
-
-                lock (mutex_Ap_Controller)
+                try
                 {
-                    if (gMsgFor_Ap_Controller.Count <= 0)
+                    #region 防止自动断开该连接的问题
+
+                    endTimeConn = System.DateTime.Now;
+                    tsConn = endTimeConn.Subtract(startTimeConn);
+
+                    if (tsConn.TotalSeconds >= fix_for_wait_timeout)
                     {
-                        noMsg = true;
-                        continue;
+                        // 2018-08-09
+                        re_connection_db(ref gDbHelperLower, "gDbHelperLower", ref reConnCnt);
+
+                        Thread.Sleep(5);
+
+                        if (gDbHelperLower.MyDbConnFlag)
+                        {
+                            List<string> listAllTbl = new List<string>();
+                            listAllTbl = gDbHelperLower.Get_All_ColumnName("user");
+                        }
+                        
+                        startTimeConn = System.DateTime.Now;
                     }
 
-                    //string tmp = string.Format("【线程中处理设备的消息:{0}】\n", gMsgFor_Ap_Controller.Count);
-                    //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.I);
-
-                    //循环处理从APController接收到的消息
-                    msgInfo = gMsgFor_Ap_Controller.Dequeue();
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    startTimeConn = System.DateTime.Now;
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
 
-                noMsg = false;
-                switch (msgInfo.mt)
+                try
                 {
-                    case MessageType.MSG_STRING:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STRING", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STRING", "Main", LogCategory.I);
-                            break;
-                        }
-                    case MessageType.MSG_INT:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_INT", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_INT", "Main", LogCategory.I);
+                    #region 确认上下线状态一致
 
-                            break;
-                        }
-                    case MessageType.MSG_DOUBLE:
+                    if (check_onoffline_time_switch)
+                    {
+                        endTime = System.DateTime.Now;
+                        ts = endTime.Subtract(startTime);
+
+                        if (ts.TotalSeconds >= check_onoffline_time)
                         {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE", "Main", LogCategory.I);
+                            string info = string.Format("对所有AP发送OnOffLineCheck进行上下线状态是否一致的确认!");
+                            add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
 
-                            break;
+                            BeginInvoke(new check_online_offline_delegate(check_online_offline_delegate_fun), new object[] { });
+
+                            // 复位计时器
+                            startTime = System.DateTime.Now;
                         }
-                    case MessageType.MSG_DATATABLE:
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
+
+                try
+                {
+                    #region 取出消息
+
+                    lock (mutex_Ap_Controller)
+                    {
+                        if (gMsgFor_Ap_Controller.Count <= 0)
                         {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE", "Main", LogCategory.I);
-
-                            break;
+                            noMsg = true;
+                            continue;
                         }
-                    case MessageType.MSG_XML:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_XML", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_XML", "Main", LogCategory.I);
 
-                            //发送消息给ApController
-                            //Delegate_sendMsg_2_ApCtrl_Lower(msgInfo.mt, msgInfo.mb);
-                            break;
-                        }
-                    case MessageType.MSG_STATUS:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS", "Main", LogCategory.I);
+                        //string tmp = string.Format("【线程中处理设备的消息:{0}】\n", gMsgFor_Ap_Controller.Count);
+                        //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.I);
+
+                        //循环处理从APController接收到的消息
+                        msgInfo = gMsgFor_Ap_Controller.Dequeue();
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
+
+                try
+                {
+                    #region 处理消息
+
+                    noMsg = false;
+                    switch (msgInfo.mt)
+                    {
+                        case MessageType.MSG_JSON:
+                            {
+                                //add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+
+                                Logger.Trace(LogInfoType.INFO, "RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.R);
+                                process_ap_controller_msg(msgInfo.mb.bJson);
+
+                                break;
+                            }
+                        case MessageType.MSG_STRING:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STRING", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STRING", "Main", LogCategory.I);
+                                break;
+                            }
+                        case MessageType.MSG_INT:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_INT", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_INT", "Main", LogCategory.I);
+
+                                break;
+                            }
+                        case MessageType.MSG_DOUBLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DOUBLE", "Main", LogCategory.I);
+
+                                break;
+                            }
+                        case MessageType.MSG_DATATABLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_DATATABLE", "Main", LogCategory.I);
+
+                                break;
+                            }
+                        case MessageType.MSG_XML:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_XML", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_XML", "Main", LogCategory.I);
+
+                                //发送消息给ApController
+                                //Delegate_sendMsg_2_ApCtrl_Lower(msgInfo.mt, msgInfo.mb);
+                                break;
+                            }
+                        case MessageType.MSG_STATUS:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.DEBG, "recv from ap controller，MSG_STATUS", "Main", LogCategory.I);
 
 
-                            break;
-                        }
-                    case MessageType.MSG_JSON:
-                        {
-                            //add_log_info(LogInfoType.DEBG, "recv from ap controller，MSG_JSON:\n" + msgInfo.mb.bJson);
+                                break;
+                            }
+                        default:
+                            {
+                                add_log_info(LogInfoType.WARN, "recv from ap controller，MSG_ERROR", "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.WARN, "recv from ap controller，MSG_ERROR", "Main", LogCategory.I);
+                                break;
+                            }
+                    }
 
-                            Logger.Trace(LogInfoType.INFO, "RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.R);
-                            process_ap_controller_msg(msgInfo.mb.bJson);
-
-                            break;
-                        }
-                    default:
-                        {
-                            add_log_info(LogInfoType.WARN, "recv from ap controller，MSG_ERROR", "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.WARN, "recv from ap controller，MSG_ERROR", "Main", LogCategory.I);
-                            break;
-                        }
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
             }
         }
@@ -4165,9 +4383,16 @@ namespace ScannerBackgrdServer
                         {
                             #region 获取信息
 
+                            //    "Status":OnLine：上线；OffLine:下线
+                            //    "mode":"xxx"     //GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD,2018-06-28
+                            //    "version":"xxx"  //ap的版本信息,2018-08-17
+                            //    "timestamp"   时间戳
+
                             int rtv = 0;
                             string mode = "";
                             string Status = "";
+                            string version = "";
+
                             strDevice devInfo = new strDevice();
 
                             if (string.IsNullOrEmpty(gApLower.ApInfo.Fullname))
@@ -4227,14 +4452,18 @@ namespace ScannerBackgrdServer
                                 break;                              
                             }
 
-                            
+                            if (gApLower.Body.dic.ContainsKey("version"))
+                            {
+                                version = gApLower.Body.dic["version"].ToString();                              
+                            }
+
                             if (DataController.SimuTest == 0)
                             {
                                 // 非模拟器测试
                                 if (gApLower.Body.dic.ContainsKey("mode"))
                                 {
                                     mode = gApLower.Body.dic["mode"].ToString();
-                                    devMode dm = gDbHelper.get_device_mode(mode);
+                                    devMode dm = gDbHelperLower.get_device_mode(mode);
 
                                     if (dm == devMode.MODE_UNKNOWN)
                                     {
@@ -4295,18 +4524,15 @@ namespace ScannerBackgrdServer
                             // 2018-06-28
                             devInfo.mode = mode;
 
-                            rtv = gDbHelper.device_record_update(devInfo.id, devInfo);
+                            // 2018-08-17
+                            devInfo.apVersion = version;
+
+                            rtv = gDbHelperLower.device_record_update(devInfo.id, devInfo);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("devInfo.id = {0},device_record_update出错：{1}", devInfo.id,gDbHelper.get_rtv_str(rtv));
+                                string errInfo = string.Format("devInfo.id = {0},device_record_update出错：{1}", devInfo.id, gDbHelperLower.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-
-                                // 2018-08-09
-                                //if (rtv == (int)RC.OP_FAIL)
-                                //{
-                                //    re_connection_db();
-                                //}
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);                                
 
                                 Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.OnOffLine_Ack, rtv, errInfo, true, null, null);
                                 Send_Msg_2_ApCtrl_Lower(gApLower);
@@ -4315,10 +4541,10 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 string onOffLineAfter = "";
-                                rtv = gDbHelper.device_record_onoffline_get_by_devid(devInfo.id, ref onOffLineAfter);
+                                rtv = gDbHelperLower.device_record_onoffline_get_by_devid(devInfo.id, ref onOffLineAfter);
                                 if (rtv != 0)
                                 {
-                                    string errInfo = string.Format("回读上下线消息,device_record_entity_get_by_devid出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                    string errInfo = string.Format("回读上下线消息,device_record_entity_get_by_devid出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4395,7 +4621,7 @@ namespace ScannerBackgrdServer
                                 }
                                 catch (Exception ee)
                                 {
-                                    string errInfo = string.Format("{0}:detail值非法:{1}", Main2ApControllerMsgType.ApStatusChange,ee.Message);
+                                    string errInfo = string.Format("{0}:detail值非法:{1}", Main2ApControllerMsgType.ApStatusChange,ee.Message + ee.StackTrace + ee.StackTrace);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4507,7 +4733,7 @@ namespace ScannerBackgrdServer
                                             }
                                             catch (Exception ee)
                                             {
-                                                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.R);
+                                                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.R);
                                                 apSts.time = DateTime.Now.ToString();
                                             }
                                         }
@@ -4535,10 +4761,10 @@ namespace ScannerBackgrdServer
                                                     //(2) 删除该AP的所有白名单
                                                     if (devInfo.clearWhiteList.Equals("1"))
                                                     {
-                                                        rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, devInfo.id);
+                                                        rtv = gDbHelperLower.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, devInfo.id);
                                                         if ((int)RC.SUCCESS != rtv)
                                                         {
-                                                            errInfo = string.Format("白名单自学习:bwlist_record_bwflag_delete出错,{0}", gDbHelper.get_rtv_str(rtv));
+                                                            errInfo = string.Format("白名单自学习:bwlist_record_bwflag_delete出错,{0}", gDbHelperLower.get_rtv_str(rtv));
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4592,10 +4818,10 @@ namespace ScannerBackgrdServer
                                         gApLower.Body.type = Main2ApControllerMsgType.ApStatusChange_Ack;
                                         Send_Msg_2_AppCtrl_Upper(gApLower);
 
-                                        rtv = gDbHelper.ap_status_record_update(devInfo.id, apSts);
+                                        rtv = gDbHelperLower.ap_status_record_update(devInfo.id, apSts);
                                         if (rtv != 0)
                                         {
-                                            string errInfo = string.Format("ap_status_record_update出错:{0}",gDbHelper.get_rtv_str(rtv));
+                                            string errInfo = string.Format("ap_status_record_update出错:{0}", gDbHelperLower.get_rtv_str(rtv));
                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4606,10 +4832,10 @@ namespace ScannerBackgrdServer
                                         else
                                         {
                                             strApStatus apStsAfter = new strApStatus();
-                                            rtv = gDbHelper.ap_status_record_get_by_devid(devInfo.id, ref apStsAfter);
+                                            rtv = gDbHelperLower.ap_status_record_get_by_devid(devInfo.id, ref apStsAfter);
                                             if (rtv != 0)
                                             {
-                                                string errInfo = string.Format("ap_status_record_get_by_devid出错:{0}", gDbHelper.get_rtv_str(rtv));
+                                                string errInfo = string.Format("ap_status_record_get_by_devid出错:{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4714,7 +4940,7 @@ namespace ScannerBackgrdServer
                                             }
                                             catch (Exception ee)
                                             {
-                                                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.R);
+                                                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.R);
                                                 gm.time = DateTime.Now.ToString();
                                             }
                                         }
@@ -4727,10 +4953,10 @@ namespace ScannerBackgrdServer
                                         gApLower.Body.type = Main2ApControllerMsgType.ApStatusChange_Ack;
                                         Send_Msg_2_AppCtrl_Upper(gApLower);
 
-                                        rtv = gDbHelper.gc_misc_record_update(int.Parse(carry),devInfo.id,gm);
+                                        rtv = gDbHelperLower.gc_misc_record_update(int.Parse(carry),devInfo.id,gm);
                                         if (rtv != 0)
                                         {
-                                            string errInfo = string.Format("gc_misc_record_update出错:{0}", gDbHelper.get_rtv_str(rtv));
+                                            string errInfo = string.Format("gc_misc_record_update出错:{0}", gDbHelperLower.get_rtv_str(rtv));
                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4741,10 +4967,10 @@ namespace ScannerBackgrdServer
                                         else
                                         {
                                             strGcMisc gmAfter = new strGcMisc();
-                                            rtv = gDbHelper.gc_misc_record_get_by_devid(int.Parse(carry), devInfo.id, ref gmAfter);
+                                            rtv = gDbHelperLower.gc_misc_record_get_by_devid(int.Parse(carry), devInfo.id, ref gmAfter);
                                             if (rtv != 0)
                                             {
-                                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", gDbHelper.get_rtv_str(rtv));
+                                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4800,12 +5026,42 @@ namespace ScannerBackgrdServer
 
                                         #endregion                                                                  
                                     }
+                                case devMode.MODE_GSM:
+                                    {
+                                        #region 获取消息
+
+                                        string ApReadySt = "";
+                                        if (gApLower.Body.dic.ContainsKey("ApReadySt"))
+                                        {
+                                            ApReadySt = gApLower.Body.dic["ApReadySt"].ToString();
+                                        }
+
+                                        #endregion
+
+                                        #region 更新数据库
+
+                                        string INFO = string.Format("回读ApStatusChange_Ack成功(GSM暂时都返回OK)");
+                                        add_log_info(LogInfoType.INFO, INFO, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.INFO, INFO, "Main", LogCategory.I);
+
+                                        Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ApStatusChange_Ack, 0, INFO, true, null, null);
+                                        gApLower.Body.dic.Add("detail", detail);
+                                        gApLower.Body.dic.Add("ApReadySt", ApReadySt);
+
+                                        // 2018-08-16
+                                        gApLower.Body.dic.Add("carry", carry.ToString());
+                                        Send_Msg_2_ApCtrl_Lower(gApLower);
+                                        break;
+
+
+                                        #endregion
+                                    }
                                 default:
                                     {
                                         #region 出错处理
 
                                         //返回出错处理
-                                        string errInfo = string.Format("devMode = {0},该设备没有没有详细参数.", devInfo.devMode.ToString());
+                                        string errInfo = string.Format("ApStatusChange,devMode = {0},该设备没有详细参数.", devInfo.devMode.ToString());
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -4923,7 +5179,7 @@ namespace ScannerBackgrdServer
 
                             #region IMSI处理
 
-                            devMode dm = gDbHelper.get_device_mode(gApLower.ApInfo.Type);
+                            devMode dm = gDbHelperLower.get_device_mode(gApLower.ApInfo.Type);
                             if (dm == devMode.MODE_UNKNOWN)
                             {
                                 string errInfo = string.Format("ApLower.ApInfo.Type = {0},错误的类型.", gApLower.ApInfo.Type);
@@ -5079,7 +5335,7 @@ namespace ScannerBackgrdServer
                             }
                             else
                             {
-                                dm = gDbHelper.get_device_mode(gApLower.ApInfo.Type);
+                                dm = gDbHelperLower.get_device_mode(gApLower.ApInfo.Type);
                                 if (dm == devMode.MODE_UNKNOWN)
                                 {
                                     string errInfo = string.Format("ap.ApInfo.Type = {0},错误的类型.", gApLower.ApInfo.Type);
@@ -5164,25 +5420,25 @@ namespace ScannerBackgrdServer
 
                                             if (gsmAllPara.gsmSysParaFlag == true)
                                             {
-                                                rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllPara.gsmSysPara);
+                                                rtv += gDbHelperLower.gsm_sys_para_record_update(carry, devInfo.id, gsmAllPara.gsmSysPara);
                                             }
 
                                             if (gsmAllPara.gsmSysOptionFlag == true)
                                             {
-                                                rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllPara.gsmSysOption);
+                                                rtv += gDbHelperLower.gsm_sys_option_record_update(carry, devInfo.id, gsmAllPara.gsmSysOption);
                                             }
 
                                             if (gsmAllPara.gsmRfParaFlag == true)
                                             {
-                                                rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllPara.gsmRfPara);
+                                                rtv += gDbHelperLower.gsm_rf_para_record_update(carry, devInfo.id, gsmAllPara.gsmRfPara);
                                             }
 
                                             if (gsmAllPara.gsmMsgOptionFlag == true)
                                             {
-                                                rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllPara.gsmMsgOption);
+                                                rtv += gDbHelperLower.gsm_msg_option_insert(carry, devInfo.id, gsmAllPara.gsmMsgOption);
                                             }
 
-                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelperLower.get_rtv_str(rtv), true, null, null);
                                             Send_Msg_2_ApCtrl_Lower(gApLower);
                                             break;
 
@@ -5217,24 +5473,24 @@ namespace ScannerBackgrdServer
 
                                             if (gcAllPara.gcNbCellFlag)
                                             {
-                                                rtv += gDbHelper.gc_nb_cell_record_delete(carry, devInfo.id);
-                                                rtv += gDbHelper.gc_nb_cell_record_insert_batch(carry, devInfo.id, gcAllPara.listGcNbCell);
+                                                rtv += gDbHelperLower.gc_nb_cell_record_delete(carry, devInfo.id);
+                                                rtv += gDbHelperLower.gc_nb_cell_record_insert_batch(carry, devInfo.id, gcAllPara.listGcNbCell);
                                             }
 
                                             if (gcAllPara.gcParamConfigFlag)
                                             {
-                                                rtv += gDbHelper.gc_param_config_record_update(carry, devInfo.id, gcAllPara.gcParamConfig);
+                                                rtv += gDbHelperLower.gc_param_config_record_update(carry, devInfo.id, gcAllPara.gcParamConfig);
                                             }
 
                                             if (gcAllPara.gcMiscFlag)
                                             {
-                                                rtv += gDbHelper.gc_misc_record_update(carry, devInfo.id, gcAllPara.gcMisc);
+                                                rtv += gDbHelperLower.gc_misc_record_update(carry, devInfo.id, gcAllPara.gcMisc);
                                             }
 
 
                                             if (gcAllPara.gcCarrierMsgFlag)
                                             {
-                                                rtv += gDbHelper.gc_carrier_msg_record_update(carry, devInfo.id, gcAllPara.gcCarrierMsg);
+                                                rtv += gDbHelperLower.gc_carrier_msg_record_update(carry, devInfo.id, gcAllPara.gcCarrierMsg);
                                             }
 
                                             if (gcAllPara.gcImsiActionFlag)
@@ -5247,20 +5503,20 @@ namespace ScannerBackgrdServer
                                                  */
                                                 if (gcAllPara.actionType == "1")
                                                 {
-                                                    rtv += gDbHelper.gc_imsi_action_record_delete(carry, devInfo.id);
+                                                    rtv += gDbHelperLower.gc_imsi_action_record_delete(carry, devInfo.id);
                                                 }
                                                 else if (gcAllPara.actionType == "2")
                                                 {
                                                     for (int i = 0; i < gcAllPara.listGcImsiAction.Count; i++)
                                                     {
-                                                        rtv += gDbHelper.gc_imsi_action_record_delete(carry, devInfo.id, gcAllPara.listGcImsiAction[i].bIMSI);
+                                                        rtv += gDbHelperLower.gc_imsi_action_record_delete(carry, devInfo.id, gcAllPara.listGcImsiAction[i].bIMSI);
                                                     }
                                                 }
                                                 else if (gcAllPara.actionType == "3")
                                                 {
                                                     for (int i = 0; i < gcAllPara.listGcImsiAction.Count; i++)
                                                     {
-                                                        rtv += gDbHelper.gc_imsi_action_record_insert(carry, devInfo.id, gcAllPara.listGcImsiAction[i]);
+                                                        rtv += gDbHelperLower.gc_imsi_action_record_insert(carry, devInfo.id, gcAllPara.listGcImsiAction[i]);
                                                     }
                                                 }
                                                 else
@@ -5269,7 +5525,7 @@ namespace ScannerBackgrdServer
                                                 }
                                             }                                            
 
-                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelperLower.get_rtv_str(rtv), true, null, null);
                                             Send_Msg_2_ApCtrl_Lower(gApLower);
                                             break;
 
@@ -5504,9 +5760,9 @@ namespace ScannerBackgrdServer
                                                 }
                                             }
 
-                                            rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+                                            rtv = gDbHelperLower.ap_general_para_record_update(devInfo.id, apGP);
 
-                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                            Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.ReportGenParaAck, rtv, gDbHelperLower.get_rtv_str(rtv), true, null, null);
                                             Send_Msg_2_ApCtrl_Lower(gApLower);
                                             break;
 
@@ -5619,7 +5875,7 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中所有的参数串
 
-                                            rtv = gDbHelper.gsm_all_record_get_by_devid(carry, devInfo.id, ref gsmParaFullString_db);
+                                            rtv = gDbHelperLower.gsm_all_record_get_by_devid(carry, devInfo.id, ref gsmParaFullString_db);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 errInfo = string.Format("gsm_all_record_get_by_devid出错.");
@@ -5646,11 +5902,11 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中黑白名单的MD5
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5663,11 +5919,11 @@ namespace ScannerBackgrdServer
                                                 listBlackImsi.Sort();
                                             }
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5784,7 +6040,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message);
+                                                            errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5844,7 +6100,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message);
+                                                            errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5883,10 +6139,10 @@ namespace ScannerBackgrdServer
                                                         str_Gsm_All_Para allInfo = new str_Gsm_All_Para();
 
                                                         //(1)
-                                                        rtv = gDbHelper.gsm_sys_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysPara);
+                                                        rtv = gDbHelperLower.gsm_sys_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysPara);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_sys_para_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv) ;
+                                                            errInfo = string.Format("gsm_sys_para_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv) ;
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5896,10 +6152,10 @@ namespace ScannerBackgrdServer
                                                         }
 
                                                         //(2)
-                                                        rtv = gDbHelper.gsm_sys_option_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysOption);
+                                                        rtv = gDbHelperLower.gsm_sys_option_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysOption);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -5909,10 +6165,10 @@ namespace ScannerBackgrdServer
                                                         }
 
                                                         //(3)
-                                                        rtv = gDbHelper.gsm_rf_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmRfPara);
+                                                        rtv = gDbHelperLower.gsm_rf_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmRfPara);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6077,22 +6333,22 @@ namespace ScannerBackgrdServer
                                                         rtv = 0;
                                                         if (gsmAllParaReport.gsmSysParaFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysPara);
+                                                            rtv += gDbHelperLower.gsm_sys_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysPara);
                                                         }
 
                                                         if (gsmAllParaReport.gsmSysOptionFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysOption);
+                                                            rtv += gDbHelperLower.gsm_sys_option_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysOption);
                                                         }
 
                                                         //if (gsmAllParaReport.gsmRfParaFlag == true)
                                                         //{
-                                                        //    rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmRfPara);
+                                                        //    rtv += gDbHelperLower.gsm_rf_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmRfPara);
                                                         //}
 
                                                         if (gsmAllParaReport.gsmMsgOptionFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllParaReport.gsmMsgOption);
+                                                            rtv += gDbHelperLower.gsm_msg_option_insert(carry, devInfo.id, gsmAllParaReport.gsmMsgOption);
                                                         }
 
                                                         if ((int)RC.SUCCESS != rtv)
@@ -6155,7 +6411,7 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中所有的参数串
 
-                                            rtv = gDbHelper.gsm_all_record_get_by_devid(carry, devInfo.id, ref gsmParaFullString_db);
+                                            rtv = gDbHelperLower.gsm_all_record_get_by_devid(carry, devInfo.id, ref gsmParaFullString_db);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 errInfo = string.Format("gsm_all_record_get_by_devid出错.");
@@ -6182,11 +6438,11 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中黑白名单的MD5
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6199,11 +6455,11 @@ namespace ScannerBackgrdServer
                                                 listBlackImsi.Sort();
                                             }
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6320,7 +6576,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message);
+                                                            errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6380,7 +6636,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message);
+                                                            errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6419,10 +6675,10 @@ namespace ScannerBackgrdServer
                                                         str_Gsm_All_Para allInfo = new str_Gsm_All_Para();
 
                                                         //(1)
-                                                        rtv = gDbHelper.gsm_sys_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysPara);
+                                                        rtv = gDbHelperLower.gsm_sys_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysPara);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_sys_para_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            errInfo = string.Format("gsm_sys_para_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6432,10 +6688,10 @@ namespace ScannerBackgrdServer
                                                         }
 
                                                         //(2)
-                                                        rtv = gDbHelper.gsm_sys_option_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysOption);
+                                                        rtv = gDbHelperLower.gsm_sys_option_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmSysOption);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6445,10 +6701,10 @@ namespace ScannerBackgrdServer
                                                         }
 
                                                         //(3)
-                                                        rtv = gDbHelper.gsm_rf_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmRfPara);
+                                                        rtv = gDbHelperLower.gsm_rf_para_record_get_by_devid(carry, devInfo.id, ref allInfo.gsmRfPara);
                                                         if (rtv != 0)
                                                         {
-                                                            errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -6613,22 +6869,22 @@ namespace ScannerBackgrdServer
                                                         rtv = 0;
                                                         if (gsmAllParaReport.gsmSysParaFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysPara);
+                                                            rtv += gDbHelperLower.gsm_sys_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysPara);
                                                         }
 
                                                         if (gsmAllParaReport.gsmSysOptionFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysOption);
+                                                            rtv += gDbHelperLower.gsm_sys_option_record_update(carry, devInfo.id, gsmAllParaReport.gsmSysOption);
                                                         }
 
                                                         //if (gsmAllParaReport.gsmRfParaFlag == true)
                                                         //{
-                                                        //    rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmRfPara);
+                                                        //    rtv += gDbHelperLower.gsm_rf_para_record_update(carry, devInfo.id, gsmAllParaReport.gsmRfPara);
                                                         //}
 
                                                         if (gsmAllParaReport.gsmMsgOptionFlag == true)
                                                         {
-                                                            rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllParaReport.gsmMsgOption);
+                                                            rtv += gDbHelperLower.gsm_msg_option_insert(carry, devInfo.id, gsmAllParaReport.gsmMsgOption);
                                                         }
 
                                                         if ((int)RC.SUCCESS != rtv)
@@ -7163,7 +7419,7 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中的通用参数串
 
-                                            rtv = gDbHelper.ap_general_para_string_get_by_devid(devInfo.id, ref genParaFullString_db);
+                                            rtv = gDbHelperLower.ap_general_para_string_get_by_devid(devInfo.id, ref genParaFullString_db);
                                             if (rtv != 0)
                                             {
                                                 //返回出错处理
@@ -7191,11 +7447,11 @@ namespace ScannerBackgrdServer
 
                                             #region 计算DB中黑白名单的MD5
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_BLACK, devInfo.id, ref listBlackImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -7208,11 +7464,11 @@ namespace ScannerBackgrdServer
                                                 listBlackImsi.Sort();
                                             }
 
-                                            rtv = gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
+                                            rtv = gDbHelperLower.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, devInfo.id, ref listWhiteImsi);
                                             if ((int)RC.SUCCESS != rtv)
                                             {
                                                 //返回出错处理
-                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelper.get_rtv_str(rtv));
+                                                string errInfo = string.Format("bwlist_record_md5sum_get出错：{0}", gDbHelperLower.get_rtv_str(rtv));
                                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -7330,7 +7586,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            string errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message);
+                                                            string errInfo = string.Format("上传对齐文件listWhiteImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -7389,7 +7645,7 @@ namespace ScannerBackgrdServer
                                                         catch (Exception e)
                                                         {
                                                             //返回出错处理
-                                                            string errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message);
+                                                            string errInfo = string.Format("上传对齐文件listBlackImsi到FTP服务器出错." + e.Message + e.StackTrace);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -7424,11 +7680,11 @@ namespace ScannerBackgrdServer
 
                                                     if (!gen_para_match)
                                                     {
-                                                        rtv = gDbHelper.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
+                                                        rtv = gDbHelperLower.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
                                                         if (rtv != 0)
                                                         {
                                                             //返回出错处理
-                                                            string errInfo = string.Format("ap_general_para_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv);
+                                                            string errInfo = string.Format("ap_general_para_record_get_by_devid出错:") + gDbHelperLower.get_rtv_str(rtv);
                                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -7629,7 +7885,7 @@ namespace ScannerBackgrdServer
                                                     if (!gen_para_match)
                                                     {
                                                         //更新数据库
-                                                        rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+                                                        rtv = gDbHelperLower.ap_general_para_record_update(devInfo.id, apGP);
                                                         if ((int)RC.SUCCESS != rtv)
                                                         {
                                                             //返回出错处理
@@ -7766,7 +8022,7 @@ namespace ScannerBackgrdServer
                                         break;
                                     }
 
-                                    rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, gClsDataAlign.devId);
+                                    rtv = gDbHelperLower.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, gClsDataAlign.devId);
                                     if (rtv != 0)
                                     {
                                         string errInfo = string.Format("bwlist_record_bwflag_delete失败.");
@@ -7778,7 +8034,7 @@ namespace ScannerBackgrdServer
                                         break;
                                     }
 
-                                    rtv = gDbHelper.bwlist_record_insert_batch(list, gClsDataAlign.devId);
+                                    rtv = gDbHelperLower.bwlist_record_insert_batch(list, gClsDataAlign.devId);
                                     if (rtv != 0)
                                     {
                                         string errInfo = string.Format("bwlist_record_insert_batch失败.");
@@ -7828,7 +8084,7 @@ namespace ScannerBackgrdServer
                                         break;
                                     }
 
-                                    rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_BLACK, gClsDataAlign.devId);
+                                    rtv = gDbHelperLower.bwlist_record_bwflag_delete(bwType.BWTYPE_BLACK, gClsDataAlign.devId);
                                     if (rtv != 0)
                                     {
                                         string errInfo = string.Format("bwlist_record_bwflag_delete失败.");
@@ -7840,7 +8096,7 @@ namespace ScannerBackgrdServer
                                         break;
                                     }
 
-                                    rtv = gDbHelper.bwlist_record_insert_batch(list, gClsDataAlign.devId);
+                                    rtv = gDbHelperLower.bwlist_record_insert_batch(list, gClsDataAlign.devId);
                                     if (rtv != 0)
                                     {
                                         string errInfo = string.Format("bwlist_record_insert_batch失败.");
@@ -7855,7 +8111,7 @@ namespace ScannerBackgrdServer
 
                                 #endregion
 
-                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, rtv,gDbHelper.get_rtv_str(rtv), true, null, null);
+                                Fill_IMMS_Info(ref gApLower, Main2ApControllerMsgType.DataAlignOver, rtv,gDbHelperLower.get_rtv_str(rtv), true, null, null);
                                 Send_Msg_2_ApCtrl_Lower(gApLower);
 
                                 #endregion
@@ -7961,10 +8217,11 @@ namespace ScannerBackgrdServer
                                     // 保存到库中
                                     for (int i = 0; i < gBwListSetInfo.listBwInfo.Count; i++)
                                     {
-                                        rtv = gDbHelper.bwlist_record_insert(gBwListSetInfo.listBwInfo[i], devInfo.id);
+                                        rtv = gDbHelperLower.bwlist_record_insert(gBwListSetInfo.listBwInfo[i], devInfo.id);
                                     }
 
                                     gBwListSetInfo.listBwInfo = new List<strBwList>();
+                                    gBwListSetInfo.hasProcess = false;
                                 }                                
 
                                 break;
@@ -7973,6 +8230,8 @@ namespace ScannerBackgrdServer
                             }
                             else
                             {
+                                gBwListSetInfo.hasProcess = false;
+
                                 //已经在gTimerBlackWhite超时中反馈给Ap了。
                                 //不再处理
                                 break;
@@ -8045,15 +8304,16 @@ namespace ScannerBackgrdServer
                                         {
                                             if (!string.IsNullOrEmpty(gBwListSetInfo.listBwInfo[i].imsi))
                                             {
-                                                rtv = gDbHelper.bwlist_record_imsi_delete(gBwListSetInfo.listBwInfo[i].imsi, gBwListSetInfo.listBwInfo[i].bwFlag, devInfo.id);
+                                                rtv = gDbHelperLower.bwlist_record_imsi_delete(gBwListSetInfo.listBwInfo[i].imsi, gBwListSetInfo.listBwInfo[i].bwFlag, devInfo.id);
                                             }
                                             else
                                             {
-                                                rtv = gDbHelper.bwlist_record_imei_delete(gBwListSetInfo.listBwInfo[i].imei, gBwListSetInfo.listBwInfo[i].bwFlag, devInfo.id);
+                                                rtv = gDbHelperLower.bwlist_record_imei_delete(gBwListSetInfo.listBwInfo[i].imei, gBwListSetInfo.listBwInfo[i].bwFlag, devInfo.id);
                                             }
                                         }
 
                                         gBwListSetInfo.listBwInfo = new List<strBwList>();
+                                        gBwListSetInfo.hasProcess = false;
                                     }
                                 }
 
@@ -8063,6 +8323,8 @@ namespace ScannerBackgrdServer
                             }
                             else
                             {
+                                gBwListSetInfo.hasProcess = false;
+
                                 //已经在gTimerBlackWhite超时中反馈给Ap了。
                                 //不再处理
                                 break;
@@ -8127,15 +8389,15 @@ namespace ScannerBackgrdServer
                                         if (result.Equals("0"))
                                         {
                                             int affDomainId = -1;
-                                            int rtv = gDbHelper.domain_get_id_by_nameFullPath(gTimerSetFullName.parentFullPathName, ref affDomainId);
+                                            int rtv = gDbHelperLower.domain_get_id_by_nameFullPath(gTimerSetFullName.parentFullPathName, ref affDomainId);
                                             if (rtv == 0)
                                             {
-                                                rtv = gDbHelper.device_record_insert(affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                rtv = gDbHelperLower.device_record_insert(affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
                                             }
                                             
                                             gApLower.Body.dic = new Dictionary<string, object>();
                                             gApLower.Body.dic.Add("ReturnCode", rtv);
-                                            gApLower.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                            gApLower.Body.dic.Add("ReturnStr", gDbHelperLower.get_rtv_str(rtv));
 
                                             //将添加设备的状态返回给界面
                                             Send_Msg_2_AppCtrl_Upper(gApLower);
@@ -8146,7 +8408,7 @@ namespace ScannerBackgrdServer
 
                                                 if (rtv == 0)
                                                 {
-                                                    if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                                                    if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDeviceId))
                                                     {
                                                         add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                                                         Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -8161,10 +8423,10 @@ namespace ScannerBackgrdServer
                                                 #endregion
                                              
                                                 //更新新记录
-                                                rtv = gDbHelper.device_unknown_record_delete(gTimerSetFullName.ipAddr, int.Parse(gTimerSetFullName.port));
+                                                rtv = gDbHelperLower.device_unknown_record_delete(gTimerSetFullName.ipAddr, int.Parse(gTimerSetFullName.port));
                                                 if (rtv != 0)
                                                 {
-                                                    string errInfo = string.Format("device_unknown_record_delete出错:{0}", gDbHelper.get_rtv_str(rtv));
+                                                    string errInfo = string.Format("device_unknown_record_delete出错:{0}", gDbHelperLower.get_rtv_str(rtv));
                                                     Logger.Trace(LogInfoType.INFO, errInfo, "Main", LogCategory.S);
                                                     add_log_info(LogInfoType.INFO, errInfo, "Main", LogCategory.S);
                                                 }
@@ -8174,12 +8436,12 @@ namespace ScannerBackgrdServer
 
                                                     //2018-06-26
                                                     DataTable dt = new DataTable();
-                                                    rtv = gDbHelper.device_unknown_record_entity_get(ref dt);
+                                                    rtv = gDbHelperLower.device_unknown_record_entity_get(ref dt);
 
                                                     gAppUpper.Body.type = Main2ApControllerMsgType.app_all_device_response;
                                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                                     gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                                    gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                                    gAppUpper.Body.dic.Add("ReturnStr", gDbHelperLower.get_rtv_str(rtv));
                                                     gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
 
                                                     if (rtv == 0)
@@ -8302,22 +8564,22 @@ namespace ScannerBackgrdServer
 
                                 if (gsmAllPara.gsmSysParaFlag == true)
                                 {
-                                    rtv += gDbHelper.gsm_sys_para_record_update(carry, devInfo.id, gsmAllPara.gsmSysPara);
+                                    rtv += gDbHelperLower.gsm_sys_para_record_update(carry, devInfo.id, gsmAllPara.gsmSysPara);
                                 }
 
                                 if (gsmAllPara.gsmSysOptionFlag == true)
                                 {
-                                    rtv += gDbHelper.gsm_sys_option_record_update(carry, devInfo.id, gsmAllPara.gsmSysOption);
+                                    rtv += gDbHelperLower.gsm_sys_option_record_update(carry, devInfo.id, gsmAllPara.gsmSysOption);
                                 }
 
                                 if (gsmAllPara.gsmRfParaFlag == true)
                                 {
-                                    rtv += gDbHelper.gsm_rf_para_record_update(carry, devInfo.id, gsmAllPara.gsmRfPara);
+                                    rtv += gDbHelperLower.gsm_rf_para_record_update(carry, devInfo.id, gsmAllPara.gsmRfPara);
                                 }
 
                                 if (gsmAllPara.gsmMsgOptionFlag == true)
                                 {                                 
-                                    rtv += gDbHelper.gsm_msg_option_insert(carry, devInfo.id, gsmAllPara.gsmMsgOption);
+                                    rtv += gDbHelperLower.gsm_msg_option_insert(carry, devInfo.id, gsmAllPara.gsmMsgOption);
                                 }
                             }                                                                                         
 
@@ -8326,11 +8588,11 @@ namespace ScannerBackgrdServer
                             gApLower.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gApLower.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gApLower.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperLower.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gApLower.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gApLower.Body.dic.Add("ReturnStr", gDbHelperLower.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_ApCtrl_Lower(gApLower);                       
@@ -8396,16 +8658,16 @@ namespace ScannerBackgrdServer
                                 if (result.Equals("0"))
                                 {
                                     //保存到库中
-                                    if ((int)RC.EXIST == gDbHelper.redirection_record_exist(int.Parse(gRedirectionInfo.category), devInfo.id))
+                                    if ((int)RC.EXIST == gDbHelperLower.redirection_record_exist(int.Parse(gRedirectionInfo.category), devInfo.id))
                                     {
                                         //记录存在，只是更新
-                                        gDbHelper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
+                                        gDbHelperLower.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
                                     }
                                     else
                                     {
                                         //记录不存在，先插入，再更新
-                                        gDbHelper.redirection_record_insert(int.Parse(gRedirectionInfo.category), devInfo.id);
-                                        gDbHelper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
+                                        gDbHelperLower.redirection_record_insert(int.Parse(gRedirectionInfo.category), devInfo.id);
+                                        gDbHelperLower.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
                                     }                                                                       
                                 }
                             }
@@ -8433,8 +8695,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -8506,8 +8768,9 @@ namespace ScannerBackgrdServer
             msgInfo.mt = mt;
             msgInfo.mb = mb;
 
-            //string tmp = string.Format("【收到AppCtrl的消息:{0}】:\n{1}\n",  gMsgFor_App_Controller.Count, mb.bJson);
-            //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.R);
+            string tmp = string.Format("【收到AppCtrl的消息:{0}】:\n{1}\n",  gMsgFor_App_Controller.Count, mb.bJson);
+            Logger.Trace(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
+            add_log_info(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
 
             lock (mutex_App_Controller)
             {
@@ -8554,7 +8817,10 @@ namespace ScannerBackgrdServer
 
             //将消息转发给ApController
             Delegate_SendMsg_2_AppCtrl_Upper(msgInfo.mt, msgInfo.mb);
-        }        
+        }
+
+        private static long gAppCtrl_Alive_Count = 0;
+        private static Object mutex_gAppCtrl_Alive = new object();
 
         /// <summary>
         /// 用于接收AppController的消息线程
@@ -8565,6 +8831,23 @@ namespace ScannerBackgrdServer
             bool noMsg = false;
             strMsgInfo msgInfo;
 
+            long monitorCnt = 0;
+            DateTime startMonitor = System.DateTime.Now;
+            DateTime endedMonitor = System.DateTime.Now;
+            TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
+
+            /*
+             * 用于修复mysql连接的空闲时间超过8小时后，MySQL自动断开该连接的问题
+             * wait_timeout = 8*3600
+             * 即每隔fix_for_wait_timeout的时间（秒数）就访问一下数据库
+             */
+            int fix_for_wait_timeout = 60; //10*60;
+            int reConnCnt = 0;
+
+            DateTime startTimeConn = System.DateTime.Now;
+            DateTime endTimeConn = System.DateTime.Now;
+            TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
+
             while (true)
             {
                 if (noMsg)
@@ -8573,82 +8856,175 @@ namespace ScannerBackgrdServer
                 }
                 else
                 {
-                   //Thread.Sleep(1);
-                }
+                    //Thread.Sleep(1);
+                }               
 
-                lock (mutex_App_Controller)
-                {                    
-                    if (gMsgFor_App_Controller.Count <= 0)
+                try
+                {
+                    #region 显示运行状态
+
+                    endedMonitor = System.DateTime.Now;
+                    tsMonitor = endedMonitor.Subtract(startMonitor);
+
+                    if (tsMonitor.TotalSeconds >= 10)
                     {
-                        noMsg = true;
-                        continue;
+                        monitorCnt++;
+                        string info = string.Format("P{0}", monitorCnt % 10);
+
+                        BeginInvoke(new monitor_thread_status_delegate(monitor_thread_status_delegate_fun), new object[] { 1, info });
+
+                        // 复位计时器
+                        startMonitor = System.DateTime.Now;                        
+
+                        lock (mutex_gAppCtrl_Alive)
+                        {
+                            // 2018-08-21
+                            gAppCtrl_Alive_Count++;
+                        }                        
                     }
 
-                    //string tmp = string.Format("【线程中处理AppCtrl的消息:{0}】\n", gMsgFor_App_Controller.Count);
-                    //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.R);
-
-                    //循环处理从AppController接收到的消息
-                    msgInfo = gMsgFor_App_Controller.Dequeue();
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
 
-                noMsg = false;
-                switch (msgInfo.mt)
+                try
                 {
-                    case MessageType.MSG_STRING:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STRING", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STRING", "Main", LogCategory.R);
+                    #region 防止自动断开该连接的问题
 
-                            break;
-                        }
-                    case MessageType.MSG_INT:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_INT", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_INT", "Main", LogCategory.R);
+                    endTimeConn = System.DateTime.Now;
+                    tsConn = endTimeConn.Subtract(startTimeConn);
 
-                            break;
-                        }
-                    case MessageType.MSG_DOUBLE:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE", "Main", LogCategory.R);
-                            break;
-                        }
-                    case MessageType.MSG_DATATABLE:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE", "Main", LogCategory.R);
+                    if (tsConn.TotalSeconds >= fix_for_wait_timeout)
+                    {
+                        // 2018-08-09
+                        re_connection_db(ref gDbHelperUpper, "gDbHelperUpper", ref reConnCnt);
 
-                            break;
-                        }
-                    case MessageType.MSG_XML:
-                        {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_XML", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_XML", "Main", LogCategory.R);
+                        Thread.Sleep(5);
 
-                            break;
-                        }
-                    case MessageType.MSG_STATUS:
+                        if (gDbHelperUpper.MyDbConnFlag)
                         {
-                            add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STATUS", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STATUS", "Main", LogCategory.R);
+                            List<string> listAllTbl = new List<string>();
+                            listAllTbl = gDbHelperUpper.Get_All_ColumnName("user");
+                        }
 
-                            break;
-                        }
-                    case MessageType.MSG_JSON:
-                        {
-                            add_log_info(LogInfoType.DEBG, "RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.DEBG, "RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);
-                            process_app_controller_msg(msgInfo.mb.bJson);
+                        startTimeConn = System.DateTime.Now;
+                    }
 
-                            break;
-                        }
-                    default:
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    startTimeConn = System.DateTime.Now;
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
+
+                try
+                {
+                    #region 取出消息
+
+                    lock (mutex_App_Controller)
+                    {
+                        if (gMsgFor_App_Controller.Count <= 0)
                         {
-                            add_log_info(LogInfoType.WARN, "recv from app controller，MSG_ERROR", "Main", LogCategory.R);
-                            Logger.Trace(LogInfoType.WARN, "recv from app controller，MSG_ERROR", "Main", LogCategory.R);
-                            break;
+                            noMsg = true;
+                            continue;
                         }
+
+                        string tmp = string.Format("【线程中处理AppCtrl的消息:{0}】\n", gMsgFor_App_Controller.Count);
+                        Logger.Trace(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
+                        add_log_info(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
+
+                        //循环处理从AppController接收到的消息
+                        msgInfo = gMsgFor_App_Controller.Dequeue();
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
+
+                try
+                {
+                    #region 处理消息
+
+                    noMsg = false;
+                    switch (msgInfo.mt)
+                    {
+                        case MessageType.MSG_JSON:
+                            {
+                                add_log_info(LogInfoType.DEBG, "RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);
+                                process_app_controller_msg(msgInfo.mb.bJson);
+
+                                break;
+                            }
+                        case MessageType.MSG_STRING:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STRING", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STRING", "Main", LogCategory.R);
+
+                                break;
+                            }
+                        case MessageType.MSG_INT:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_INT", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_INT", "Main", LogCategory.R);
+
+                                break;
+                            }
+                        case MessageType.MSG_DOUBLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DOUBLE", "Main", LogCategory.R);
+                                break;
+                            }
+                        case MessageType.MSG_DATATABLE:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_DATATABLE", "Main", LogCategory.R);
+
+                                break;
+                            }
+                        case MessageType.MSG_XML:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_XML", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_XML", "Main", LogCategory.R);
+
+                                break;
+                            }
+                        case MessageType.MSG_STATUS:
+                            {
+                                add_log_info(LogInfoType.DEBG, "recv from app controller，MSG_STATUS", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.DEBG, "recv from app controller，MSG_STATUS", "Main", LogCategory.R);
+
+                                break;
+                            }
+                        default:
+                            {
+                                add_log_info(LogInfoType.WARN, "recv from app controller，MSG_ERROR", "Main", LogCategory.R);
+                                Logger.Trace(LogInfoType.WARN, "recv from app controller，MSG_ERROR", "Main", LogCategory.R);
+                                break;
+                            }
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
             }
         }
@@ -8700,7 +9076,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
                     return false;
                 }
             }
@@ -8734,22 +9110,22 @@ namespace ScannerBackgrdServer
             }
             catch (ArgumentException ee)
             {         
-                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "FTP", LogCategory.I);
                 isValid = false;
             }
             catch (PathTooLongException ee)
             {
-                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "FTP", LogCategory.I);
                 isValid = false;
             }
             catch (NotSupportedException ee)
             {
-                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "FTP", LogCategory.I);
                 isValid = false;
             }
             catch (Exception ee)
             {
-                Logger.Trace(LogInfoType.EROR, ee.Message, "FTP", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "FTP", LogCategory.I);
                 isValid = true;
             }
 
@@ -8971,7 +9347,7 @@ namespace ScannerBackgrdServer
             }
             else if (bwListApplyTo == "domain")
             {
-                if ((int)RC.NO_EXIST == gDbHelper.domain_record_exist(domainFullPathName))
+                if ((int)RC.NO_EXIST == gDbHelperUpper.domain_record_exist(domainFullPathName))
                 {
                     string errInfo = get_debug_info() + domainFullPathName + ":记录不存在";
                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -9023,7 +9399,7 @@ namespace ScannerBackgrdServer
                     strCaptureQueryInfo qi = new strCaptureQueryInfo();
                     qi.dt = new DataTable();
 
-                    rtv = gDbHelper.capture_record_entity_query(ref qi.dt, cq);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -9042,7 +9418,7 @@ namespace ScannerBackgrdServer
                     qi.dt = new DataTable();
 
                     //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                    rtv = gDbHelper.capture_record_entity_query(ref qi.dt, cq);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -9056,7 +9432,7 @@ namespace ScannerBackgrdServer
 
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     return;
                 }
@@ -9092,7 +9468,7 @@ namespace ScannerBackgrdServer
                     //         "bwFlag":"black",              //黑白名单类型，black,white或者other
                     //         "sn":"EN16110123456789",       //SN号    
 
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     imms.Body.dic.Add("TotalRecords", gDicCaptureQueryInfo[appId].totalRecords.ToString());
                     imms.Body.dic.Add("CurPageIndex", pageInfo);
                     imms.Body.dic.Add("PageSize", gDicCaptureQueryInfo[appId].pageSize.ToString());
@@ -9193,10 +9569,10 @@ namespace ScannerBackgrdServer
                 //历史记录关联到域                                
 
                 //获取一个节点下所有站点下所有设备Id的列表
-                rtv = gDbHelper.domain_record_device_id_list_get(domainFullPathName, ref cq.listAffDeviceId);
+                rtv = gDbHelperUpper.domain_record_device_id_list_get(domainFullPathName, ref cq.listAffDeviceId);
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     return;
                 }
@@ -9206,7 +9582,7 @@ namespace ScannerBackgrdServer
                     strCaptureQueryInfo qi = new strCaptureQueryInfo();
                     qi.dt = new DataTable();
 
-                    rtv = gDbHelper.capture_record_entity_query(ref qi.dt, cq);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -9225,7 +9601,7 @@ namespace ScannerBackgrdServer
                     qi.dt = new DataTable();
 
                     //每次都从库中取吧，因为再次查询时，库可能已经发生变化了。
-                    rtv = gDbHelper.capture_record_entity_query(ref qi.dt, cq);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -9239,7 +9615,7 @@ namespace ScannerBackgrdServer
 
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     return;
                 }
@@ -9274,7 +9650,7 @@ namespace ScannerBackgrdServer
                     //         "bwFlag":"black",              //黑白名单类型，black,white或者other
                     //         "sn":"EN16110123456789",       //SN号    
 
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     imms.Body.dic.Add("TotalRecords", gDicCaptureQueryInfo[appId].totalRecords.ToString());
                     imms.Body.dic.Add("CurPageIndex", pageInfo);
                     imms.Body.dic.Add("PageSize", gDicCaptureQueryInfo[appId].pageSize.ToString());
@@ -9499,7 +9875,7 @@ namespace ScannerBackgrdServer
             }
 
             List<string> listStr = new List<string>();
-            if (false == gDbHelper.check_and_get_id_set(idSet, ref listStr))
+            if (false == gDbHelperUpper.check_and_get_id_set(idSet, ref listStr))
             {
                 add_log_info(LogInfoType.EROR, "check_and_get_id_set出错", "Main", LogCategory.I);
                 Logger.Trace(LogInfoType.EROR, "check_and_get_id_set出错", "Main", LogCategory.I);
@@ -9507,7 +9883,7 @@ namespace ScannerBackgrdServer
             }
 
             Dictionary<string, string> dic = new Dictionary<string, string>();
-            if ((int)RC.SUCCESS != gDbHelper.domain_dictionary_id_nameFullPath_get(ref dic))
+            if ((int)RC.SUCCESS != gDbHelperUpper.domain_dictionary_id_nameFullPath_get(ref dic))
             {
                 add_log_info(LogInfoType.EROR, "domain_dictionary_id_nameFullPath_get出错", "Main", LogCategory.I);
                 Logger.Trace(LogInfoType.EROR, "domain_dictionary_id_nameFullPath_get出错", "Main", LogCategory.I);
@@ -9554,7 +9930,7 @@ namespace ScannerBackgrdServer
             }      
 
             Dictionary<string, string> dic = new Dictionary<string, string>();
-            if ((int)RC.SUCCESS != gDbHelper.domain_dictionary_id_nameFullPath_get(ref dic))
+            if ((int)RC.SUCCESS != gDbHelperUpper.domain_dictionary_id_nameFullPath_get(ref dic))
             {
                 add_log_info(LogInfoType.EROR, "domain_dictionary_id_nameFullPath_get出错", "Main", LogCategory.I);
                 Logger.Trace(LogInfoType.EROR, "domain_dictionary_id_nameFullPath_get出错", "Main", LogCategory.I);
@@ -9589,7 +9965,7 @@ namespace ScannerBackgrdServer
         /// <returns></returns>
         private int process_app_controller_msg(string strBody)
         {
-            int rv = 0;            
+            int rv = 0;
 
             if (string.IsNullOrEmpty(strBody))
             {
@@ -9698,23 +10074,23 @@ namespace ScannerBackgrdServer
                             //即把整个设备树发给APP
 
                             DataTable dt = new DataTable();
-                            int rtv = gDbHelper.domain_record_entity_get(ref dt, 0);
+                            int rtv = gDbHelperUpper.domain_record_entity_get(ref dt, 0);
 
                             gAppUpper.Body.type = AppMsgType.app_all_domain_response;
-                            gAppUpper.Body.dic = new Dictionary<string, object>();                           
+                            gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
-                                                      
+
                             if (rtv != 0)
                             {
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
                             else
                             {
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                                 gAppUpper.Body.dic.Add("NodeCount", dt.Rows.Count.ToString());
                                 foreach (DataRow dr in dt.Rows)
                                 {
@@ -9850,7 +10226,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.domain_record_insert(name, parentNameFullPath, isStation, des);
+                            int rtv = gDbHelperUpper.domain_record_insert(name, parentNameFullPath, isStation, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_domain_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -9858,11 +10234,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));                                
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -9904,7 +10280,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.domain_record_delete(nameFullPath);
+                            int rtv = gDbHelperUpper.domain_record_delete(nameFullPath);
 
                             gAppUpper.Body.type = AppMsgType.app_del_domain_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -9912,11 +10288,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));                                
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -9927,7 +10303,7 @@ namespace ScannerBackgrdServer
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDeviceId))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -9975,7 +10351,7 @@ namespace ScannerBackgrdServer
                             if (oldNameFullPath == "" || newNameFullPath == "")
                             {
                                 add_log_info(LogInfoType.EROR, "app_rename_domain_request,参数有误", "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, "app_rename_domain_request,参数有误","Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, "app_rename_domain_request,参数有误", "Main", LogCategory.I);
 
                                 //返回出错处理
                                 gAppUpper.Body.type = AppMsgType.app_rename_domain_response;
@@ -10032,14 +10408,14 @@ namespace ScannerBackgrdServer
 
                             if (newDes != "")
                             {
-                                rtv = gDbHelper.domain_record_update_des(oldNameFullPath, newDes);
+                                rtv = gDbHelperUpper.domain_record_update_des(oldNameFullPath, newDes);
                                 if (rtv != 0)
                                 {
                                     //返回出错处理
                                     gAppUpper.Body.type = AppMsgType.app_rename_domain_response;
                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                     gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                    gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                    gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
 
                                     break;
@@ -10059,7 +10435,7 @@ namespace ScannerBackgrdServer
                             rtv = 0;
                             if (oldNameFullPath != newNameFullPath)
                             {
-                                rtv = gDbHelper.domain_record_rename(oldNameFullPath, newNameFullPath);
+                                rtv = gDbHelperUpper.domain_record_rename(oldNameFullPath, newNameFullPath);
                             }
 
                             gAppUpper.Body.type = AppMsgType.app_rename_domain_response;
@@ -10068,22 +10444,22 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);                           
+                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
 
-                            #endregion                                               
+                            #endregion
 
                             #region 重新获取gDicDeviceId
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDeviceId))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -10104,7 +10480,7 @@ namespace ScannerBackgrdServer
                             #region 获取信息
 
                             string usr = "";
-                            string psw = "";
+                            string psw = "";          
 
                             if (gAppUpper.Body.dic.ContainsKey("UserName"))
                             {
@@ -10139,13 +10515,13 @@ namespace ScannerBackgrdServer
 
                             #region 验证用户合法性
 
-                            int rtv = gDbHelper.user_record_check(usr, psw);
+                            int rtv = gDbHelperUpper.user_record_check(usr, psw);
                             if (rtv != 0)
                             {
                                 gAppUpper.Body.type = AppMsgType.app_login_response;
                                 gAppUpper.Body.dic = new Dictionary<string, object>();
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
 
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
@@ -10155,7 +10531,7 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.type = AppMsgType.app_login_response;
                                 gAppUpper.Body.dic = new Dictionary<string, object>();
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             #endregion
@@ -10163,10 +10539,10 @@ namespace ScannerBackgrdServer
                             #region 获取用户所属的组/角色
 
                             string roleName = "";
-                            rtv = gDbHelper.userrole_get_by_user_name(usr, ref roleName);
+                            rtv = gDbHelperUpper.userrole_get_by_user_name(usr, ref roleName);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("通过用户名称获取所属的用户角色失败:{0}",gDbHelper.get_rtv_str(rtv));
+                                string errInfo = string.Format("通过用户名称获取所属的用户角色失败:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                             }
@@ -10176,10 +10552,10 @@ namespace ScannerBackgrdServer
                             #region 获取用户的域权限                           
 
                             List<string> listDomain = new List<string>();
-                            rtv = gDbHelper.userdomain_set_get_by_usrname(usr, ref listDomain);
+                            rtv = gDbHelperUpper.userdomain_set_get_by_usrname(usr, ref listDomain);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("通过用户名获取用户所有的域权限失败:{0}", gDbHelper.get_rtv_str(rtv));
+                                string errInfo = string.Format("通过用户名获取用户所有的域权限失败:{0}", gDbHelperUpper.get_rtv_str(rtv));
 
                                 add_log_info(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
@@ -10192,10 +10568,10 @@ namespace ScannerBackgrdServer
                             List<string> listIdSet = new List<string>();
 
                             // 通过角色名称获取对应的权限ID集合
-                            rtv = gDbHelper.roleprivilege_priidset_get_by_rolename(roleName, ref listIdSet);
+                            rtv = gDbHelperUpper.roleprivilege_priidset_get_by_rolename(roleName, ref listIdSet);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("通过角色名称获取对应的权限ID集合失败:{0}", gDbHelper.get_rtv_str(rtv));
+                                string errInfo = string.Format("通过角色名称获取对应的权限ID集合失败:{0}", gDbHelperUpper.get_rtv_str(rtv));
 
                                 add_log_info(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
@@ -10207,10 +10583,10 @@ namespace ScannerBackgrdServer
                                 string funName = "";
 
                                 //通过id获取对应的功能ID
-                                rtv = gDbHelper.privilege_funname_get_by_id(id, ref funName);
+                                rtv = gDbHelperUpper.privilege_funname_get_by_id(id, ref funName);
                                 if (rtv != 0)
                                 {
-                                    string errInfo = string.Format("privilege_funname_get_by_id,通过id获取对应的功能ID:{0}", gDbHelper.get_rtv_str(rtv));
+                                    string errInfo = string.Format("privilege_funname_get_by_id,通过id获取对应的功能ID:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                     add_log_info(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
                                 }
@@ -10278,7 +10654,7 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.dic.Add("FunList", tmp);
                             }
 
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                            Send_Msg_2_AppCtrl_Upper(gAppUpper);                           
 
                             #endregion
 
@@ -10290,12 +10666,12 @@ namespace ScannerBackgrdServer
 
                             DataTable dt = new DataTable();
 
-                            int rtv = gDbHelper.roletype_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.roletype_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_roletype_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                            gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                            gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
 
                             if (rtv == 0)
                             {
@@ -10345,8 +10721,8 @@ namespace ScannerBackgrdServer
 
                             if (gAppUpper.Body.dic.ContainsKey("Des"))
                             {
-                                Des = gAppUpper.Body.dic["Des"].ToString();                               
-                            }                           
+                                Des = gAppUpper.Body.dic["Des"].ToString();
+                            }
 
                             if (RoleType == "")
                             {
@@ -10367,7 +10743,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.roletype_record_insert(RoleType, Des);
+                            int rtv = gDbHelperUpper.roletype_record_insert(RoleType, Des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_roletype_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -10375,11 +10751,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -10417,7 +10793,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.roletype_record_delete(RoleType);
+                            int rtv = gDbHelperUpper.roletype_record_delete(RoleType);
 
                             gAppUpper.Body.type = AppMsgType.app_del_roletype_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -10425,11 +10801,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -10444,7 +10820,7 @@ namespace ScannerBackgrdServer
                             DataTable dt = new DataTable();
 
                             //name,roleType,timeStart,timeEnd,des
-                            int rtv = gDbHelper.role_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.role_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_role_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -10452,11 +10828,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -10590,7 +10966,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.role_record_insert(name, roleType, timeStart, timeEnd, des);
+                            int rtv = gDbHelperUpper.role_record_insert(name, roleType, timeStart, timeEnd, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_role_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -10598,11 +10974,11 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -10640,7 +11016,7 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.role_record_delete(name);
+                            int rtv = gDbHelperUpper.role_record_delete(name);
 
                             gAppUpper.Body.type = AppMsgType.app_del_role_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
@@ -10648,11 +11024,11 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -10681,7 +11057,7 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.type = AppMsgType.app_all_device_response;
                                 gAppUpper.Body.dic = new Dictionary<string, object>();
                                 gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() +  "app_all_device_request,参数有误.");
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "app_all_device_request,参数有误.");
 
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
@@ -10692,23 +11068,23 @@ namespace ScannerBackgrdServer
                             #region 返回消息
 
                             // 通过全路径获取ID
-                            int rtv = gDbHelper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
+                            int rtv = gDbHelperUpper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
                             if (rtv == 0)
                             {
                                 //检查域ID是否为站点
-                                rtv = gDbHelper.domain_record_is_station(affDomainId);
+                                rtv = gDbHelperUpper.domain_record_is_station(affDomainId);
                                 if (rtv == (int)RC.IS_STATION)
                                 {
                                     List<string> listId = new List<string>();
                                     List<string> listName = new List<string>();
 
-                                    rtv = gDbHelper.device_id_name_get_by_affdomainid(affDomainId, ref listId, ref listName);
+                                    rtv = gDbHelperUpper.device_id_name_get_by_affdomainid(affDomainId, ref listId, ref listName);
                                     if (rtv == 0)
                                     {
                                         gAppUpper.Body.type = AppMsgType.app_all_device_response;
                                         gAppUpper.Body.dic = new Dictionary<string, object>();
                                         gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                        gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                        gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                                         gAppUpper.Body.dic.Add("DeviceCount", listName.Count.ToString());
                                         gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
 
@@ -10724,7 +11100,7 @@ namespace ScannerBackgrdServer
                                     gAppUpper.Body.type = AppMsgType.app_all_device_response;
                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                     gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                                 }
                             }
                             else
@@ -10732,19 +11108,19 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.type = AppMsgType.app_all_device_response;
                                 gAppUpper.Body.dic = new Dictionary<string, object>();
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             #region 获取未指派设备
 
                             //2018-06-26
                             DataTable dt = new DataTable();
-                            rtv = gDbHelper.device_unknown_record_entity_get(ref dt);
+                            rtv = gDbHelperUpper.device_unknown_record_entity_get(ref dt);
                             if (rtv == 0)
                             {
                                 if (dt.Rows.Count > 0)
                                 {
-                                    set_device_unknown_info_by_datatable(dt,ref gAppUpper);
+                                    set_device_unknown_info_by_datatable(dt, ref gAppUpper);
                                 }
                             }
 
@@ -10793,10 +11169,10 @@ namespace ScannerBackgrdServer
                             if (gAppUpper.Body.dic.ContainsKey("mode"))
                             {
                                 mode = gAppUpper.Body.dic["mode"].ToString();
-                                
-                                devMode dm = gDbHelper.get_device_mode(mode);
+
+                                devMode dm = gDbHelperUpper.get_device_mode(mode);
                                 if (dm == devMode.MODE_UNKNOWN)
-                                {   
+                                {
                                     //返回出错处理
                                     string errInfo = string.Format("mode = {0},非法!", mode);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -10811,13 +11187,13 @@ namespace ScannerBackgrdServer
                             if (parentFullPathName == "" || name == "" || mode == "")
                             {
                                 //返回出错处理
-                                string errInfo = get_debug_info() + string.Format("app_add_device_request,参数为空.");                            
+                                string errInfo = get_debug_info() + string.Format("app_add_device_request,参数为空.");
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                              
-                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, -1, errInfo, true,null,null);
+
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;                               
+                                break;
                             }
 
                             #region 未指派设备信息
@@ -10851,7 +11227,7 @@ namespace ScannerBackgrdServer
 
                                     Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, -1, errInfo, true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                    break;                                   
+                                    break;
                                 }
 
                                 noAssignedFlag = true;
@@ -10867,24 +11243,24 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
+                            int rtv = gDbHelperUpper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
 
                             if (noAssignedFlag == false)
                             {
                                 //无需处理将未指派设备添加确定的设备中                               
                                 if (rtv == 0)
                                 {
-                                    rtv = gDbHelper.device_record_insert(affDomainId, name, mode);
+                                    rtv = gDbHelperUpper.device_record_insert(affDomainId, name, mode);
                                 }
 
-                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                               
+
                                 #region 重新获取gDicDeviceId
 
                                 if (rtv == 0)
                                 {
-                                    if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                                    if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDeviceId))
                                     {
                                         add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -10903,19 +11279,19 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 //处理将未指派设备添加确定的设备中                               
-                                if ((int)RC.NO_EXIST == gDbHelper.device_unknown_record_exist(ipAddr, int.Parse(port)))
+                                if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr))
                                 {
                                     string errInfo = string.Format("{0}:{1}对应的未指派设备不存在.", ipAddr, port);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                             
+
                                     Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_device_response, -1, errInfo, true, "1", "2");
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
 
                                 string rtvInfo = "";
-                                if (true == gDbHelper.device_record_checkif_can_insert(affDomainId, name, mode, ref rtvInfo))
+                                if (true == gDbHelperUpper.device_record_checkif_can_insert(affDomainId, name, mode, ref rtvInfo))
                                 {
                                     //可以插入到设备表中
 
@@ -10924,7 +11300,7 @@ namespace ScannerBackgrdServer
                                     string fullname = string.Format("{0}.{1}", parentFullPathName, name);
 
                                     DataTable dt = new DataTable();
-                                    rtv = gDbHelper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, int.Parse(port), ref dt);
+                                    rtv = gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, int.Parse(port), ref dt);
 
                                     if (((int)RC.SUCCESS != rtv) || (dt.Rows.Count == 0))
                                     {
@@ -10999,8 +11375,11 @@ namespace ScannerBackgrdServer
                             #region 获取信息
 
                             int affDomainId = -1;
-                            string parentFullPathName = "";
+                            strDevice devInfo = new strDevice();
+
                             string name = "";
+                            string devFullPathName = "";
+                            string parentFullPathName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
                             {
@@ -11027,15 +11406,31 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
+                            devFullPathName = string.Format("{0}.{1}", parentFullPathName, name);
+                            if (!gDicDeviceId.ContainsKey(devFullPathName))
+                            {
+                                //返回出错处理    
+                                string errInfo = string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
+                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                break;
+                            }
+                            else
+                            {
+                                devInfo = gDicDeviceId[devFullPathName];
+                            }
 
                             #endregion
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
+                            int rtv = gDbHelperUpper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
                             if (rtv == 0)
                             {
-                                rtv = gDbHelper.device_record_delete(affDomainId, name);
+                                rtv = gDbHelperUpper.device_record_delete(affDomainId, name);
                             }
 
                             gAppUpper.Body.type = AppMsgType.app_del_device_response;
@@ -11044,14 +11439,35 @@ namespace ScannerBackgrdServer
 
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                            #endregion
+
+                            #region 给AP下发命令      
+
+                            // 2018-08-20
+
+                            if (rtv == 0)
+                            {
+                                gAppUpper.ApInfo.SN = devInfo.sn;
+                                gAppUpper.ApInfo.Fullname = devFullPathName;
+                                gAppUpper.ApInfo.IP = devInfo.ipAddr;
+                                gAppUpper.ApInfo.Port = int.Parse(devInfo.port);
+                                gAppUpper.ApInfo.Type = devInfo.innerType;
+
+                                gAppUpper.Body.type = Main2ApControllerMsgType.ApDelete;
+                                gAppUpper.MsgType = MsgType.CONFIG.ToString();
+
+                                //发送给ApController
+                                Send_Msg_2_ApCtrl_Lower(gAppUpper);
+                            }
 
                             #endregion
 
@@ -11059,7 +11475,7 @@ namespace ScannerBackgrdServer
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDeviceId))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -11145,7 +11561,7 @@ namespace ScannerBackgrdServer
                                 {
                                     dev.sn = gAppUpper.Body.n_dic[0].dic["sn"].ToString();
                                 }
-                            }                            
+                            }
 
                             if (gAppUpper.Body.n_dic[0].dic.ContainsKey("ipAddr"))
                             {
@@ -11183,10 +11599,10 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
+                            int rtv = gDbHelperUpper.domain_get_id_by_nameFullPath(parentFullPathName, ref affDomainId);
                             if (rtv == 0)
                             {
-                                rtv = gDbHelper.device_record_update(affDomainId, name, dev);
+                                rtv = gDbHelperUpper.device_record_update(affDomainId, name, dev);
                             }
 
                             gAppUpper.Body.type = AppMsgType.app_update_device_response;
@@ -11194,11 +11610,11 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -11211,11 +11627,11 @@ namespace ScannerBackgrdServer
                     case AppMsgType.app_get_device_detail_request:
                         {
                             #region 获取信息
-                            
+
                             int rtv;
                             strDevice devInfo = new strDevice();
                             strApStatus apSts = new strApStatus();
-                            
+
                             string name = "";
                             string devFullPathName = "";
                             string parentFullPathName = "";
@@ -11245,7 +11661,7 @@ namespace ScannerBackgrdServer
                             #endregion
 
                             #region 返回消息
-                          
+
                             strDomian domian = new strDomian();
                             devFullPathName = string.Format("{0}.{1}", parentFullPathName, name);
 
@@ -11255,9 +11671,9 @@ namespace ScannerBackgrdServer
                                 string errInfo = string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                
+
                                 Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, -1, errInfo, true, null, null);
-                                Send_Msg_2_AppCtrl_Upper(gAppUpper);               
+                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
                             else
@@ -11265,7 +11681,7 @@ namespace ScannerBackgrdServer
                                 devInfo = gDicDeviceId[devFullPathName];
 
                                 //通过名称全路径获取域对应记录的信息
-                                rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
+                                rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
                                 if (rtv != 0)
                                 {
                                     string errInfo = string.Format("{0}:domain_record_get_by_nameFullPath出错", parentFullPathName);
@@ -11278,7 +11694,7 @@ namespace ScannerBackgrdServer
                                 }
                             }
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_device_detail_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
@@ -11292,7 +11708,7 @@ namespace ScannerBackgrdServer
                                         #region GSM详细信息
 
                                         strGsmRfPara grp = new strGsmRfPara();
-                                        rtv = gDbHelper.gsm_rf_para_record_get_by_devid(0, devInfo.id, ref grp);                                   
+                                        rtv = gDbHelperUpper.gsm_rf_para_record_get_by_devid(0, devInfo.id, ref grp);
                                         if (rtv != 0)
                                         {
                                             string errInfo = string.Format("{0}:ap_status_record_get_by_devid出错", parentFullPathName);
@@ -11307,12 +11723,12 @@ namespace ScannerBackgrdServer
                                         gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
                                         Name_DIC_Struct ndic = new Name_DIC_Struct();
                                         ndic.name = "carry0";
-                                        ndic.dic.Add("RADIO", grp.rfEnable);                                  
+                                        ndic.dic.Add("RADIO", grp.rfEnable);
                                         gAppUpper.Body.n_dic.Add(ndic);
 
 
                                         grp = new strGsmRfPara();
-                                        rtv = gDbHelper.gsm_rf_para_record_get_by_devid(1, devInfo.id, ref grp);
+                                        rtv = gDbHelperUpper.gsm_rf_para_record_get_by_devid(1, devInfo.id, ref grp);
                                         if (rtv != 0)
                                         {
                                             string errInfo = string.Format("{0}:ap_status_record_get_by_devid出错", parentFullPathName);
@@ -11323,13 +11739,13 @@ namespace ScannerBackgrdServer
                                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                             break;
                                         }
-                                        
+
                                         ndic = new Name_DIC_Struct();
                                         ndic.name = "carry1";
                                         ndic.dic.Add("RADIO", grp.rfEnable);
                                         gAppUpper.Body.n_dic.Add(ndic);
 
-                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);                                     
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
                                         #endregion
@@ -11337,9 +11753,9 @@ namespace ScannerBackgrdServer
                                 case devMode.MODE_GSM_V2:
                                     {
                                         #region GSM详细信息
-                                   
+
                                         strGcMisc gm = new strGcMisc();
-                                        rtv = gDbHelper.gc_misc_record_get_by_devid(0, devInfo.id, ref gm);
+                                        rtv = gDbHelperUpper.gc_misc_record_get_by_devid(0, devInfo.id, ref gm);
                                         if (rtv != 0)
                                         {
                                             string errInfo = string.Format("{0}:gc_misc_record_get_by_devid出错", parentFullPathName);
@@ -11366,7 +11782,7 @@ namespace ScannerBackgrdServer
                                         gAppUpper.Body.n_dic.Add(ndic);
 
                                         gm = new strGcMisc();
-                                        rtv = gDbHelper.gc_misc_record_get_by_devid(1, devInfo.id, ref gm);
+                                        rtv = gDbHelperUpper.gc_misc_record_get_by_devid(1, devInfo.id, ref gm);
                                         if (rtv != 0)
                                         {
                                             string errInfo = string.Format("{0}:gc_misc_record_get_by_devid出错", parentFullPathName);
@@ -11404,7 +11820,7 @@ namespace ScannerBackgrdServer
                                         #region CDMA详细信息
 
                                         strGcMisc gm = new strGcMisc();
-                                        rtv = gDbHelper.gc_misc_record_get_by_devid(-1, devInfo.id, ref gm);
+                                        rtv = gDbHelperUpper.gc_misc_record_get_by_devid(-1, devInfo.id, ref gm);
                                         if (rtv != 0)
                                         {
                                             string errInfo = string.Format("{0}:gc_misc_record_get_by_devid出错", parentFullPathName);
@@ -11429,7 +11845,7 @@ namespace ScannerBackgrdServer
                                         ndic.dic.Add("RADIO", gm.RADIO);
                                         ndic.dic.Add("time", gm.time);
                                         gAppUpper.Body.n_dic.Add(ndic);
-                                        
+
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
@@ -11441,14 +11857,14 @@ namespace ScannerBackgrdServer
                                     }
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
-                                case devMode.MODE_LTE_TDD:                                
+                                case devMode.MODE_LTE_TDD:
                                     {
                                         #region LTE详细信息
 
-                                        rtv = gDbHelper.ap_status_record_get_by_devid(devInfo.id, ref apSts);
+                                        rtv = gDbHelperUpper.ap_status_record_get_by_devid(devInfo.id, ref apSts);
                                         if (rtv != 0)
                                         {
-                                            string errInfo = string.Format("{0}:ap_status_record_get_by_devid出错", parentFullPathName);
+                                            string errInfo = string.Format("{0}:ap_status_record_get_by_devid出错:{1}", parentFullPathName, gDbHelperUpper.get_rtv_str(rtv));
                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -11459,10 +11875,10 @@ namespace ScannerBackgrdServer
 
                                         // 2018-08-10
                                         strApGenPara apGP = new strApGenPara();
-                                        rtv = gDbHelper.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
+                                        rtv = gDbHelperUpper.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
                                         if (rtv != 0)
                                         {
-                                            string errInfo = string.Format("{0}:ap_general_para_record_get_by_devid出错", parentFullPathName);
+                                            string errInfo = string.Format("{0}:ap_general_para_record_get_by_devid出错{1}", parentFullPathName, gDbHelperUpper.get_rtv_str(rtv));
                                             add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                             Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -11520,19 +11936,19 @@ namespace ScannerBackgrdServer
 
                             List<Province> provinceList = new List<Province>();
 
-                            int rtv = gDbHelper.db_getProvince_info(ref provinceList);
+                            int rtv = gDbHelperUpper.db_getProvince_info(ref provinceList);
 
                             gAppUpper.Body.type = AppMsgType.app_all_province_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                           
+
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -11593,18 +12009,18 @@ namespace ScannerBackgrdServer
                             #region 获取对应城市信息
 
                             List<City> cityList = new List<City>();
-                            int rtv = gDbHelper.db_getCity_info(ref cityList, provice_id);
+                            int rtv = gDbHelperUpper.db_getCity_info(ref cityList, provice_id);
 
                             gAppUpper.Body.type = AppMsgType.app_get_city_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -11665,18 +12081,18 @@ namespace ScannerBackgrdServer
                             #region 获取对应区信息
 
                             List<Distract> distractList = new List<Distract>();
-                            int rtv = gDbHelper.db_getDistract_info(ref distractList, city_id);
+                            int rtv = gDbHelperUpper.db_getDistract_info(ref distractList, city_id);
 
                             gAppUpper.Body.type = AppMsgType.app_get_distract_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -11709,18 +12125,18 @@ namespace ScannerBackgrdServer
                             #region 返回信息
 
                             DataTable dt = new DataTable();
-                            int rtv = gDbHelper.user_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.user_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_user_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -11814,18 +12230,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.user_record_insert(name, psw, des);
+                            int rtv = gDbHelperUpper.user_record_insert(name, psw, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_user_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -11863,18 +12279,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.user_record_delete(name);
+                            int rtv = gDbHelperUpper.user_record_delete(name);
 
                             gAppUpper.Body.type = AppMsgType.app_del_user_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -11924,18 +12340,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.user_record_update(name, oldPasswd, newPasswd);
+                            int rtv = gDbHelperUpper.user_record_update(name, oldPasswd, newPasswd);
 
                             gAppUpper.Body.type = AppMsgType.app_modify_user_psw_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -11948,18 +12364,18 @@ namespace ScannerBackgrdServer
                             #region 返回信息
 
                             DataTable dt = new DataTable();
-                            int rtv = gDbHelper.privilege_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.privilege_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -12078,18 +12494,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.privilege_record_insert(funName, aliasName, des);
+                            int rtv = gDbHelperUpper.privilege_record_insert(funName, aliasName, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12127,18 +12543,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.privilege_record_delete(funName);
+                            int rtv = gDbHelperUpper.privilege_record_delete(funName);
 
                             gAppUpper.Body.type = AppMsgType.app_del_user_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12153,18 +12569,18 @@ namespace ScannerBackgrdServer
                             DataTable dt = new DataTable();
 
                             //usrRoleId,usrName,roleName,des
-                            int rtv = gDbHelper.userrole_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.userrole_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_usr_group_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -12274,18 +12690,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.userrole_record_insert(usrName, roleName, des);
+                            int rtv = gDbHelperUpper.userrole_record_insert(usrName, roleName, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_usr_group_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12329,18 +12745,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.userrole_record_delete(usrName, roleName);
+                            int rtv = gDbHelperUpper.userrole_record_delete(usrName, roleName);
 
                             gAppUpper.Body.type = AppMsgType.app_del_usr_group_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12353,18 +12769,18 @@ namespace ScannerBackgrdServer
                             #region 返回信息
 
                             DataTable dt = new DataTable();
-                            int rtv = gDbHelper.roleprivilege_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.roleprivilege_record_entity_get(ref dt);
 
                             gAppUpper.Body.type = AppMsgType.app_all_group_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
@@ -12469,18 +12885,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.roleprivilege_record_insert(roleName, priIdSet, des);
+                            int rtv = gDbHelperUpper.roleprivilege_record_insert(roleName, priIdSet, des);
 
                             gAppUpper.Body.type = AppMsgType.app_add_group_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12518,18 +12934,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.roleprivilege_record_delete(roleName);
+                            int rtv = gDbHelperUpper.roleprivilege_record_delete(roleName);
 
                             gAppUpper.Body.type = AppMsgType.app_del_group_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12592,18 +13008,18 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.roleprivilege_record_update(roleName, priIdSet, des);
+                            int rtv = gDbHelperUpper.roleprivilege_record_update(roleName, priIdSet, des);
 
                             gAppUpper.Body.type = AppMsgType.app_update_group_privilege_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
                             if (rtv != 0)
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
                             }
                             else
                             {
-                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                                gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -12616,11 +13032,11 @@ namespace ScannerBackgrdServer
                             #region 获取信息
 
                             DataTable dt = new DataTable();
-                            int rtv = gDbHelper.userdomain_record_entity_get(ref dt);
+                            int rtv = gDbHelperUpper.userdomain_record_entity_get(ref dt);
 
                             if ((int)RC.SUCCESS != rtv)
                             {
-                                string errInfo = get_debug_info() + gDbHelper.get_rtv_str(rtv);
+                                string errInfo = get_debug_info() + gDbHelperUpper.get_rtv_str(rtv);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -12629,7 +13045,7 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_usr_domain_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_usr_domain_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                             gAppUpper.Body.dic.Add("UsrDomaiCount", dt.Rows.Count.ToString());
 
                             //usrDomainId,usrName,domainIdSet,des
@@ -12662,7 +13078,7 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         ndic.dic.Add("domainIdSet", nameFullPathSet);
-                                    }                                    
+                                    }
                                 }
 
                                 if (string.IsNullOrEmpty(dr["des"].ToString()))
@@ -12705,22 +13121,22 @@ namespace ScannerBackgrdServer
                             }
 
                             if (gAppUpper.Body.dic.ContainsKey("des"))
-                            {                          
+                            {
                                 if (!string.IsNullOrEmpty(gAppUpper.Body.dic["des"].ToString()))
                                 {
                                     des = gAppUpper.Body.dic["des"].ToString();
                                 }
                             }
-                    
+
 
                             if (usrName == "" || domainIdSet == "")
-                            {               
+                            {
                                 //返回出错处理                        
                                 string errInfo = string.Format("app_add_usr_domain_request,参数有误");
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_usr_domain_response, -1, errInfo, true,null,null);                            
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_usr_domain_response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
@@ -12743,9 +13159,9 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            int rtv = gDbHelper.userdomain_record_insert(usrName, idSet, des);
+                            int rtv = gDbHelperUpper.userdomain_record_insert(usrName, idSet, des);
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_usr_domain_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);                       
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_usr_domain_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
@@ -12769,7 +13185,7 @@ namespace ScannerBackgrdServer
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_usr_domain_response, -1, errInfo, true, null, null);                            
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_usr_domain_response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
@@ -12778,9 +13194,9 @@ namespace ScannerBackgrdServer
 
                             #region 返回消息
 
-                            int rtv = gDbHelper.userdomain_record_delete(usrName);
+                            int rtv = gDbHelperUpper.userdomain_record_delete(usrName);
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_usr_domain_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);                            
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_usr_domain_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
@@ -12809,12 +13225,12 @@ namespace ScannerBackgrdServer
                             }
 
                             if (gAppUpper.Body.dic.ContainsKey("des"))
-                            {             
+                            {
                                 if (!string.IsNullOrEmpty(gAppUpper.Body.dic["des"].ToString()))
                                 {
                                     des = gAppUpper.Body.dic["des"].ToString();
                                 }
-                            }                  
+                            }
 
                             if (usrName == "" || domainIdSet == "")
                             {
@@ -12845,10 +13261,10 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            int rtv = gDbHelper.userdomain_record_update(usrName, idSet, des);
+                            int rtv = gDbHelperUpper.userdomain_record_update(usrName, idSet, des);
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_update_usr_domain_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);                            
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_update_usr_domain_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
+                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
                             #endregion                   
@@ -12865,9 +13281,9 @@ namespace ScannerBackgrdServer
                             // "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
 
                             int rtv = -1;
-                            strDevice devInfo = new strDevice();                          
+                            strDevice devInfo = new strDevice();
 
-                            string bwListApplyTo = "";                          
+                            string bwListApplyTo = "";
                             string deviceFullPathName = "";
                             string domainFullPathName = "";
 
@@ -12885,7 +13301,7 @@ namespace ScannerBackgrdServer
                             {
                                 domainFullPathName = gAppUpper.Body.dic["domainFullPathName"].ToString();
                             }
-                            
+
                             if (bwListApplyTo == "device")
                             {
                                 if (!gDicDeviceId.ContainsKey(deviceFullPathName))
@@ -12894,7 +13310,7 @@ namespace ScannerBackgrdServer
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");                       
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
@@ -12906,7 +13322,7 @@ namespace ScannerBackgrdServer
                             }
                             else if (bwListApplyTo == "domain")
                             {
-                                if ((int)RC.NO_EXIST == gDbHelper.domain_record_exist(domainFullPathName))
+                                if ((int)RC.NO_EXIST == gDbHelperUpper.domain_record_exist(domainFullPathName))
                                 {
                                     string errInfo = get_debug_info() + domainFullPathName + ":记录不存在";
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -12919,7 +13335,7 @@ namespace ScannerBackgrdServer
                                 else
                                 {
                                     int domainId = -1;
-                                    if ((int)RC.SUCCESS == gDbHelper.domain_get_id_by_nameFullPath(domainFullPathName, ref domainId))
+                                    if ((int)RC.SUCCESS == gDbHelperUpper.domain_get_id_by_nameFullPath(domainFullPathName, ref domainId))
                                     {
                                         gBwListSetInfo.domainId = domainId.ToString();
                                     }
@@ -12929,7 +13345,7 @@ namespace ScannerBackgrdServer
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");                                        
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
                                     }
@@ -12957,17 +13373,42 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
+
+                            // 2018-08-23
+                            if (gBwListSetInfo.hasProcess)
+                            {
+                                string errInfo = string.Format("app_add_bwlist_request:hasProcess = true,Start Sleep...");
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                int max = 0;
+                                while (max < 100)
+                                {
+                                    Thread.Sleep(50);
+                                    max++;
+
+                                    if (gBwListSetInfo.hasProcess == false)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                errInfo = string.Format("app_add_bwlist_request:hasProcess = true,Ended Sleep({0})...", max*50);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                            }
+
                             if (-1 == get_bwlist_info(gAppUpper, ref gBwListSetInfo.listBwInfo, gBwListSetInfo.devId, gBwListSetInfo.domainId))
                             {
                                 string errInfo = get_debug_info() + "从n_dic中获取黑白名单列表失败.";
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");                
+                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
-                           
+
                             #endregion
 
                             #region 返回消息
@@ -12987,16 +13428,16 @@ namespace ScannerBackgrdServer
                                  * APController返回的结果决定是否进行存库.
                                  */
                                 strDevice strDev = new strDevice();
-                                rtv = gDbHelper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
+                                rtv = gDbHelperUpper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
                                 if (rtv == 0)
                                 {
-                                    if (string.IsNullOrEmpty(strDev.online) || strDev.online == "0")                                   
+                                    if (string.IsNullOrEmpty(strDev.online) || strDev.online == "0")
                                     {
                                         string errInfo = get_debug_info() + "设备离线";
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");                                        
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
                                     }
@@ -13007,10 +13448,12 @@ namespace ScannerBackgrdServer
                                     gAppUpper.ApInfo.IP = strDev.ipAddr;
                                     gAppUpper.ApInfo.Port = int.Parse(strDev.port);
                                     gAppUpper.ApInfo.Type = strDev.innerType;
-                                    gAppUpper.MsgType = MsgType.CONFIG.ToString();                                    
+                                    gAppUpper.MsgType = MsgType.CONFIG.ToString();
 
                                     //发送给ApController
                                     Send_Msg_2_ApCtrl_Lower(gAppUpper);
+
+                                    gBwListSetInfo.hasProcess = true;
 
                                     #region 启动超时计时器 
 
@@ -13029,18 +13472,18 @@ namespace ScannerBackgrdServer
 
                                     gTimerBlackWhite.Elapsed += new System.Timers.ElapsedEventHandler(TimerFunc);
                                     gTimerBlackWhite.Start();
-                                 
+
                                     #endregion
 
                                     break;
                                 }
                                 else
                                 {
-                                    string errInfo = get_debug_info() + gDbHelper.get_rtv_str(rtv);
+                                    string errInfo = get_debug_info() + gDbHelperUpper.get_rtv_str(rtv);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");                           
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_add_bwlist_response, -1, errInfo, true, "1", "2");
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
@@ -13053,16 +13496,16 @@ namespace ScannerBackgrdServer
 
                                 /*
                                  * 2017-07-24 对域的处理暂时不使用超时计时器
-                                 */ 
+                                 */
 
                                 gBwListSetInfo.listDevId = new List<int>();
-                                gBwListSetInfo.listDevFullName = new List<string>();                           
+                                gBwListSetInfo.listDevFullName = new List<string>();
 
                                 //黑白名单关联到域                             
-                                rtv = gDbHelper.domain_record_device_id_list_get(domainFullPathName, ref gBwListSetInfo.listDevId);
+                                rtv = gDbHelperUpper.domain_record_device_id_list_get(domainFullPathName, ref gBwListSetInfo.listDevId);
                                 if (rtv == (int)RC.SUCCESS)
                                 {
-                                    foreach(int id in gBwListSetInfo.listDevId)
+                                    foreach (int id in gBwListSetInfo.listDevId)
                                     {
                                         foreach (KeyValuePair<string, strDevice> kvp in gDicDeviceId)
                                         {
@@ -13077,13 +13520,13 @@ namespace ScannerBackgrdServer
                                     //插入域所属的黑白名单
                                     for (int i = 0; i < gBwListSetInfo.listBwInfo.Count; i++)
                                     {
-                                        gDbHelper.bwlist_record_insert_affdomainid(gBwListSetInfo.listBwInfo[i], int.Parse(gBwListSetInfo.domainId));
+                                        gDbHelperUpper.bwlist_record_insert_affdomainid(gBwListSetInfo.listBwInfo[i], int.Parse(gBwListSetInfo.domainId));
                                     }
 
-                                    for (int i= 0;i< gBwListSetInfo.listDevId.Count;i++)
+                                    for (int i = 0; i < gBwListSetInfo.listDevId.Count; i++)
                                     {
                                         strDevice strDev = new strDevice();
-                                        rtv = gDbHelper.device_record_entity_get_by_devid(gBwListSetInfo.listDevId[i], ref strDev);
+                                        rtv = gDbHelperUpper.device_record_entity_get_by_devid(gBwListSetInfo.listDevId[i], ref strDev);
                                         if (rtv == 0)
                                         {
                                             if (string.IsNullOrEmpty(strDev.online) || strDev.online == "0")
@@ -13097,16 +13540,16 @@ namespace ScannerBackgrdServer
                                             gAppUpper.ApInfo.IP = strDev.ipAddr;
                                             gAppUpper.ApInfo.Port = int.Parse(strDev.port);
                                             gAppUpper.ApInfo.Type = strDev.innerType;
-                                            gAppUpper.MsgType = MsgType.CONFIG.ToString();                                            
+                                            gAppUpper.MsgType = MsgType.CONFIG.ToString();
 
                                             //发送给ApController
-                                            Send_Msg_2_ApCtrl_Lower(gAppUpper);                                            
-                                        }                                       
-                                    }                                    
+                                            Send_Msg_2_ApCtrl_Lower(gAppUpper);
+                                        }
+                                    }
                                 }
                                 else
                                 {
-                                    string errInfo = string.Format("domain_record_device_id_list_get出错:{0}.", gDbHelper.get_rtv_str(rtv));
+                                    string errInfo = string.Format("domain_record_device_id_list_get出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -13131,9 +13574,9 @@ namespace ScannerBackgrdServer
                             //   "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
 
                             strDevice devInfo = new strDevice();
-                            int rtv = -1;                      
+                            int rtv = -1;
 
-                            string bwListApplyTo = "";                
+                            string bwListApplyTo = "";
                             string deviceFullPathName = "";
                             string domainFullPathName = "";
 
@@ -13175,7 +13618,7 @@ namespace ScannerBackgrdServer
                             else if (bwListApplyTo == "domain")
                             {
                                 domainFullPathName = gAppUpper.Body.dic["domainFullPathName"].ToString();
-                                if ((int)RC.NO_EXIST == gDbHelper.domain_record_exist(domainFullPathName))
+                                if ((int)RC.NO_EXIST == gDbHelperUpper.domain_record_exist(domainFullPathName))
                                 {
                                     string errInfo = get_debug_info() + domainFullPathName + ":记录不存在";
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -13188,7 +13631,7 @@ namespace ScannerBackgrdServer
                                 else
                                 {
                                     int domainId = -1;
-                                    if ((int)RC.SUCCESS == gDbHelper.domain_get_id_by_nameFullPath(domainFullPathName, ref domainId))
+                                    if ((int)RC.SUCCESS == gDbHelperUpper.domain_get_id_by_nameFullPath(domainFullPathName, ref domainId))
                                     {
                                         gBwListSetInfo.domainId = domainId.ToString();
                                     }
@@ -13226,6 +13669,30 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
+                            // 2018-08-23
+                            if (gBwListSetInfo.hasProcess)
+                            {
+                                string errInfo = string.Format("app_del_bwlist_request:hasProcess = true,Start Sleep...");
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                int max = 0;
+                                while (max < 100)
+                                {
+                                    Thread.Sleep(50);
+                                    max++;
+
+                                    if (gBwListSetInfo.hasProcess == false)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                errInfo = string.Format("app_del_bwlist_request:hasProcess = true,Ended Sleep({0})...", max * 50);
+                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                            }
+
                             if (-1 == get_bwlist_info(gAppUpper, ref gBwListSetInfo.listBwInfo, gBwListSetInfo.devId, gBwListSetInfo.domainId))
                             {
                                 string errInfo = get_debug_info() + "从n_dic中获取黑白名单列表失败.";
@@ -13256,7 +13723,7 @@ namespace ScannerBackgrdServer
                                  * APController返回的结果决定是否进行存库.
                                  */
                                 strDevice strDev = new strDevice();
-                                rtv = gDbHelper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
+                                rtv = gDbHelperUpper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
                                 if (rtv == 0)
                                 {
                                     if (string.IsNullOrEmpty(strDev.online) || strDev.online == "0")
@@ -13280,6 +13747,8 @@ namespace ScannerBackgrdServer
 
                                     //发送给ApController
                                     Send_Msg_2_ApCtrl_Lower(gAppUpper);
+
+                                    gBwListSetInfo.hasProcess = true;
 
                                     #region 启动超时计时器 
 
@@ -13305,12 +13774,12 @@ namespace ScannerBackgrdServer
                                 }
                                 else
                                 {
-                                    string errInfo = get_debug_info() + gDbHelper.get_rtv_str(rtv);
+                                    string errInfo = get_debug_info() + gDbHelperUpper.get_rtv_str(rtv);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_bwlist_response, -1, errInfo, true, "1", "2");             
-                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);                                   
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_bwlist_response, -1, errInfo, true, "1", "2");
+                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
 
@@ -13328,7 +13797,7 @@ namespace ScannerBackgrdServer
                                 gBwListSetInfo.listDevFullName = new List<string>();
 
                                 //黑白名单关联到域                             
-                                rtv = gDbHelper.domain_record_device_id_list_get(domainFullPathName, ref gBwListSetInfo.listDevId);
+                                rtv = gDbHelperUpper.domain_record_device_id_list_get(domainFullPathName, ref gBwListSetInfo.listDevId);
                                 if (rtv == (int)RC.SUCCESS)
                                 {
                                     foreach (int id in gBwListSetInfo.listDevId)
@@ -13346,13 +13815,13 @@ namespace ScannerBackgrdServer
                                     //删除域所属的黑白名单
                                     for (int i = 0; i < gBwListSetInfo.listBwInfo.Count; i++)
                                     {
-                                        gDbHelper.bwlist_record_imsi_delete_affdomainid(gBwListSetInfo.listBwInfo[i].imsi, gBwListSetInfo.listBwInfo[i].bwFlag,int.Parse(gBwListSetInfo.domainId));
+                                        gDbHelperUpper.bwlist_record_imsi_delete_affdomainid(gBwListSetInfo.listBwInfo[i].imsi, gBwListSetInfo.listBwInfo[i].bwFlag, int.Parse(gBwListSetInfo.domainId));
                                     }
 
                                     for (int i = 0; i < gBwListSetInfo.listDevId.Count; i++)
                                     {
                                         strDevice strDev = new strDevice();
-                                        rtv = gDbHelper.device_record_entity_get_by_devid(gBwListSetInfo.listDevId[i], ref strDev);
+                                        rtv = gDbHelperUpper.device_record_entity_get_by_devid(gBwListSetInfo.listDevId[i], ref strDev);
                                         if (rtv == 0)
                                         {
                                             if (strDev.online == "0")
@@ -13375,11 +13844,11 @@ namespace ScannerBackgrdServer
                                 }
                                 else
                                 {
-                                    string errInfo = string.Format("domain_record_device_id_list_get出错:{0}.", gDbHelper.get_rtv_str(rtv));
+                                    string errInfo = string.Format("domain_record_device_id_list_get出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_bwlist_response, -1, errInfo, true, "1", "2");                           
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_del_bwlist_response, -1, errInfo, true, "1", "2");
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
@@ -13395,7 +13864,7 @@ namespace ScannerBackgrdServer
                         {
                             #region 获取信息
 
-                            string appId = Get_App_Info(gAppUpper); 
+                            string appId = Get_App_Info(gAppUpper);
 
                             // 
                             // GSW和WCDMA的设备，IMSI和IMEI可同时设置
@@ -13405,11 +13874,11 @@ namespace ScannerBackgrdServer
                             // "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
 
                             int rtv = -1;
-                            strDevice devInfo = new strDevice();                     
+                            strDevice devInfo = new strDevice();
 
                             string bwListApplyTo = "";
                             string deviceFullPathName = "";
-                            string domainFullPathName = "";                            
+                            string domainFullPathName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("bwListApplyTo"))
                             {
@@ -13445,7 +13914,7 @@ namespace ScannerBackgrdServer
                             }
                             else if (bwListApplyTo == "domain")
                             {
-                                if ((int)RC.NO_EXIST == gDbHelper.domain_record_exist(domainFullPathName))
+                                if ((int)RC.NO_EXIST == gDbHelperUpper.domain_record_exist(domainFullPathName))
                                 {
                                     string errInfo = get_debug_info() + domainFullPathName + ":记录不存在";
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -13473,7 +13942,7 @@ namespace ScannerBackgrdServer
                             {
                                 if (!string.IsNullOrEmpty(gAppUpper.Body.dic["imsi"].ToString()))
                                 {
-                                    bq.imsi = gAppUpper.Body.dic["imsi"].ToString();                               
+                                    bq.imsi = gAppUpper.Body.dic["imsi"].ToString();
                                 }
                             }
 
@@ -13481,7 +13950,7 @@ namespace ScannerBackgrdServer
                             {
                                 if (!string.IsNullOrEmpty(gAppUpper.Body.dic["imei"].ToString()))
                                 {
-                                    bq.imei = gAppUpper.Body.dic["imei"].ToString();                            
+                                    bq.imei = gAppUpper.Body.dic["imei"].ToString();
                                 }
                             }
 
@@ -13624,10 +14093,10 @@ namespace ScannerBackgrdServer
                                     strBwListQueryInfo qi = new strBwListQueryInfo();
                                     qi.bwListApplyTo = bwListApplyTo;
                                     qi.deviceFullPathName = deviceFullPathName;
-                                 
+
                                     qi.dt = new DataTable();
-                                    
-                                    rtv = gDbHelper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
+
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -13649,7 +14118,7 @@ namespace ScannerBackgrdServer
                                     qi.dt = new DataTable();
 
                                     //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                                    rtv = gDbHelper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -13660,10 +14129,10 @@ namespace ScannerBackgrdServer
                                     //添加App对应的黑白名单查询条件和结果
                                     gDicBwListQueryInfo.Add(appId, qi);
                                 }
-                                                     
+
                                 if (rtv != (int)RC.SUCCESS)
                                 {
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
@@ -13687,11 +14156,11 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         firstPageSize = gDicBwListQueryInfo[appId].dt.Rows.Count;
-                                    }                                   
+                                    }
 
                                     #region 取出各条记录
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                     gAppUpper.Body.dic.Add("TotalRecords", gDicBwListQueryInfo[appId].totalRecords.ToString());
                                     gAppUpper.Body.dic.Add("CurPageIndex", pageInfo);
                                     gAppUpper.Body.dic.Add("PageSize", gDicBwListQueryInfo[appId].pageSize.ToString());
@@ -13701,7 +14170,7 @@ namespace ScannerBackgrdServer
                                         DataRow dr = gDicBwListQueryInfo[appId].dt.Rows[inx];
 
                                         Name_DIC_Struct ndic = new Name_DIC_Struct();
-                                        ndic.name = (inx+1).ToString();                                       
+                                        ndic.name = (inx + 1).ToString();
 
                                         if (string.IsNullOrEmpty(dr["imsi"].ToString()))
                                         {
@@ -13783,33 +14252,33 @@ namespace ScannerBackgrdServer
                                 List<int> listDevId = new List<int>();
 
                                 //获取一个节点下所有站点下所有设备Id的列表
-                                rtv = gDbHelper.domain_record_device_id_list_get(domainFullPathName, ref listDevId);
+                                rtv = gDbHelperUpper.domain_record_device_id_list_get(domainFullPathName, ref listDevId);
                                 if (rtv != (int)RC.SUCCESS)
                                 {
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
                                 else
                                 {
-                                    rtv = gDbHelper.domain_get_id_by_nameFullPath(domainFullPathName, ref affDomainId);
+                                    rtv = gDbHelperUpper.domain_get_id_by_nameFullPath(domainFullPathName, ref affDomainId);
                                     if (rtv != (int)RC.SUCCESS)
                                     {
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
-                                    }                 
+                                    }
                                 }
 
                                 if (!gDicBwListQueryInfo.ContainsKey(appId))
                                 {
                                     strBwListQueryInfo qi = new strBwListQueryInfo();
 
-                                    qi.bwListApplyTo = bwListApplyTo;                                  
+                                    qi.bwListApplyTo = bwListApplyTo;
                                     qi.domainFullPathName = domainFullPathName;
                                     qi.dt = new DataTable();
 
-                                    rtv = gDbHelper.bwlist_record_entity_get(ref qi.dt, listDevId,affDomainId,bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -13831,7 +14300,7 @@ namespace ScannerBackgrdServer
                                     qi.dt = new DataTable();
 
                                     //每次都从库中取吧，因为再次查询时，库可能已经发生变化了。
-                                    rtv = gDbHelper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId,bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -13845,7 +14314,7 @@ namespace ScannerBackgrdServer
 
                                 if (rtv != (int)RC.SUCCESS)
                                 {
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
@@ -13869,11 +14338,11 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         firstPageSize = gDicBwListQueryInfo[appId].dt.Rows.Count;
-                                    }                                                        
+                                    }
 
                                     #region 取出各条记录
 
-                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                     gAppUpper.Body.dic.Add("TotalRecords", gDicBwListQueryInfo[appId].totalRecords.ToString());
                                     gAppUpper.Body.dic.Add("CurPageIndex", pageInfo);
                                     gAppUpper.Body.dic.Add("PageSize", gDicBwListQueryInfo[appId].pageSize.ToString());
@@ -13883,7 +14352,7 @@ namespace ScannerBackgrdServer
                                         DataRow dr = gDicBwListQueryInfo[appId].dt.Rows[inx];
 
                                         Name_DIC_Struct ndic = new Name_DIC_Struct();
-                                        ndic.name = (inx+1).ToString();                                       
+                                        ndic.name = (inx + 1).ToString();
 
                                         if (string.IsNullOrEmpty(dr["imsi"].ToString()))
                                         {
@@ -14039,7 +14508,7 @@ namespace ScannerBackgrdServer
                                 Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
-                            }                          
+                            }
 
                             int startInx = -1;
                             int endedInx = -1;
@@ -14060,7 +14529,7 @@ namespace ScannerBackgrdServer
                             #region 取出各条记录
 
                             string pageInfo = string.Format("{0}:{1}", curPageInx, qi.totalPages);
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, 0, gDbHelper.get_rtv_str(0), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_all_bwlist_response, 0, gDbHelperUpper.get_rtv_str(0), true, null, null);
                             gAppUpper.Body.dic.Add("TotalRecords", qi.totalRecords.ToString());
                             gAppUpper.Body.dic.Add("CurPageIndex", pageInfo);
                             gAppUpper.Body.dic.Add("PageSize", qi.pageSize.ToString());
@@ -14144,27 +14613,30 @@ namespace ScannerBackgrdServer
                             }
 
                             #endregion
-                                             
+
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
                             #endregion                                     
-                        }                        
+                        }
                     case AppMsgType.app_set_GenPara_ActiveTime_Request:
                         {
                             #region 获取信息
 
                             //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
                             //   "name":"电信FDD"
-                            //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
-                            //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
-                            //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
-                            //   "activeTime2Ended":"2018-05-28 14:30:00"  生效时间2的结束时间
-                            //   "activeTime3Start":"2018-05-28 16:30:00"  生效时间3的起始时间，有的话就添加该项
-                            //   "activeTime3Ended":"2018-05-28 18:30:00"  生效时间3的结束时间，有的话就添加该项
-                            //   "activeTime4Start":"2018-05-28 20:30:00"  生效时间4的起始时间，有的话就添加该项
-                            //   "activeTime4Ended":"2018-05-28 22:30:00"  生效时间4的结束时间，有的话就添加该项
+                            //   "carry":"0/1/2"     //有载波时包含该字段，2018-07-31
+                            //                       //0表示载波1，1表示载波2，2表示两个载波都设置
+                            //
+                            //   "activeTime1Start":"09:30:00"  生效时间1的起始时间
+                            //   "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+                            //   "activeTime2Start":"13:30:00"  生效时间2的起始时间
+                            //   "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+                            //   "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+                            //   "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+                            //   "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+                            //   "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
 
                             int rtv = -1;
                             strDevice devInfo = new strDevice();
@@ -14202,7 +14674,7 @@ namespace ScannerBackgrdServer
                                 if (carry != "0" && carry != "1" && carry != "2")
                                 {
                                     //返回出错处理
-                                    string errInfo = string.Format("app_set_GenPara_ActiveTime_Request,carry = {0},参数有误.",carry);
+                                    string errInfo = string.Format("app_set_GenPara_ActiveTime_Request,carry = {0},参数有误.", carry);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -14223,7 +14695,7 @@ namespace ScannerBackgrdServer
 
                                 Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;                                
+                                break;
                             }
                             else
                             {
@@ -14244,60 +14716,191 @@ namespace ScannerBackgrdServer
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
                                         {
-                                            grp.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Start"])
+                                            {
+                                                grp.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
                                         {
-                                            grp.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Ended"])
+                                            {
+                                                grp.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
                                         {
-                                            grp.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Start"])
+                                            {
+                                                grp.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
                                         {
-                                            grp.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Ended"])
+                                            {
+                                                grp.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
                                         {
-                                            grp.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Start"])
+                                            {
+                                                grp.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
                                         {
-                                            grp.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Ended"])
+                                            {
+                                                grp.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
                                         {
-                                            grp.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Start"])
+                                            {
+                                                grp.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
                                         {
-                                            grp.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Ended"])
+                                            {
+                                                grp.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            }
                                         }
+
+                                        #region 时间段合法性检查
+
+                                        if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(grp.activeTime1Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(grp.activeTime1Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (grp.activeTime1Start == "" && grp.activeTime1Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+
+                                        if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(grp.activeTime2Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(grp.activeTime2Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (grp.activeTime2Start == "" && grp.activeTime2Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+                                        if (grp.activeTime1Ended != "" && grp.activeTime2Start != "")
+                                        {
+                                            if (string.Compare(grp.activeTime1Ended, grp.activeTime2Start) >= 0)
+                                            {
+                                                string errInfo = string.Format("{0} >= {1}", grp.activeTime1Ended, grp.activeTime2Start);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+
+                                        #endregion
 
                                         rtv = 0;
                                         if (carry == "0")
                                         {
-                                            rtv += gDbHelper.gsm_rf_para_record_update(0, devInfo.id, grp);                                           
+                                            rtv += gDbHelperUpper.gsm_rf_para_record_update(0, devInfo.id, grp);
                                         }
                                         else if (carry == "1")
-                                        {                                            
-                                            rtv += gDbHelper.gsm_rf_para_record_update(1, devInfo.id, grp);
+                                        {
+                                            rtv += gDbHelperUpper.gsm_rf_para_record_update(1, devInfo.id, grp);
                                         }
                                         else
                                         {
-                                            rtv += gDbHelper.gsm_rf_para_record_update(0, devInfo.id, grp);
-                                            rtv += gDbHelper.gsm_rf_para_record_update(1, devInfo.id, grp);
-                                        }                                        
+                                            rtv += gDbHelperUpper.gsm_rf_para_record_update(0, devInfo.id, grp);
+                                            rtv += gDbHelperUpper.gsm_rf_para_record_update(1, devInfo.id, grp);
+                                        }
 
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
@@ -14311,119 +14914,382 @@ namespace ScannerBackgrdServer
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
                                         {
-                                            gm.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Start"])
+                                            {
+                                                gm.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
                                         {
-                                            gm.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Ended"])
+                                            {
+                                                gm.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
                                         {
-                                            gm.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Start"])
+                                            {
+                                                gm.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
                                         {
-                                            gm.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Ended"])
+                                            {
+                                                gm.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
                                         {
-                                            gm.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Start"])
+                                            {
+                                                gm.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
                                         {
-                                            gm.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Ended"])
+                                            {
+                                                gm.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
                                         {
-                                            gm.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Start"])
+                                            {
+                                                gm.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
                                         {
-                                            gm.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Ended"])
+                                            {
+                                                gm.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            }
                                         }
+
+                                        #region 时间段合法性检查
+
+                                        if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(gm.activeTime1Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(gm.activeTime1Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (gm.activeTime1Start == "" && gm.activeTime1Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+
+                                        if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(gm.activeTime2Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(gm.activeTime2Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (gm.activeTime2Start == "" && gm.activeTime2Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+                                        if (gm.activeTime1Ended != "" && gm.activeTime2Start != "")
+                                        {
+                                            if (string.Compare(gm.activeTime1Ended, gm.activeTime2Start) >= 0)
+                                            {
+                                                string errInfo = string.Format("{0} >= {1}", gm.activeTime1Ended, gm.activeTime2Start);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+
+                                        #endregion
 
                                         rtv = 0;
                                         if (carry == "0")
                                         {
-                                            rtv += gDbHelper.gc_misc_record_update(0, devInfo.id, gm);
+                                            rtv += gDbHelperUpper.gc_misc_record_update(0, devInfo.id, gm);
                                         }
                                         else if (carry == "1")
                                         {
-                                            rtv += gDbHelper.gc_misc_record_update(1, devInfo.id, gm);
+                                            rtv += gDbHelperUpper.gc_misc_record_update(1, devInfo.id, gm);
                                         }
                                         else
                                         {
-                                            rtv += gDbHelper.gc_misc_record_update(0, devInfo.id, gm);
-                                            rtv += gDbHelper.gc_misc_record_update(1, devInfo.id, gm);
+                                            rtv += gDbHelperUpper.gc_misc_record_update(0, devInfo.id, gm);
+                                            rtv += gDbHelperUpper.gc_misc_record_update(1, devInfo.id, gm);
                                         }
 
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
-                                        #endregion                                      
+                                        #endregion
                                     }
                                 case devMode.MODE_CDMA:
                                     {
-                                        #region GSM-V2处理
+                                        #region CDMA处理
 
                                         strGcMisc gm = new strGcMisc();
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
                                         {
-                                            gm.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Start"])
+                                            {
+                                                gm.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
                                         {
-                                            gm.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Ended"])
+                                            {
+                                                gm.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
                                         {
-                                            gm.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Start"])
+                                            {
+                                                gm.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
                                         {
-                                            gm.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Ended"])
+                                            {
+                                                gm.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
                                         {
-                                            gm.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Start"])
+                                            {
+                                                gm.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
                                         {
-                                            gm.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime3Ended"])
+                                            {
+                                                gm.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
                                         {
-                                            gm.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Start"])
+                                            {
+                                                gm.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
                                         {
-                                            gm.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime4Ended"])
+                                            {
+                                                gm.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            }
                                         }
 
-                                        rtv = 0;                                    
-                                        rtv += gDbHelper.gc_misc_record_update(-1, devInfo.id, gm);
-                                        
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                                        #region 时间段合法性检查
+
+                                        if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(gm.activeTime1Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(gm.activeTime1Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (gm.activeTime1Start == "" && gm.activeTime1Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+
+                                        if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                                        {
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(gm.activeTime2Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(gm.activeTime2Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (gm.activeTime2Start == "" && gm.activeTime2Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
+
+
+                                        if (gm.activeTime1Ended != "" && gm.activeTime2Start != "")
+                                        {
+                                            if (string.Compare(gm.activeTime1Ended, gm.activeTime2Start) >= 0)
+                                            {
+                                                string errInfo = string.Format("{0} >= {1}", gm.activeTime1Ended, gm.activeTime2Start);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+
+                                        #endregion
+
+                                        rtv = 0;
+                                        rtv += gDbHelperUpper.gc_misc_record_update(-1, devInfo.id, gm);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
-                                        #endregion                                      
+                                        #endregion
                                     }
                                 case devMode.MODE_TD_SCDMA:
                                     {
@@ -14431,7 +15297,7 @@ namespace ScannerBackgrdServer
                                     }
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
-                                case devMode.MODE_LTE_TDD:                                                         
+                                case devMode.MODE_LTE_TDD:
                                     {
                                         #region LTE
 
@@ -14439,47 +15305,153 @@ namespace ScannerBackgrdServer
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Start"))
                                         {
-                                            apGP.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Start"])
+                                            {
+                                                apGP.activeTime1Start = gAppUpper.Body.dic["activeTime1Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime1Ended"))
                                         {
-                                            apGP.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime1Ended"])
+                                            {
+                                                apGP.activeTime1Ended = gAppUpper.Body.dic["activeTime1Ended"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Start"))
                                         {
-                                            apGP.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Start"])
+                                            {
+                                                apGP.activeTime2Start = gAppUpper.Body.dic["activeTime2Start"].ToString();
+                                            }
                                         }
 
                                         if (gAppUpper.Body.dic.ContainsKey("activeTime2Ended"))
                                         {
-                                            apGP.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            if (null != gAppUpper.Body.dic["activeTime2Ended"])
+                                            {
+                                                apGP.activeTime2Ended = gAppUpper.Body.dic["activeTime2Ended"].ToString();
+                                            }
                                         }
 
-                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Start"))
+
+                                        #region 时间段合法性检查
+
+                                        //apGP.activeTime1Start = "";
+                                        //apGP.activeTime1Ended = "";
+
+                                        //apGP.activeTime2Start = "";
+                                        //apGP.activeTime2Ended = "";
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime1Start) && !string.IsNullOrEmpty(apGP.activeTime1Ended))
                                         {
-                                            apGP.activeTime3Start = gAppUpper.Body.dic["activeTime3Start"].ToString();
-                                        }
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(apGP.activeTime1Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(apGP.activeTime1Ended).ToString("HH:mm:ss");
 
-                                        if (gAppUpper.Body.dic.ContainsKey("activeTime3Ended"))
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (apGP.activeTime1Start == "" && apGP.activeTime1Ended == "")
                                         {
-                                            apGP.activeTime3Ended = gAppUpper.Body.dic["activeTime3Ended"].ToString();
+                                            //
                                         }
-
-                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Start"))
+                                        else                                        
                                         {
-                                            apGP.activeTime4Start = gAppUpper.Body.dic["activeTime4Start"].ToString();
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
                                         }
 
-                                        if (gAppUpper.Body.dic.ContainsKey("activeTime4Ended"))
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime2Start) && !string.IsNullOrEmpty(apGP.activeTime2Ended))
                                         {
-                                            apGP.activeTime4Ended = gAppUpper.Body.dic["activeTime4Ended"].ToString();
+                                            try
+                                            {
+                                                string dt1 = DateTime.Parse(apGP.activeTime2Start).ToString("HH:mm:ss");
+                                                string dt2 = DateTime.Parse(apGP.activeTime2Ended).ToString("HH:mm:ss");
+
+                                                if (string.Compare(dt2, dt1) <= 0)
+                                                {
+                                                    string errInfo = string.Format("{0} <= {1}", dt2, dt1);
+                                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                    break;
+                                                }
+                                            }
+                                            catch (Exception ee)
+                                            {
+                                                string errInfo = string.Format("时间格式有误：{0}", ee.Message + ee.StackTrace + ee.StackTrace);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+                                        else if (apGP.activeTime2Start == "" && apGP.activeTime2Ended == "")
+                                        {
+                                            //
+                                        }
+                                        else
+                                        {
+                                            string errInfo = string.Format("时间格式有误");
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
                                         }
 
-                                        rtv = gDbHelper.ap_general_para_record_update(devInfo.id, apGP);
+                                        if (apGP.activeTime1Ended != "" && apGP.activeTime2Start != "")
+                                        {
+                                            if (string.Compare(apGP.activeTime1Ended, apGP.activeTime2Start) >= 0)
+                                            {
+                                                string errInfo = string.Format("{0} >= {1}", apGP.activeTime1Ended, apGP.activeTime2Start);
+                                                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);                                        
+                                                Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, -1, errInfo, true, null, null);
+                                                Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                                break;
+                                            }
+                                        }
+
+                                        #endregion
+
+                                        rtv = gDbHelperUpper.ap_general_para_record_update(devInfo.id, apGP);
+
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_GenPara_ActiveTime_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
 
@@ -14500,7 +15472,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                             }
-                                                      
+
                             break;
 
                             #endregion                   
@@ -14510,15 +15482,17 @@ namespace ScannerBackgrdServer
                             #region 获取信息
 
                             //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
-                            //   "name":"电信FDD"
+                            //   "name"   :"电信FDD"
+                            //   "carry"  :"0/1"     //GSM或GSM-V2时传入，2018-08-17
 
                             int rtv;
                             strDevice devInfo = new strDevice();
                             strApGenPara apGP = new strApGenPara();
 
                             string name = "";
-                            string parentFullPathName = "";                            
+                            string parentFullPathName = "";
                             string devFullPathName = "";
+                            string carry = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
                             {
@@ -14539,7 +15513,23 @@ namespace ScannerBackgrdServer
 
                                 Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;                              
+                                break;
+                            }
+
+                            if (gAppUpper.Body.dic.ContainsKey("carry"))
+                            {
+                                carry = gAppUpper.Body.dic["carry"].ToString();
+                                if (carry != "0" && carry != "1")
+                                {
+                                    //返回出错处理
+                                    string errInfo = string.Format("app_get_GenPara_Request,carry = {0},参数有误.", carry);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
+                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                    break;
+                                }
                             }
 
                             #endregion
@@ -14563,10 +15553,10 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
-                                
-                                // 2018-07-04
+
+                                // 2018-07-04,2018-08-20
                                 if (devInfo.devMode != devMode.MODE_WCDMA &&
-                                    devInfo.devMode != devMode.MODE_LTE_FDD && 
+                                    devInfo.devMode != devMode.MODE_LTE_FDD &&
                                     devInfo.devMode != devMode.MODE_LTE_TDD)
                                 {
                                     //返回出错处理
@@ -14576,251 +15566,493 @@ namespace ScannerBackgrdServer
 
                                     Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                    break;                                   
+                                    break;
                                 }
 
-                                rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
-                                if (rtv == 0)
-                                {
-                                    rtv = gDbHelper.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
-                                }
-                                else
+                                rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
+                                if (rtv != 0)
                                 {
                                     //返回出错处理
-                                    string errInfo = get_debug_info() + string.Format("domain_record_get_by_nameFullPath出错.");
+                                    string errInfo = get_debug_info() + string.Format("domain_record_get_by_nameFullPath出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
                                     Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                    break;                                   
+                                    break;
                                 }
                             }
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
-                           
-                            gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
-                            gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
-                            gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
-                            gAppUpper.Body.dic.Add("name", name);
-
-                            //   "mode":"GSM",          设备工作制式：GSM、TDD-LTE、FDD-LTE等
-                            //   "primaryplmn:"xxx",    PLMN
-                            //   "earfcndl:"xxx",       工作频点（下行）
-                            //   "earfcnul:"xxx",       工作频点（上行）
-                            //   "cellid:"xxx",         cellid,2018-06-26
-                            //   "pci:"xxx",            工作PCI
-                            //   "bandwidth:"xxx",      工作Band
-                            //   "tac:"xxx",            工作Tac
-                            //   "txpower:"xxx",        发射功率
-                            //   "periodtac:"xxx",      变换Tac周期
-                            //   "manualfreq:"xxx",     手动选择工作频点（0：自动选择；1：手动选择）
-                            //   "bootMode:"0",         设备启动方式（0：半自动。此时需要发送Active命令才开始建小区 1：全自动）
-                            //   "Earfcnlist:"xxx,xxx", REM扫描频点列表
-                            //   "Bandoffse:"xxxx",     Band频偏值。用于GPS同步时的补偿值
-                            //   "NTP:"172.17.0.210",   NTP服务器地址
-                            //   "ntppri:"5",           NTP获取时间的优先级
-                            //   "source:"0，           同步源（0：GPS ； 1：CNM ； 2：no sync）
-                            //   "ManualEnable:"1",     是否启动手动选择同步频点功能（0：不启动 ； 1 :启动）
-                            //   "ManualEarfcn:"xxx",   手动选择的同步频点
-                            //   "ManualPci:"xxx",      手动选择的同步PCI
-                            //   "ManualBw:"xxx"        手动选择的同步小区带宽
-                            //   "gps_select":"0"       GPS配置，0表示NOGPS，1表示GPS
-                            //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
-                            //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
-                            //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
-                            //   "activeTime2Ended":"2018-05-28 14:30:00"  生效时间2的结束时间
-                            //   "activeTime3Start":"2018-05-28 16:30:00"  生效时间3的起始时间，有的话就添加该项
-                            //   "activeTime3Ended":"2018-05-28 18:30:00"  生效时间3的结束时间，有的话就添加该项
-                            //   "activeTime4Start":"2018-05-28 20:30:00"  生效时间4的起始时间，有的话就添加该项
-                            //   "activeTime4Ended":"2018-05-28 22:30:00"  生效时间4的结束时间，有的话就添加该项
-
-                            if (rtv == 0)
+                            switch (devInfo.devMode)
                             {
-                                if (!string.IsNullOrEmpty(apGP.mode))
-                                {
-                                    gAppUpper.Body.dic.Add("mode", apGP.mode);
-                                }
+                                case devMode.MODE_WCDMA:
+                                case devMode.MODE_LTE_FDD:
+                                case devMode.MODE_LTE_TDD:
+                                    {
+                                        #region LTE
 
-                                if (!string.IsNullOrEmpty(apGP.primaryplmn))
-                                {
-                                    gAppUpper.Body.dic.Add("primaryplmn", apGP.primaryplmn);
-                                }
+                                        rtv = gDbHelperUpper.ap_general_para_record_get_by_devid(devInfo.id, ref apGP);
+                                        if (rtv != 0)
+                                        {
+                                            //返回出错处理
+                                            string errInfo = get_debug_info() + string.Format("ap_general_para_record_get_by_devid出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
+                                            add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                            Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
-                                if (!string.IsNullOrEmpty(apGP.earfcndl))
-                                {
-                                    gAppUpper.Body.dic.Add("earfcndl", apGP.earfcndl);
-                                }
+                                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
+                                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                            break;
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.earfcnul))
-                                {
-                                    gAppUpper.Body.dic.Add("earfcnul", apGP.earfcnul);
-                                }
+                                        Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
-                                // 2018-06-26
-                                if (!string.IsNullOrEmpty(apGP.cellid))
-                                {
-                                    gAppUpper.Body.dic.Add("cellid", apGP.cellid);
-                                }
+                                        gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
+                                        gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
+                                        gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
+                                        gAppUpper.Body.dic.Add("name", name);
 
-                                if (!string.IsNullOrEmpty(apGP.pci))
-                                {
-                                    gAppUpper.Body.dic.Add("pci", apGP.pci);
-                                }
+                                        //   "mode":"GSM",          设备工作制式：GSM、TDD-LTE、FDD-LTE等
+                                        //   "primaryplmn:"xxx",    PLMN
+                                        //   "earfcndl:"xxx",       工作频点（下行）
+                                        //   "earfcnul:"xxx",       工作频点（上行）
+                                        //   "cellid:"xxx",         cellid,2018-06-26
+                                        //   "pci:"xxx",            工作PCI
+                                        //   "bandwidth:"xxx",      工作Band
+                                        //   "tac:"xxx",            工作Tac
+                                        //   "txpower:"xxx",        发射功率
+                                        //   "periodtac:"xxx",      变换Tac周期
+                                        //   "manualfreq:"xxx",     手动选择工作频点（0：自动选择；1：手动选择）
+                                        //   "bootMode:"0",         设备启动方式（0：半自动。此时需要发送Active命令才开始建小区 1：全自动）
+                                        //   "Earfcnlist:"xxx,xxx", REM扫描频点列表
+                                        //   "Bandoffse:"xxxx",     Band频偏值。用于GPS同步时的补偿值
+                                        //   "NTP:"172.17.0.210",   NTP服务器地址
+                                        //   "ntppri:"5",           NTP获取时间的优先级
+                                        //   "source:"0，           同步源（0：GPS ； 1：CNM ； 2：no sync）
+                                        //   "ManualEnable:"1",     是否启动手动选择同步频点功能（0：不启动 ； 1 :启动）
+                                        //   "ManualEarfcn:"xxx",   手动选择的同步频点
+                                        //   "ManualPci:"xxx",      手动选择的同步PCI
+                                        //   "ManualBw:"xxx"        手动选择的同步小区带宽
+                                        //   "gps_select":"0"       GPS配置，0表示NOGPS，1表示GPS
+                                        //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
+                                        //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
+                                        //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
+                                        //   "activeTime2Ended":"2018-05-28 14:30:00"  生效时间2的结束时间
+                                        //   "activeTime3Start":"2018-05-28 16:30:00"  生效时间3的起始时间，有的话就添加该项
+                                        //   "activeTime3Ended":"2018-05-28 18:30:00"  生效时间3的结束时间，有的话就添加该项
+                                        //   "activeTime4Start":"2018-05-28 20:30:00"  生效时间4的起始时间，有的话就添加该项
+                                        //   "activeTime4Ended":"2018-05-28 22:30:00"  生效时间4的结束时间，有的话就添加该项
 
-                                if (!string.IsNullOrEmpty(apGP.bandwidth))
-                                {
-                                    gAppUpper.Body.dic.Add("bandwidth", apGP.bandwidth);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.mode))
+                                        {
+                                            gAppUpper.Body.dic.Add("mode", apGP.mode);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.tac))
-                                {
-                                    gAppUpper.Body.dic.Add("tac", apGP.tac);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.primaryplmn))
+                                        {
+                                            gAppUpper.Body.dic.Add("primaryplmn", apGP.primaryplmn);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.txpower))
-                                {
-                                    gAppUpper.Body.dic.Add("txpower", apGP.txpower);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.earfcndl))
+                                        {
+                                            gAppUpper.Body.dic.Add("earfcndl", apGP.earfcndl);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.periodtac))
-                                {
-                                    gAppUpper.Body.dic.Add("periodtac", apGP.periodtac);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.earfcnul))
+                                        {
+                                            gAppUpper.Body.dic.Add("earfcnul", apGP.earfcnul);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.manualfreq))
-                                {
-                                    gAppUpper.Body.dic.Add("manualfreq", apGP.manualfreq);
-                                }
+                                        // 2018-06-26
+                                        if (!string.IsNullOrEmpty(apGP.cellid))
+                                        {
+                                            gAppUpper.Body.dic.Add("cellid", apGP.cellid);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.bootMode))
-                                {
-                                    gAppUpper.Body.dic.Add("bootMode", apGP.bootMode);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.pci))
+                                        {
+                                            gAppUpper.Body.dic.Add("pci", apGP.pci);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.Earfcnlist))
-                                {
-                                    gAppUpper.Body.dic.Add("Earfcnlist", apGP.Earfcnlist);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.bandwidth))
+                                        {
+                                            gAppUpper.Body.dic.Add("bandwidth", apGP.bandwidth);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.Bandoffset))
-                                {
-                                    gAppUpper.Body.dic.Add("Bandoffset", apGP.Bandoffset);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.tac))
+                                        {
+                                            gAppUpper.Body.dic.Add("tac", apGP.tac);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.NTP))
-                                {
-                                    gAppUpper.Body.dic.Add("NTP", apGP.NTP);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.txpower))
+                                        {
+                                            gAppUpper.Body.dic.Add("txpower", apGP.txpower);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.ntppri))
-                                {
-                                    gAppUpper.Body.dic.Add("ntppri", apGP.ntppri);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.periodtac))
+                                        {
+                                            gAppUpper.Body.dic.Add("periodtac", apGP.periodtac);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.source))
-                                {
-                                    gAppUpper.Body.dic.Add("source", apGP.source);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.manualfreq))
+                                        {
+                                            gAppUpper.Body.dic.Add("manualfreq", apGP.manualfreq);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.ManualEnable))
-                                {
-                                    gAppUpper.Body.dic.Add("ManualEnable", apGP.ManualEnable);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.bootMode))
+                                        {
+                                            gAppUpper.Body.dic.Add("bootMode", apGP.bootMode);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.ManualEarfcn))
-                                {
-                                    gAppUpper.Body.dic.Add("ManualEarfcn", apGP.ManualEarfcn);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.Earfcnlist))
+                                        {
+                                            gAppUpper.Body.dic.Add("Earfcnlist", apGP.Earfcnlist);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.ManualPci))
-                                {
-                                    gAppUpper.Body.dic.Add("ManualPci", apGP.ManualPci);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.Bandoffset))
+                                        {
+                                            gAppUpper.Body.dic.Add("Bandoffset", apGP.Bandoffset);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.ManualBw))
-                                {
-                                    gAppUpper.Body.dic.Add("ManualBw", apGP.ManualBw);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.NTP))
+                                        {
+                                            gAppUpper.Body.dic.Add("NTP", apGP.NTP);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.gps_select))
-                                {
-                                    gAppUpper.Body.dic.Add("gps_select", apGP.gps_select);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.ntppri))
+                                        {
+                                            gAppUpper.Body.dic.Add("ntppri", apGP.ntppri);
+                                        }
 
-                                // 2018-07-23
-                                if (!string.IsNullOrEmpty(apGP.otherplmn))
-                                {
-                                    gAppUpper.Body.dic.Add("otherplmn", apGP.otherplmn);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.source))
+                                        {
+                                            gAppUpper.Body.dic.Add("source", apGP.source);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.periodFreq))
-                                {
-                                    gAppUpper.Body.dic.Add("periodFreq", apGP.periodFreq);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.ManualEnable))
+                                        {
+                                            gAppUpper.Body.dic.Add("ManualEnable", apGP.ManualEnable);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.res1))
-                                {
-                                    gAppUpper.Body.dic.Add("res1", apGP.res1);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.ManualEarfcn))
+                                        {
+                                            gAppUpper.Body.dic.Add("ManualEarfcn", apGP.ManualEarfcn);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.res2))
-                                {
-                                    gAppUpper.Body.dic.Add("res2", apGP.res2);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.ManualPci))
+                                        {
+                                            gAppUpper.Body.dic.Add("ManualPci", apGP.ManualPci);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.res3))
-                                {
-                                    gAppUpper.Body.dic.Add("res3", apGP.res3);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.ManualBw))
+                                        {
+                                            gAppUpper.Body.dic.Add("ManualBw", apGP.ManualBw);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime1Start))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime1Start", apGP.activeTime1Start);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.gps_select))
+                                        {
+                                            gAppUpper.Body.dic.Add("gps_select", apGP.gps_select);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime1Ended))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime1Ended", apGP.activeTime1Ended);
-                                }
+                                        // 2018-07-23
+                                        if (!string.IsNullOrEmpty(apGP.otherplmn))
+                                        {
+                                            gAppUpper.Body.dic.Add("otherplmn", apGP.otherplmn);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime2Start))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime2Start", apGP.activeTime2Start);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.periodFreq))
+                                        {
+                                            gAppUpper.Body.dic.Add("periodFreq", apGP.periodFreq);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime2Ended))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime2Ended", apGP.activeTime2Ended);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.res1))
+                                        {
+                                            gAppUpper.Body.dic.Add("res1", apGP.res1);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime3Start))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime3Start", apGP.activeTime3Start);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.res2))
+                                        {
+                                            gAppUpper.Body.dic.Add("res2", apGP.res2);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime3Ended))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime3Ended", apGP.activeTime3Ended);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.res3))
+                                        {
+                                            gAppUpper.Body.dic.Add("res3", apGP.res3);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime4Start))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime4Start", apGP.activeTime4Start);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.activeTime1Start))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime1Start", apGP.activeTime1Start);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.activeTime4Ended))
-                                {
-                                    gAppUpper.Body.dic.Add("activeTime4Ended", apGP.activeTime4Ended);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.activeTime1Ended))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime1Ended", apGP.activeTime1Ended);
+                                        }
 
-                                if (!string.IsNullOrEmpty(apGP.time))
-                                {
-                                    gAppUpper.Body.dic.Add("time", apGP.time);
-                                }
+                                        if (!string.IsNullOrEmpty(apGP.activeTime2Start))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime2Start", apGP.activeTime2Start);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime2Ended))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime2Ended", apGP.activeTime2Ended);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime3Start))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime3Start", apGP.activeTime3Start);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime3Ended))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime3Ended", apGP.activeTime3Ended);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime4Start))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime4Start", apGP.activeTime4Start);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.activeTime4Ended))
+                                        {
+                                            gAppUpper.Body.dic.Add("activeTime4Ended", apGP.activeTime4Ended);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(apGP.time))
+                                        {
+                                            gAppUpper.Body.dic.Add("time", apGP.time);
+                                        }
+
+                                        Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_GSM:
+                                    {
+                                        #region GSM
+
+                                        //strGsmRfPara grp = new strGsmRfPara();
+                                        //rtv = gDbHelperUpper.gsm_rf_para_record_get_by_devid(int.Parse(carry),devInfo.id, ref grp);
+                                        //if (rtv != 0)
+                                        //{
+                                        //    //返回出错处理
+                                        //    string errInfo = get_debug_info() + string.Format("gsm_rf_para_record_get_by_devid出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
+                                        //    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        //    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        //    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
+                                        //    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        //    break;
+                                        //}
+
+                                        //Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
+
+                                        //gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
+                                        //gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
+                                        //gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
+                                        //gAppUpper.Body.dic.Add("name", name);
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime1Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Start", grp.activeTime1Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime1Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Ended", grp.activeTime1Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime2Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Start", grp.activeTime2Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime2Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Ended", grp.activeTime2Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime3Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Start", grp.activeTime3Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime3Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Ended", grp.activeTime3Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime4Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Start", grp.activeTime4Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(grp.activeTime4Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Ended", grp.activeTime4Ended);
+                                        //}                                        
+
+                                        //Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_GSM_V2:
+                                    {
+                                        #region GSM-V2                                     
+
+                                        //strGcMisc gm = new strGcMisc();                             
+                                        //rtv = gDbHelperUpper.gc_misc_record_get_by_devid(int.Parse(carry), devInfo.id, ref gm);
+                                        //if (rtv != 0)
+                                        //{
+                                        //    //返回出错处理
+                                        //    string errInfo = get_debug_info() + string.Format("gc_misc_record_get_by_devid出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
+                                        //    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        //    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        //    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
+                                        //    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        //    break;
+                                        //}
+
+                                        //Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
+
+                                        //gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
+                                        //gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
+                                        //gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
+                                        //gAppUpper.Body.dic.Add("name", name);
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime1Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Start", gm.activeTime1Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime1Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Ended", gm.activeTime1Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime2Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Start", gm.activeTime2Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime2Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Ended", gm.activeTime2Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime3Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Start", gm.activeTime3Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime3Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Ended", gm.activeTime3Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime4Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Start", gm.activeTime4Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime4Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Ended", gm.activeTime4Ended);
+                                        //}
+
+                                        //Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_CDMA:
+                                    {
+                                        #region CDMA                                 
+
+                                        //strGcMisc gm = new strGcMisc();
+                                        //rtv = gDbHelperUpper.gc_misc_record_get_by_devid(-1, devInfo.id, ref gm);
+                                        //if (rtv != 0)
+                                        //{
+                                        //    //返回出错处理
+                                        //    string errInfo = get_debug_info() + string.Format("gc_misc_record_get_by_devid出错:{0}.", gDbHelperUpper.get_rtv_str(rtv));
+                                        //    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                        //    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                        //    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, -1, errInfo, true, null, null);
+                                        //    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                        //    break;
+                                        //}
+
+                                        //Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GenPara_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
+
+                                        //gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
+                                        //gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
+                                        //gAppUpper.Body.dic.Add("parentFullPathName", parentFullPathName);
+                                        //gAppUpper.Body.dic.Add("name", name);
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime1Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Start", gm.activeTime1Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime1Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime1Ended", gm.activeTime1Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime2Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Start", gm.activeTime2Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime2Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime2Ended", gm.activeTime2Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime3Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Start", gm.activeTime3Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime3Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime3Ended", gm.activeTime3Ended);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime4Start))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Start", gm.activeTime4Start);
+                                        //}
+
+                                        //if (!string.IsNullOrEmpty(gm.activeTime4Ended))
+                                        //{
+                                        //    gAppUpper.Body.dic.Add("activeTime4Ended", gm.activeTime4Ended);
+                                        //}
+
+                                        //Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                                        break;
+
+                                        #endregion
+                                    }
+                                case devMode.MODE_TD_SCDMA:
+                                    {
+                                        break;
+                                    }
+                                case devMode.MODE_UNKNOWN:
+                                    {
+                                        break;
+                                    }
                             }
 
-                            Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
 
                             #endregion                                         
@@ -14828,14 +16060,14 @@ namespace ScannerBackgrdServer
                     case AppMsgType.app_ftp_oper_request:
                         {
                             #region 获取信息
-                            
+
                             //   "md5":"asdfadfs4adf3d3adf3",   //fileName的MD5
                             //   "fileName":"xxxxx.tar.gz",     //要上传的文件名
                             //   "version":"x.y.z",             //要上传的版本号                                  
-                            
+
                             string md5 = "";
                             string fileName = "";
-                            string version = "";                            
+                            string version = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("md5"))
                             {
@@ -14850,7 +16082,7 @@ namespace ScannerBackgrdServer
                             if (gAppUpper.Body.dic.ContainsKey("version"))
                             {
                                 version = gAppUpper.Body.dic["version"].ToString();
-                            }                            
+                            }
 
                             if (md5 == "" || fileName == "" || version == "")
                             {
@@ -14866,7 +16098,7 @@ namespace ScannerBackgrdServer
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
                             }
-                    
+
                             gUpdateInfo.md5 = md5;
                             gUpdateInfo.fileName = fileName;
                             gUpdateInfo.version = version;
@@ -14895,7 +16127,7 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
                             gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
 
-                            if ((int)RC.NO_EXIST == gDbHelper.update_info_record_exist(gUpdateInfo.md5))
+                            if ((int)RC.NO_EXIST == gDbHelperUpper.update_info_record_exist(gUpdateInfo.md5))
                             {
                                 //FTP服务器上不存在该文件，需要界面上传
                                 gAppUpper.Body.dic.Add("needToUpdate", "1");
@@ -14938,7 +16170,7 @@ namespace ScannerBackgrdServer
                             if (gAppUpper.Body.dic.ContainsKey("fileName"))
                             {
                                 fileName = gAppUpper.Body.dic["fileName"].ToString();
-                            }                           
+                            }
 
                             if (gAppUpper.Body.dic.ContainsKey("deviceCnt"))
                             {
@@ -14980,14 +16212,14 @@ namespace ScannerBackgrdServer
                             }
                             catch (Exception ee)
                             {
-                                add_log_info(LogInfoType.EROR, "deviceCnt,参数有误" + ee.Message, "Main", LogCategory.I);
-                                Logger.Trace(LogInfoType.EROR, "deviceCnt,参数有误" + ee.Message, "Main", LogCategory.I);
+                                add_log_info(LogInfoType.EROR, "deviceCnt,参数有误" + ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.EROR, "deviceCnt,参数有误" + ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
 
                                 //返回出错处理
                                 gAppUpper.Body.type = AppMsgType.app_ftp_update_response;
                                 gAppUpper.Body.dic = new Dictionary<string, object>();
                                 gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "deviceCnt,参数有误." + ee.Message);
+                                gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + "deviceCnt,参数有误." + ee.Message + ee.StackTrace + ee.StackTrace);
 
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
@@ -15080,36 +16312,36 @@ namespace ScannerBackgrdServer
 
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                 break;
-                            }                     
+                            }
 
-                            if(gUpdateInfo.needToUpdate == true)
+                            if (gUpdateInfo.needToUpdate == true)
                             {
                                 //插入记录到升级信息表中
-                                rtv = gDbHelper.update_info_record_insert(gUpdateInfo.md5, gUpdateInfo.fileName, gUpdateInfo.version);
+                                rtv = gDbHelperUpper.update_info_record_insert(gUpdateInfo.md5, gUpdateInfo.fileName, gUpdateInfo.version);
                                 if (rtv != 0)
                                 {
-                                    add_log_info(LogInfoType.EROR, gDbHelper.get_rtv_str(rtv), "Main", LogCategory.I);
-                                    Logger.Trace(LogInfoType.EROR, gDbHelper.get_rtv_str(rtv), "Main", LogCategory.I);
+                                    add_log_info(LogInfoType.EROR, gDbHelperUpper.get_rtv_str(rtv), "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, gDbHelperUpper.get_rtv_str(rtv), "Main", LogCategory.I);
 
                                     //返回出错处理
                                     gAppUpper.Body.type = AppMsgType.app_ftp_update_response;
                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                     gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelper.get_rtv_str(rtv));
+                                    gAppUpper.Body.dic.Add("ReturnStr", get_debug_info() + gDbHelperUpper.get_rtv_str(rtv));
 
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
                             }
-                                                       
+
                             #region 遍历设备列表发送给AP
 
                             int devId = -1;
                             strDevice strDev = new strDevice();
-                            for (int i = 0;i < gUpdateInfo.listDevId.Count;i++)
+                            for (int i = 0; i < gUpdateInfo.listDevId.Count; i++)
                             {
                                 devId = gUpdateInfo.listDevId[i];
-                                rtv = gDbHelper.device_record_entity_get_by_devid(devId, ref strDev);
+                                rtv = gDbHelperUpper.device_record_entity_get_by_devid(devId, ref strDev);
                                 if (rtv == 0)
                                 {
                                     if (strDev.online == "0")
@@ -15125,7 +16357,7 @@ namespace ScannerBackgrdServer
                                     gAppUpper.ApInfo.Type = strDev.innerType;
 
                                     gAppUpper.Body.type = ApMsgType.Update;
-                                    gAppUpper.MsgType = MsgType.CONFIG.ToString(); 
+                                    gAppUpper.MsgType = MsgType.CONFIG.ToString();
 
                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                     gAppUpper.Body.dic.Add("User_name", DataController.StrFtpUserId);
@@ -15140,7 +16372,7 @@ namespace ScannerBackgrdServer
                                     //发送给ApController
                                     Send_Msg_2_ApCtrl_Lower(gAppUpper);
                                 }
-                            }                            
+                            }
 
                             #endregion
 
@@ -15255,7 +16487,7 @@ namespace ScannerBackgrdServer
                             #region 取出各条记录
 
                             string pageInfo = string.Format("{0}:{1}", curPageInx, qi.totalPages);
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_history_record_response, 0, gDbHelper.get_rtv_str(0), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_history_record_response, 0, gDbHelperUpper.get_rtv_str(0), true, null, null);
 
                             gAppUpper.Body.dic.Add("TotalRecords", qi.totalRecords.ToString());
                             gAppUpper.Body.dic.Add("CurPageIndex", pageInfo);
@@ -15343,8 +16575,8 @@ namespace ScannerBackgrdServer
                             //
                             // "fileName":"abc.csv"
                             //                                                 
-                          
-                            string fileName = "";                       
+
+                            string fileName = "";
 
                             if (gAppUpper.Body.dic.ContainsKey("fileName"))
                             {
@@ -15373,7 +16605,7 @@ namespace ScannerBackgrdServer
                                         Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                         break;
                                     }
-                                }                                
+                                }
                             }
                             else
                             {
@@ -15445,13 +16677,13 @@ namespace ScannerBackgrdServer
                                 }
                                 catch (Exception ee)
                                 {
-                                    add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                                    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace + ee.StackTrace, "Main", LogCategory.I);
 
                                     gAppUpper.Body.type = AppMsgType.app_history_record_export_csv_response;
                                     gAppUpper.Body.dic = new Dictionary<string, object>();
                                     gAppUpper.Body.dic.Add("ReturnCode", -1);
-                                    gAppUpper.Body.dic.Add("ReturnStr", "失败");                               
+                                    gAppUpper.Body.dic.Add("ReturnStr", "失败");
                                     gAppUpper.Body.dic.Add("ftpUsrName", DataController.StrFtpUserId);
                                     gAppUpper.Body.dic.Add("ftpPwd", DataController.StrFtpUserPsw);
                                     gAppUpper.Body.dic.Add("ftpRootDir", DataController.StrFtpUpdateDir);
@@ -15534,7 +16766,7 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            if (fullname == "" )
+                            if (fullname == "")
                             {
                                 string errInfo = get_debug_info() + "获取fullname失败.";
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -15545,7 +16777,7 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            if ((int)RC.NO_EXIST == gDbHelper.device_unknown_record_exist(ipAddr, int.Parse(port)))
+                            if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr))
                             {
                                 string errInfo = string.Format("{0}:{1}对应的未指派设备不存在.", ipAddr, port);
 
@@ -15562,7 +16794,7 @@ namespace ScannerBackgrdServer
                             #region 发下命令设置fullname           
 
                             DataTable dt = new DataTable();
-                            if (0 != gDbHelper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, int.Parse(port), ref dt))
+                            if (0 != gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, int.Parse(port), ref dt))
                             {
                                 string errInfo = get_debug_info() + "device_unknown_record_entity_get_by_ipaddr_port失败.";
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -15600,7 +16832,7 @@ namespace ScannerBackgrdServer
 
                             //byte[] gbk = Encoding.GetEncoding("GBK").GetBytes(fullname);
 
-                           // byte[] gbk = Encoding.Default.GetBytes(fullname);
+                            // byte[] gbk = Encoding.Default.GetBytes(fullname);
 
 
                             //string code = "";
@@ -15613,7 +16845,7 @@ namespace ScannerBackgrdServer
 
                             // string code = Encoding.GetEncoding("GBK").GetString(gbk);
 
-                           // string code = Encoding.GetEncoding("GBK").GetString(gbk);                           
+                            // string code = Encoding.GetEncoding("GBK").GetString(gbk);                           
 
                             //string temp = string.Empty;
                             //UTF8Encoding utf8 = new UTF8Encoding();
@@ -15646,7 +16878,7 @@ namespace ScannerBackgrdServer
                             gTimerSetFullName.Imms = gAppUpper;
 
                             gTimerSetFullName.Elapsed += new System.Timers.ElapsedEventHandler(TimerFunc);
-                            gTimerSetFullName.Start();                            
+                            gTimerSetFullName.Start();
 
                             #endregion
 
@@ -15661,7 +16893,7 @@ namespace ScannerBackgrdServer
                             //   "carry":"0"           //GSM的载波标识，"0"或者"1"
 
                             int rtv = -1;
-                            strDevice devInfo = new strDevice();                       
+                            strDevice devInfo = new strDevice();
                             string mode = "";
 
                             string parentFullPathName = "";
@@ -15697,12 +16929,12 @@ namespace ScannerBackgrdServer
                             #endregion
 
                             #region 返回消息
-                           
+
                             strDomian domian = new strDomian();
                             string devFullPathName = string.Format("{0}.{1}", parentFullPathName, name);
 
                             if (!gDicDeviceId.ContainsKey(devFullPathName))
-                            {                  
+                            {
                                 string errInfo = string.Format("{0}:对应的设备ID在gDicDeviceId中找不到", devFullPathName);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -15714,22 +16946,21 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
-                                rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
+                                rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
                                 if (rtv == 0)
                                 {
                                     int id = -1;
-                                    rtv = gDbHelper.device_record_id_get_by_affdomainid_and_name(domian.id, name, ref id, ref mode);
+                                    rtv = gDbHelperUpper.device_record_id_get_by_affdomainid_and_name(domian.id, name, ref id, ref mode);
                                 }
                             }
-
 
                             str_Gsm_All_Para allInfo = new str_Gsm_All_Para();
 
                             //(1)
-                            rtv = gDbHelper.gsm_sys_para_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmSysPara);
+                            rtv = gDbHelperUpper.gsm_sys_para_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmSysPara);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gsm_sys_para_record_get_by_devid出错：") + gDbHelper.get_rtv_str(rtv);
+                                string errInfo = string.Format("gsm_sys_para_record_get_by_devid出错：") + gDbHelperUpper.get_rtv_str(rtv);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15739,10 +16970,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(2)
-                            rtv = gDbHelper.gsm_sys_option_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmSysOption);
+                            rtv = gDbHelperUpper.gsm_sys_option_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmSysOption);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:")  +gDbHelper.get_rtv_str(rtv); ;
+                                string errInfo = string.Format("gsm_sys_option_record_get_by_devid出错:") + gDbHelperUpper.get_rtv_str(rtv); ;
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15752,10 +16983,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(3)
-                            rtv = gDbHelper.gsm_rf_para_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmRfPara);
+                            rtv = gDbHelperUpper.gsm_rf_para_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gsmRfPara);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错") + gDbHelper.get_rtv_str(rtv);
+                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错") + gDbHelperUpper.get_rtv_str(rtv);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15765,10 +16996,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(4)
-                            rtv = gDbHelper.gsm_msg_option_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.listGMO);
+                            rtv = gDbHelperUpper.gsm_msg_option_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.listGMO);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gsm_msg_option_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv); ;
+                                string errInfo = string.Format("gsm_msg_option_get_by_devid出错:") + gDbHelperUpper.get_rtv_str(rtv); ;
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15777,7 +17008,7 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GsmInfo_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GsmInfo_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
@@ -15830,6 +17061,47 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("rfFreq", allInfo.gsmRfPara.rfFreq);
                             gAppUpper.Body.dic.Add("rfPwr", allInfo.gsmRfPara.rfPwr);
 
+                            // 2018-08-20
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime1Start))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime1Start", allInfo.gsmRfPara.activeTime1Start);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime1Ended))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime1Ended", allInfo.gsmRfPara.activeTime1Ended);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime2Start))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime2Start", allInfo.gsmRfPara.activeTime2Start);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime2Ended))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime2Ended", allInfo.gsmRfPara.activeTime2Ended);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime3Start))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime3Start", allInfo.gsmRfPara.activeTime3Start);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime3Ended))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime3Ended", allInfo.gsmRfPara.activeTime3Ended);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime4Start))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime4Start", allInfo.gsmRfPara.activeTime4Start);
+                            }
+
+                            if (!string.IsNullOrEmpty(allInfo.gsmRfPara.activeTime4Ended))
+                            {
+                                gAppUpper.Body.dic.Add("activeTime4Ended", allInfo.gsmRfPara.activeTime4Ended);
+                            }
+
                             if (allInfo.listGMO.Count > 0)
                             {
                                 //          "smsRPOA":短消息中心号码
@@ -15858,7 +17130,7 @@ namespace ScannerBackgrdServer
 
                                     gAppUpper.Body.n_dic.Add(ndic);
                                 }
-                            }                          
+                            }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
                             break;
@@ -15938,21 +17210,21 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
-                                rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
+                                rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
                                 if (rtv == 0)
                                 {
                                     int id = -1;
-                                    rtv = gDbHelper.device_record_id_get_by_affdomainid_and_name(domian.id, name, ref id, ref mode);
+                                    rtv = gDbHelperUpper.device_record_id_get_by_affdomainid_and_name(domian.id, name, ref id, ref mode);
                                 }
                             }
 
                             str_GC_All_Para allInfo = new str_GC_All_Para();
 
                             //(1)
-                            rtv = gDbHelper.gc_param_config_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcParamConfig);
+                            rtv = gDbHelperUpper.gc_param_config_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcParamConfig);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gc_param_config_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv); ;
+                                string errInfo = string.Format("gc_param_config_record_get_by_devid出错:") + gDbHelperUpper.get_rtv_str(rtv); ;
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15962,10 +17234,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(2)
-                            rtv = gDbHelper.gc_misc_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcMisc);
+                            rtv = gDbHelperUpper.gc_misc_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcMisc);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gc_misc_record_get_by_devid出错") + gDbHelper.get_rtv_str(rtv);
+                                string errInfo = string.Format("gc_misc_record_get_by_devid出错") + gDbHelperUpper.get_rtv_str(rtv);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15975,10 +17247,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(3)
-                            rtv = gDbHelper.gc_imsi_action_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.listGcImsiAction);
+                            rtv = gDbHelperUpper.gc_imsi_action_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.listGcImsiAction);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gc_imsi_action_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv); ;
+                                string errInfo = string.Format("gc_imsi_action_record_get_by_devid出错:") + gDbHelperUpper.get_rtv_str(rtv); ;
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -15988,10 +17260,10 @@ namespace ScannerBackgrdServer
                             }
 
                             //(4)
-                            rtv = gDbHelper.gc_carrier_msg_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcCarrierMsg);
+                            rtv = gDbHelperUpper.gc_carrier_msg_record_get_by_devid(int.Parse(carry), devInfo.id, ref allInfo.gcCarrierMsg);
                             if (rtv != 0)
                             {
-                                string errInfo = string.Format("gc_carrier_msg_record_get_by_devid出错:") + gDbHelper.get_rtv_str(rtv); ;
+                                string errInfo = string.Format("gc_carrier_msg_record_get_by_devid出错:") + gDbHelperUpper.get_rtv_str(rtv); ;
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -16001,7 +17273,7 @@ namespace ScannerBackgrdServer
                             }
 
 
-                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GCInfo_Response, rtv, gDbHelper.get_rtv_str(rtv), true, null, null);
+                            Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_get_GCInfo_Response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
@@ -16060,6 +17332,48 @@ namespace ScannerBackgrdServer
 
                                 ndic.dic.Add("wTraceLen", allInfo.gcMisc.wTraceLen);
                                 ndic.dic.Add("cTrace", allInfo.gcMisc.cTrace);
+                                gAppUpper.Body.n_dic.Add(ndic);
+                            }
+
+
+                            //     2018-08-20
+                            //       "name":"TIME_CONTROL",            // 2018-08-20
+                            //      {
+                            //                  "activeTime1Start":"09:30:00"  生效时间1的起始时间
+                            //                  "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+                            //                  "activeTime2Start":"13:30:00"  生效时间2的起始时间
+                            //                  "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+                            //                  "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+                            //                  "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+                            //                  "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+                            //                  "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
+                            //       }
+                            if (!string.IsNullOrEmpty(allInfo.gcMisc.activeTime1Start))
+                            {
+                                ndic = new Name_DIC_Struct();
+                                ndic.name = "TIME_CONTROL";
+
+                                ndic.dic.Add("activeTime1Start", allInfo.gcMisc.activeTime1Start);
+                                ndic.dic.Add("activeTime1Ended", allInfo.gcMisc.activeTime1Ended);
+
+                                if (!string.IsNullOrEmpty(allInfo.gcMisc.activeTime2Start))
+                                {
+                                    ndic.dic.Add("activeTime2Start", allInfo.gcMisc.activeTime2Start);
+                                    ndic.dic.Add("activeTime2Ended", allInfo.gcMisc.activeTime2Ended);
+                                }
+
+                                if (!string.IsNullOrEmpty(allInfo.gcMisc.activeTime3Start))
+                                {
+                                    ndic.dic.Add("activeTime3Start", allInfo.gcMisc.activeTime3Start);
+                                    ndic.dic.Add("activeTime3Ended", allInfo.gcMisc.activeTime3Ended);
+                                }
+
+                                if (!string.IsNullOrEmpty(allInfo.gcMisc.activeTime4Start))
+                                {
+                                    ndic.dic.Add("activeTime4Start", allInfo.gcMisc.activeTime4Start);
+                                    ndic.dic.Add("activeTime4Ended", allInfo.gcMisc.activeTime4Ended);
+                                }
+
                                 gAppUpper.Body.n_dic.Add(ndic);
                             }
 
@@ -16359,7 +17673,7 @@ namespace ScannerBackgrdServer
                             strDevice strDev = new strDevice();
 
                             //通过设备ID获取对应的记录（获取最新的上下线信息）
-                            rtv = gDbHelper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
+                            rtv = gDbHelperUpper.device_record_entity_get_by_devid(devInfo.id, ref strDev);
                             if (rtv == 0)
                             {
                                 if (strDev.online == "0")
@@ -16372,7 +17686,7 @@ namespace ScannerBackgrdServer
                                     Send_Msg_2_AppCtrl_Upper(gAppUpper);
                                     break;
                                 }
-                             
+
                                 gAppUpper.ApInfo.SN = strDev.sn;
                                 gAppUpper.ApInfo.Fullname = devFullPathName;
                                 gAppUpper.ApInfo.IP = strDev.ipAddr;
@@ -16395,7 +17709,7 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.dic.Add("additionalFreq", gRedirectionInfo.additionalFreq);
 
                                 //发送给ApController
-                                Send_Msg_2_ApCtrl_Lower(gAppUpper);              
+                                Send_Msg_2_ApCtrl_Lower(gAppUpper);
 
                                 #region 启动超时计时器 
 
@@ -16413,16 +17727,16 @@ namespace ScannerBackgrdServer
 
                                 // 临时测试
                                 ////保存到库中
-                                //if ((int)RC.EXIST == gDbHelper.redirection_record_exist(int.Parse(gRedirectionInfo.category), devInfo.id))
+                                //if ((int)RC.EXIST == gDbHelperUpper.redirection_record_exist(int.Parse(gRedirectionInfo.category), devInfo.id))
                                 //{
                                 //    //记录存在，只是更新
-                                //    gDbHelper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
+                                //    gDbHelperUpper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
                                 //}
                                 //else
                                 //{
                                 //    //记录不存在，先插入，再更新
-                                //    gDbHelper.redirection_record_insert(int.Parse(gRedirectionInfo.category), devInfo.id);
-                                //    gDbHelper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
+                                //    gDbHelperUpper.redirection_record_insert(int.Parse(gRedirectionInfo.category), devInfo.id);
+                                //    gDbHelperUpper.redirection_record_update(int.Parse(gRedirectionInfo.category), devInfo.id, gRedirectionInfo);
                                 //}
 
                                 #endregion
@@ -16431,16 +17745,16 @@ namespace ScannerBackgrdServer
                             }
                             else
                             {
-                                string errInfo = get_debug_info() + gDbHelper.get_rtv_str(rtv);
+                                string errInfo = get_debug_info() + gDbHelperUpper.get_rtv_str(rtv);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
                                 Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_redirection_response, rtv, errInfo, true, null, null);
                                 Send_Msg_2_AppCtrl_Upper(gAppUpper);
-                                break;                                                       
+                                break;
                             }
-                            
-                            #endregion                                         
+
+                            #endregion
                         }
                     case AppMsgType.app_get_redirection_request:
                         {
@@ -16503,7 +17817,7 @@ namespace ScannerBackgrdServer
                             #endregion
 
                             #region 返回消息
-                       
+
                             strDomian domian = new strDomian();
                             devFullPathName = string.Format("{0}.{1}", parentFullPathName, name);
 
@@ -16526,10 +17840,10 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 devInfo = gDicDeviceId[devFullPathName];
-                                rtv = gDbHelper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
+                                rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(parentFullPathName, ref domian);
                                 if ((int)RC.SUCCESS != rtv)
                                 {
-                                    string info = "domain_record_get_by_nameFullPath,出错" + gDbHelper.get_rtv_str(rtv);
+                                    string info = "domain_record_get_by_nameFullPath,出错" + gDbHelperUpper.get_rtv_str(rtv);
 
                                     add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
@@ -16545,10 +17859,10 @@ namespace ScannerBackgrdServer
                                 }
                             }
 
-                            rtv = gDbHelper.redirection_record_get_by_devid(int.Parse(category), devInfo.id, ref strRd);
+                            rtv = gDbHelperUpper.redirection_record_get_by_devid(int.Parse(category), devInfo.id, ref strRd);
                             if ((int)RC.SUCCESS != rtv)
                             {
-                                string info = "redirection_record_get_by_devid,出错" + gDbHelper.get_rtv_str(rtv);
+                                string info = "redirection_record_get_by_devid,出错" + gDbHelperUpper.get_rtv_str(rtv);
 
                                 add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
@@ -16567,7 +17881,7 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.type = AppMsgType.app_get_redirection_response;
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("ReturnCode", rtv);
-                            gAppUpper.Body.dic.Add("ReturnStr", gDbHelper.get_rtv_str(rtv));
+                            gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
 
                             gAppUpper.Body.dic.Add("domainId", domian.id.ToString());
                             gAppUpper.Body.dic.Add("domainParentId", domian.parentId.ToString());
@@ -16730,7 +18044,7 @@ namespace ScannerBackgrdServer
 
                             //发给设备
                             Send_Msg_2_ApCtrl_Lower(gAppUpper);
-                            
+
                             rv = -1;
                             break;
 
@@ -16740,8 +18054,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -16794,7 +18108,7 @@ namespace ScannerBackgrdServer
 
         private int db_batch_process_delegate_fun(List<strCapture> listSC)
         {
-            if(gDbHelper.MyDbConnFlag == false)
+            if(gDbHelperOther.MyDbConnFlag == false)
             {
                 Logger.Trace(LogInfoType.EROR, "尚未连接到数据库!", "Main", LogCategory.I);
                 return -1;
@@ -16811,11 +18125,11 @@ namespace ScannerBackgrdServer
 
             try
             {
-                int rv = gDbHelper.capture_record_insert_batch(listSC);
+                int rv = gDbHelperOther.capture_record_insert_batch(listSC);
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
             }
 
             sw.Stop();
@@ -16833,54 +18147,57 @@ namespace ScannerBackgrdServer
 
             return 0;
         }
-
-        private int re_connection_db_cnt = 1;
-        private void re_connection_db()
+       
+        private void re_connection_db(ref DbHelper helper,string name,ref int reConnCnt)
         {
             try
             {                
-                if (gDbHelper.ConnIsClosed())
+                if (helper.Conn_Is_Closed_Or_Abnormal())
                 {
-                    add_log_info(LogInfoType.EROR, "ConnectionState is NO.", "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.EROR, "ConnectionState is NO.", "Main", LogCategory.I);
+                    string info = string.Format("{0}:ConnectionState is NO.",name);
+                    add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
 
-                    gDbHelper.MyDbConnFlag = false;
-                    gDbHelper = new DbHelper(DataController.StrDbIpAddr,
+                    helper.MyDbConnFlag = false;
+                    helper = new DbHelper(DataController.StrDbIpAddr,
                                              DataController.StrDbName,
                                              DataController.StrDbUserId,
                                              DataController.StrDbUserPsw,
                                              DataController.StrDbPort);
 
-                    string tmp = string.Format("{0},{1},{2},{3},{4},cnt = {5}", DataController.StrDbIpAddr,
+                    reConnCnt++;
+                    string tmp = string.Format("{0},{1},{2},{3},{4},cnt = {5}", 
+                                              DataController.StrDbIpAddr,
                                               DataController.StrDbName,
                                               DataController.StrDbUserId,
                                               DataController.StrDbUserPsw,
                                               DataController.StrDbPort,
-                                              re_connection_db_cnt++);
+                                              reConnCnt);
 
 
-                    if (gDbHelper.MyDbConnFlag == true)
+                    if (helper.MyDbConnFlag == true)
                     {
-                        add_log_info(LogInfoType.INFO, "重连数据库:【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
-                        Logger.Trace(LogInfoType.INFO, "重连数据库:【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
+                        info = string.Format("{0}:重连数据库:【{1}->连接数据库OK！】", name, tmp);
+                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
                     }
                     else
                     {
-                        add_log_info(LogInfoType.EROR, "重连数据库:【" + tmp + " -> 连接数据库FAILED！】", "Main", LogCategory.I);
-                        Logger.Trace(LogInfoType.EROR, "重连数据库:【" + tmp + " -> 连接数据库FAILED！】", "Main", LogCategory.I);
-
-                        //MessageBox.Show("重连数据库:【" + tmp + " -> 连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);   
+                        info = string.Format("{0}:重连数据库:【{1}->连接数据库FAILED！】", name, tmp);
+                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);                                    
                     }
                 }
                 else
                 {
-                    add_log_info(LogInfoType.INFO, "ConnectionState is OK.", "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.INFO, "ConnectionState is OK.", "Main", LogCategory.I);
+                    string info = string.Format("{0}:ConnectionState is OK.", name);
+                    add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
                 }
             }
             catch (Exception ee)
             {
-                string info = string.Format("re_connection_db : {0}", ee.Message);
+                string info = string.Format("{0}:re_connection_db : {1}",name, ee.Message + ee.StackTrace);
                 add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
                 Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
             }
@@ -16892,18 +18209,14 @@ namespace ScannerBackgrdServer
         /// <param name="obj"></param>
         private void thread_for_db_helper(object obj)
         {
-            #region 初始化gDbHelper
+            #region 初始化gDbHelperUpper
 
             int DbMaxIdleSeconds = 60;
             int DbBatchUpdateRecordsLevel = 6;
             int DbBatchUpdateRecords = -1;
             List<int> DbBatchUpdateRecordsLevelList = new List<int>();
 
-            gDbHelper = new DbHelper(DataController.StrDbIpAddr,
-                                     DataController.StrDbName,
-                                     DataController.StrDbUserId,
-                                     DataController.StrDbUserPsw,
-                                     DataController.StrDbPort);
+            #region gDbHelperLower
 
             string tmp = string.Format("{0},{1},{2},{3},{4}", DataController.StrDbIpAddr,
                                       DataController.StrDbName,
@@ -16911,14 +18224,20 @@ namespace ScannerBackgrdServer
                                       DataController.StrDbUserPsw,
                                       DataController.StrDbPort);
 
-            if (gDbHelper.MyDbConnFlag == true)
+            gDbHelperLower = new DbHelper(DataController.StrDbIpAddr,
+                                     DataController.StrDbName,
+                                     DataController.StrDbUserId,
+                                     DataController.StrDbUserPsw,
+                                     DataController.StrDbPort);
+           
+            if (gDbHelperLower.MyDbConnFlag == true)
             {
-                add_log_info(LogInfoType.INFO, "【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> 连接数据库OK！】", "Main", LogCategory.I);
+                add_log_info(LogInfoType.INFO, "【" + tmp + " -> gDbHelperLower连接数据库OK！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> gDbHelperLower连接数据库OK！】", "Main", LogCategory.I);
 
 
                 //将所有设备设置为下线           
-                if (0 == gDbHelper.device_record_clear_online())
+                if (0 == gDbHelperLower.device_record_clear_online())
                 {
                     add_log_info(LogInfoType.INFO, "device_record_clear_online -> OK！", "Main", LogCategory.I);
                 }
@@ -16928,7 +18247,7 @@ namespace ScannerBackgrdServer
                 }
 
                 //在设备(未指派)表中清空所有的记录               
-                if (0 == gDbHelper.device_unknown_record_clear())
+                if (0 == gDbHelperLower.device_unknown_record_clear())
                 {
                     add_log_info(LogInfoType.INFO, "device_unknown_record_clear -> OK！", "Main", LogCategory.I);
                 }
@@ -16941,7 +18260,7 @@ namespace ScannerBackgrdServer
                 sw.Start();
 
                 //用于快速通过设备的全名早点设备对应的ID
-                if (0 == gDbHelper.domain_dictionary_info_join_get(ref gDicDeviceId))
+                if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDeviceId))
                 {
                     add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
                     Logger.Trace(LogInfoType.INFO, "gDicDeviceId -> 获取OK！", "Main", LogCategory.I);
@@ -16960,7 +18279,7 @@ namespace ScannerBackgrdServer
                 Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
 
 
-                //if (0 == gDbHelper.domain_dictionary_info_get(ref gDicDeviceId))
+                //if (0 == gDbHelperUpper.domain_dictionary_info_get(ref gDicDeviceId))
                 //{
                 //    add_log_info(LogInfoType.INFO, "gDicDeviceId -> 获取OK！");
                 //}
@@ -16975,15 +18294,64 @@ namespace ScannerBackgrdServer
             }
             else
             {
-                add_log_info(LogInfoType.EROR, "【" + tmp + " -> 连接数据库FAILED！】", "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> 连接数据库FAILED！】", "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, "【" + tmp + " -> gDbHelperLower连接数据库FAILED！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> gDbHelperLower连接数据库FAILED！】", "Main", LogCategory.I);
 
                 //MessageBox.Show("数据库连接失败，请确认配置信息!", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                MessageBox.Show("【" + tmp + " -> 连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+                MessageBox.Show("【" + tmp + " -> gDbHelperLower连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
                 Process.GetCurrentProcess().Kill();
             }
 
+            #endregion
+
+            #region gDbHelperUpper         
+
+            gDbHelperUpper = new DbHelper(DataController.StrDbIpAddr,
+                                     DataController.StrDbName,
+                                     DataController.StrDbUserId,
+                                     DataController.StrDbUserPsw,
+                                     DataController.StrDbPort);
+
+            if (gDbHelperUpper.MyDbConnFlag == true)
+            {
+                add_log_info(LogInfoType.INFO, "【" + tmp + " -> gDbHelperUpper连接数据库OK！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> gDbHelperUpper连接数据库OK！】", "Main", LogCategory.I);                                                   
+            }
+            else
+            {
+                add_log_info(LogInfoType.EROR, "【" + tmp + " -> gDbHelperUpper连接数据库FAILED！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> gDbHelperUpper连接数据库FAILED！】", "Main", LogCategory.I);
+               
+                MessageBox.Show("【" + tmp + " -> gDbHelperUpper连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+                Process.GetCurrentProcess().Kill();
+            }
+
+            #endregion
+
+            #region gDbHelperOther         
+
+            gDbHelperOther = new DbHelper(DataController.StrDbIpAddr,
+                                     DataController.StrDbName,
+                                     DataController.StrDbUserId,
+                                     DataController.StrDbUserPsw,
+                                     DataController.StrDbPort);
+
+            if (gDbHelperOther.MyDbConnFlag == true)
+            {
+                add_log_info(LogInfoType.INFO, "【" + tmp + " -> gDbHelperOther连接数据库OK！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> gDbHelperOther连接数据库OK！】", "Main", LogCategory.I);
+            }
+            else
+            {
+                add_log_info(LogInfoType.EROR, "【" + tmp + " -> gDbHelperOther连接数据库FAILED！】", "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> gDbHelperOther连接数据库FAILED！】", "Main", LogCategory.I);
+
+                MessageBox.Show("【" + tmp + " -> gDbHelperOther连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+                Process.GetCurrentProcess().Kill();
+            }
+
+            #endregion
 
             try
             {
@@ -16994,7 +18362,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message + "StrDbMaxIdleSeconds解析出错", "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + "StrDbMaxIdleSeconds解析出错", "Main", LogCategory.I);
                 DbMaxIdleSeconds = 60;
                 DbBatchUpdateRecordsLevel = 6;
                 get_level_list(ref DbBatchUpdateRecordsLevelList, DbBatchUpdateRecordsLevel);
@@ -17018,12 +18386,17 @@ namespace ScannerBackgrdServer
              * wait_timeout = 8*3600
              * 即每隔fix_for_wait_timeout的时间（秒数）就访问一下数据库
              */
-            int fix_for_wait_timeout = 8; //10*60;
+            int fix_for_wait_timeout = 60; //10*60;
+            int reConnCnt = 0;
 
             DateTime startTimeConn = System.DateTime.Now;
             DateTime endTimeConn = System.DateTime.Now;
             TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
+            long monitorCnt = 0;
+            DateTime startMonitor = System.DateTime.Now;
+            DateTime endedMonitor = System.DateTime.Now;
+            TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
 
             while (true)
             {
@@ -17038,6 +18411,33 @@ namespace ScannerBackgrdServer
 
                 try
                 {
+                    #region 显示运行状态
+
+                    endedMonitor = System.DateTime.Now;
+                    tsMonitor = endedMonitor.Subtract(startMonitor);
+
+                    if (tsMonitor.TotalSeconds >= 10)
+                    {
+                        monitorCnt++;
+                        string info = string.Format("D{0}", monitorCnt % 10);                        
+
+                        BeginInvoke(new monitor_thread_status_delegate(monitor_thread_status_delegate_fun), new object[] { 2, info });
+
+                        // 复位计时器
+                        startMonitor = System.DateTime.Now;
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
+
+                try
+                {
                     #region 防止自动断开该连接的问题
 
                     endTimeConn = System.DateTime.Now;
@@ -17046,17 +18446,16 @@ namespace ScannerBackgrdServer
                     if (tsConn.TotalSeconds >= fix_for_wait_timeout)
                     {
                         // 2018-08-09
-                        re_connection_db();
+                        re_connection_db(ref gDbHelperOther, "gDbHelperOther",ref reConnCnt);
 
                         Thread.Sleep(5);
-                        List<string> listAllTbl = new List<string>();
 
-                        if (gDbHelper.MyDbConnFlag)
+                        if (gDbHelperOther.MyDbConnFlag)
                         {
-                            listAllTbl = gDbHelper.Get_All_TableName();
+                            List<string> listAllTbl = new List<string>();
+                            listAllTbl = gDbHelperOther.Get_All_ColumnName("user");
                         }
-
-                        Logger.Trace(LogInfoType.INFO, "fix_for_wait_timeout:" + listAllTbl.Count.ToString(), "Main", LogCategory.I);
+                        
                         startTimeConn = System.DateTime.Now;
                     }
 
@@ -17065,8 +18464,9 @@ namespace ScannerBackgrdServer
                 catch (Exception ee)
                 {
                     startTimeConn = System.DateTime.Now;
-                    add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
 
                 try
@@ -17183,8 +18583,9 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
                 }
             }
         }
@@ -17226,7 +18627,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                 if (e.Message.Contains("中止"))
                 {
                     gFtpHelperImsi.Connected = false;
@@ -17422,8 +18823,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -17635,8 +19036,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -17664,8 +19065,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -17820,8 +19221,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
                 return -1;
             }
 
@@ -17979,7 +19380,7 @@ namespace ScannerBackgrdServer
         /// </summary>
         /// <param name="obj"></param>
         private void thread_for_ftp_helper(object obj)
-        {       
+        {
             #region 初始化FtpHelper
 
             int FtpMaxIdleSeconds = 60;
@@ -18000,7 +19401,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message + "StrDbMaxIdleSeconds解析出错", "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace + "StrDbMaxIdleSeconds解析出错", "Main", LogCategory.I);
 
                 FtpMaxIdleSeconds = 60;
                 FtpBatchUpdateRecordsLevel = 6;
@@ -18019,7 +19420,7 @@ namespace ScannerBackgrdServer
                 {
                     gFtpHelperImsi.Connect();
                 }
-               
+
                 if (gFtpHelperImsi.Connected == true)
                 {
                     string info = string.Format("【{0} {1} {2} {3} {4} -> 连接FTP服务器OK！】",
@@ -18050,8 +19451,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
             }
 
 
@@ -18098,8 +19499,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
             }
 
             #endregion
@@ -18115,7 +19516,7 @@ namespace ScannerBackgrdServer
 
             DateTime startTimeConn = System.DateTime.Now;
             DateTime endTimeConn = System.DateTime.Now;
-            TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);            
+            TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
             List<strCapture> batchData0 = new List<strCapture>();
             List<strCapture> batchData1 = new List<strCapture>();
@@ -18125,23 +19526,51 @@ namespace ScannerBackgrdServer
 
             #endregion
 
-            try
-            {
-                while (true)
-                {
-                    #region Sleep处理
+            long monitorCnt = 0;
+            DateTime startMonitor = System.DateTime.Now;
+            DateTime endedMonitor = System.DateTime.Now;
+            TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
 
-                    if (noMsg)
+            while (true)
+            {          
+                if (noMsg)
+                {
+                    Thread.Sleep(100);
+                }
+                else
+                {
+                    //Thread.Sleep(1);
+                }
+
+                try
+                {
+                    #region 显示运行状态
+
+                    endedMonitor = System.DateTime.Now;
+                    tsMonitor = endedMonitor.Subtract(startMonitor);
+
+                    if (tsMonitor.TotalSeconds >= 10)
                     {
-                        Thread.Sleep(100);
-                    }
-                    else
-                    {
-                        //Thread.Sleep(1);
+                        monitorCnt++;
+                        string info = string.Format("F{0}", monitorCnt % 10);                        
+
+                        BeginInvoke(new monitor_thread_status_delegate(monitor_thread_status_delegate_fun), new object[] { 3, info });
+
+                        // 复位计时器
+                        startMonitor = System.DateTime.Now;
                     }
 
                     #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
 
+                try
+                {
                     #region keepAlive处理
 
                     endTimeConn = System.DateTime.Now;
@@ -18155,7 +19584,7 @@ namespace ScannerBackgrdServer
                         #region gFtpHelperImsi
 
                         try
-                        {                                                       
+                        {
                             if (keepAliveMode == 0)
                             {
                                 if (gFtpHelperImsi.Connected == false)
@@ -18180,12 +19609,12 @@ namespace ScannerBackgrdServer
                             {
                                 gFtpHelperImsi.Connected = false;
                                 gFtpHelperImsi.Connect();
-                            }                                                 
+                            }
                         }
                         catch (Exception e)
                         {
-                            add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                            add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
 
                             if (keepAliveMode == 0)
                             {
@@ -18198,12 +19627,12 @@ namespace ScannerBackgrdServer
                             }
                         }
 
-                        #endregion       
+                        #endregion
 
                         #region gFtpHelperFile
 
                         try
-                        {                                                                                                              
+                        {
                             if (keepAliveMode == 0)
                             {
                                 if (gFtpHelperFile.Connected == false)
@@ -18228,16 +19657,16 @@ namespace ScannerBackgrdServer
                             {
                                 gFtpHelperFile.Connected = false;
                                 gFtpHelperFile.Connect();
-                            }                                             
+                            }
                         }
                         catch (Exception e)
                         {
-                            add_log_info(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
-                            Logger.Trace(LogInfoType.EROR, e.Message, "Main", LogCategory.I);
+                            add_log_info(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
+                            Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "Main", LogCategory.I);
 
                             if (keepAliveMode == 0)
                             {
-                                string errInfo = string.Format("异常：{0}，gFtpHelperFile重连FTP服务器...", e.Message);
+                                string errInfo = string.Format("异常：{0}，gFtpHelperFile重连FTP服务器...", e.Message + e.StackTrace);
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -18246,7 +19675,7 @@ namespace ScannerBackgrdServer
                             }
                         }
 
-                        #endregion           
+                        #endregion
 
                         #region 计时复位
 
@@ -18256,7 +19685,16 @@ namespace ScannerBackgrdServer
                     }
 
                     #endregion
+                }
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
 
+                try
+                {
                     #region 上传处理
 
                     lock (mutex_FtpHelper)
@@ -18370,11 +19808,12 @@ namespace ScannerBackgrdServer
 
                     #endregion
                 }
-            }
-            catch (Exception ee)
-            {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                catch (Exception ee)
+                {
+                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
             }
         }
 
@@ -18425,8 +19864,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
             }
 
             #endregion
@@ -18439,8 +19878,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                add_log_info(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
             }
 
             #endregion                     
@@ -18453,7 +19892,7 @@ namespace ScannerBackgrdServer
 
                 button1.Visible = false;
                 button2.Visible = false;
-               // button3.Visible = false;
+                button3.Visible = false;
                 button4.Visible = false;
                 button5.Visible = false;
                 button6.Visible = false;
@@ -18473,6 +19912,11 @@ namespace ScannerBackgrdServer
                 label2.Visible = false;
                 //timer1.Enabled = false;
 
+                label4.Visible = false;
+                labelAp1.Visible = false;
+                labelApp1.Visible = false;
+                labelDb1.Visible = false;
+                labelFtp1.Visible = false;
 
                 button16.Visible = false;
                 label5.Visible = false;
@@ -18497,7 +19941,8 @@ namespace ScannerBackgrdServer
                 label_time.Text = System.IO.File.GetLastWriteTime(this.GetType().Assembly.Location).ToString("yyyy-MM-dd");
 
                 label_ver.Location = new Point(5, 5);
-                label_time.Location = new Point(5, 25);                
+                label_time.Location = new Point(5, 25);
+                labelSVN.Location = new Point(5, 45);
 
                 panel1.Visible = false;
                 richTextBoxLog.Visible = false;
@@ -18514,10 +19959,6 @@ namespace ScannerBackgrdServer
  
         private void FrmMainController_Load(object sender, EventArgs e)
         {
-
-            uint i = Convert.ToUInt32("0xee868cd4", 16);
-
-
             #region 启动UI的Log线程
 
             if (ThreadFlag_For_UI_Logger)
@@ -18775,7 +20216,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
                 }
             }
         }
@@ -18793,7 +20234,7 @@ namespace ScannerBackgrdServer
 
         private void button3_Click(object sender, EventArgs e)
         {
-            gDbHelper.CloseDbConn();
+            gDbHelperUpper.CloseDbConn();
 
             //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
             //add_log_info(LogInfoType.INFO, "11111111111111111111", "Main", LogCategory.I);
@@ -18834,7 +20275,7 @@ namespace ScannerBackgrdServer
 
             ////GetProcessThreadInfomation();
             //strGcMisc gm = new strGcMisc();
-            //gDbHelper.gc_misc_record_get_by_devid(-1, 1, ref gm);
+            //gDbHelperUpper.gc_misc_record_get_by_devid(-1, 1, ref gm);
             //Logger.Trace(LogInfoType.EROR, "this is elephant speaking!", "Main", LogCategory.I);
 
             //add_log_info(LogInfoType.EROR, null, "Main", LogCategory.I);
@@ -18847,7 +20288,7 @@ namespace ScannerBackgrdServer
             //}
             //catch (Exception ee)
             //{
-            //    Logger.Trace(LogInfoType.EROR, ee.Message, "Main", LogCategory.I);
+            //    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
             //}                    
         }
 
@@ -18918,9 +20359,9 @@ namespace ScannerBackgrdServer
             cq.timeEnded = "2018-06-29 12:34:56";
 
 
-            //int ret  = gDbHelper.update_info_record_insert("f1d63db8b273b92b51339c78f8d04227", "1.tar.gz","x.y.z");
+            //int ret  = gDbHelperUpper.update_info_record_insert("f1d63db8b273b92b51339c78f8d04227", "1.tar.gz","x.y.z");
 
-            int ret = gDbHelper.capture_record_entity_query(ref dt,cq);
+            int ret = gDbHelperUpper.capture_record_entity_query(ref dt,cq);
 
             string str;
             foreach (DataRow dr in dt.Rows)
@@ -18943,7 +20384,7 @@ namespace ScannerBackgrdServer
 
 
             //DataTable dt = new DataTable();
-            //int ret = gDbHelper.user_record_entity_get(ref dt);
+            //int ret = gDbHelperUpper.user_record_entity_get(ref dt);
 
             //string str;
             //foreach (DataRow dr in dt.Rows)
@@ -18964,13 +20405,13 @@ namespace ScannerBackgrdServer
             //    //MessageBox.Show(str); 
             //}
 
-            ret = gDbHelper.user_record_insert("root1", "1234", "asdadfadsfdaf");
+            ret = gDbHelperUpper.user_record_insert("root1", "1234", "asdadfadsfdaf");
 
-            ret = gDbHelper.user_record_check("root1", "1234");
+            ret = gDbHelperUpper.user_record_check("root1", "1234");
 
-            ret = gDbHelper.user_record_update("root1", "1234", "123456");
+            ret = gDbHelperUpper.user_record_update("root1", "1234", "123456");
 
-            ret = gDbHelper.roletype_record_entity_get(ref dt);
+            ret = gDbHelperUpper.roletype_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -18989,12 +20430,12 @@ namespace ScannerBackgrdServer
                 //MessageBox.Show(str);
             }
 
-            //ret = gDbHelper.roletype_record_insert("elephant", "12345");
-            //ret = gDbHelper.roletype_record_insert("SuperAdmin", "12345");
+            //ret = gDbHelperUpper.roletype_record_insert("elephant", "12345");
+            //ret = gDbHelperUpper.roletype_record_insert("SuperAdmin", "12345");
 
-            //ret = gDbHelper.roletype_record_delete("elephant");
+            //ret = gDbHelperUpper.roletype_record_delete("elephant");
 
-            ret = gDbHelper.role_record_entity_get(ref dt);
+            ret = gDbHelperUpper.role_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19013,12 +20454,12 @@ namespace ScannerBackgrdServer
                 //MessageBox.Show(str);
             }
 
-            //ret = gDbHelper.role_record_insert("aaaaa", "Administrator", "2015-04-22", "2015-04-26", "adfad");
+            //ret = gDbHelperUpper.role_record_insert("aaaaa", "Administrator", "2015-04-22", "2015-04-26", "adfad");
 
-            ret = ret = gDbHelper.role_record_delete("aaaaa");
+            ret = ret = gDbHelperUpper.role_record_delete("aaaaa");
 
 
-            ret = gDbHelper.privilege_record_entity_get(ref dt);
+            ret = gDbHelperUpper.privilege_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19038,12 +20479,12 @@ namespace ScannerBackgrdServer
             }
 
 
-            //ret = gDbHelper.privilege_record_insert("111", "111", "111");
+            //ret = gDbHelperUpper.privilege_record_insert("111", "111", "111");
 
-            ret = gDbHelper.privilege_record_delete("111");
+            ret = gDbHelperUpper.privilege_record_delete("111");
 
 
-            ret = gDbHelper.userrole_record_entity_get(ref dt);
+            ret = gDbHelperUpper.userrole_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19062,12 +20503,12 @@ namespace ScannerBackgrdServer
                 //MessageBox.Show(str);
             }
 
-            ret = gDbHelper.userrole_record_insert("root1", "RoleAdmin", "ssss");
+            ret = gDbHelperUpper.userrole_record_insert("root1", "RoleAdmin", "ssss");
 
-            ret = gDbHelper.userrole_record_delete("root12", "RoleAdmin");
+            ret = gDbHelperUpper.userrole_record_delete("root12", "RoleAdmin");
 
 
-            ret = gDbHelper.roleprivilege_record_entity_get(ref dt);
+            ret = gDbHelperUpper.roleprivilege_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19086,33 +20527,33 @@ namespace ScannerBackgrdServer
                 MessageBox.Show(str);
             }
 
-            ret = gDbHelper.roleprivilege_record_insert("RoleAdmin", "1,2,3,4,5,6,7,8,9", "adsfadfd");
+            ret = gDbHelperUpper.roleprivilege_record_insert("RoleAdmin", "1,2,3,4,5,6,7,8,9", "adsfadfd");
 
 
-            //ret = gDbHelper.roleprivilege_record_insert("RoleSO", "1,2,3,4,5,6,7,8,9", "adsfadfd");
+            //ret = gDbHelperUpper.roleprivilege_record_insert("RoleSO", "1,2,3,4,5,6,7,8,9", "adsfadfd");
 
-            //ret = gDbHelper.roleprivilege_record_update("RoleSO", "1,2,3,4,5,6,7,8,9,10,11", "adsfadfd");
+            //ret = gDbHelperUpper.roleprivilege_record_update("RoleSO", "1,2,3,4,5,6,7,8,9,10,11", "adsfadfd");
 
-            ret = gDbHelper.roleprivilege_record_delete("RoleSO");
-
-
-            ret = gDbHelper.domain_record_insert("深圳", "设备", 0, "this is SZ");
-            ret = gDbHelper.domain_record_insert("东莞", "设备", 0, "this is DG");
-
-            ret = gDbHelper.domain_record_insert("福田", "设备.深圳", 0, "this is FT");
-            ret = gDbHelper.domain_record_insert("南山", "设备.深圳", 0, "this is NS");
-            ret = gDbHelper.domain_record_insert("城区", "设备.东莞", 0, "this is NS");
-
-            ret = gDbHelper.domain_record_insert("中心广场", "设备.深圳.福田", 0, "this is NS");
-            ret = gDbHelper.domain_record_insert("莲花山", "设备.深圳.福田", 0, "this is NS");
-
-            ret = gDbHelper.domain_record_insert("西北监控", "设备.深圳.福田.中心广场", 1, "this is elephant speaking");
-
-            //ret = gDbHelper.domain_record_delete("设备.广州");
-            //ret = gDbHelper.domain_record_delete("设备");
+            ret = gDbHelperUpper.roleprivilege_record_delete("RoleSO");
 
 
-            //ret = gDbHelper.domain_record_entity_get(ref dt,1);
+            ret = gDbHelperUpper.domain_record_insert("深圳", "设备", 0, "this is SZ");
+            ret = gDbHelperUpper.domain_record_insert("东莞", "设备", 0, "this is DG");
+
+            ret = gDbHelperUpper.domain_record_insert("福田", "设备.深圳", 0, "this is FT");
+            ret = gDbHelperUpper.domain_record_insert("南山", "设备.深圳", 0, "this is NS");
+            ret = gDbHelperUpper.domain_record_insert("城区", "设备.东莞", 0, "this is NS");
+
+            ret = gDbHelperUpper.domain_record_insert("中心广场", "设备.深圳.福田", 0, "this is NS");
+            ret = gDbHelperUpper.domain_record_insert("莲花山", "设备.深圳.福田", 0, "this is NS");
+
+            ret = gDbHelperUpper.domain_record_insert("西北监控", "设备.深圳.福田.中心广场", 1, "this is elephant speaking");
+
+            //ret = gDbHelperUpper.domain_record_delete("设备.广州");
+            //ret = gDbHelperUpper.domain_record_delete("设备");
+
+
+            //ret = gDbHelperUpper.domain_record_entity_get(ref dt,1);
             //foreach (DataRow dr in dt.Rows)
             //{
             //    str = "";
@@ -19131,16 +20572,16 @@ namespace ScannerBackgrdServer
             //    //MessageBox.Show(str);
             //}
 
-            //ret = gDbHelper.domain_record_rename("设备.深圳", "设备.广州");
+            //ret = gDbHelperUpper.domain_record_rename("设备.深圳", "设备.广州");
 
 
-            ret = gDbHelper.userdomain_record_insert("root", "1,2,3,4", "aaaaaaaaaa");
-            ret = gDbHelper.userdomain_record_insert("engi", "1,2,3,4", "aaaaaaaaaa");
+            ret = gDbHelperUpper.userdomain_record_insert("root", "1,2,3,4", "aaaaaaaaaa");
+            ret = gDbHelperUpper.userdomain_record_insert("engi", "1,2,3,4", "aaaaaaaaaa");
 
-            //ret = gDbHelper.userdomain_record_delete("root");
+            //ret = gDbHelperUpper.userdomain_record_delete("root");
 
 
-            ret = gDbHelper.userdomain_record_entity_get(ref dt);
+            ret = gDbHelperUpper.userdomain_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19161,14 +20602,14 @@ namespace ScannerBackgrdServer
 
 
 
-            // ret = gDbHelper.device_record_insert(9, "LTE-FDD1");
-            // ret = gDbHelper.device_record_insert(9, "LTE-FDD2");
-            // ret = gDbHelper.device_record_insert(9, "LTE-FDD3");
+            // ret = gDbHelperUpper.device_record_insert(9, "LTE-FDD1");
+            // ret = gDbHelperUpper.device_record_insert(9, "LTE-FDD2");
+            // ret = gDbHelperUpper.device_record_insert(9, "LTE-FDD3");
 
-            //ret = gDbHelper.device_record_delete(9, "LTE-FDD3");
+            //ret = gDbHelperUpper.device_record_delete(9, "LTE-FDD3");
 
 
-            ret = gDbHelper.device_record_insert(9, "LTE-FDD3-dd", "LTE-FDD");
+            ret = gDbHelperUpper.device_record_insert(9, "LTE-FDD3-dd", "LTE-FDD");
 
 
             strDevice dev = new strDevice();
@@ -19180,11 +20621,11 @@ namespace ScannerBackgrdServer
             dev.isActive = "1";
             dev.ipAddr = "172.17.0.210";
             dev.port = "56789";
-            ret = gDbHelper.device_record_update(9, "LTE-FDD2", dev);
+            ret = gDbHelperUpper.device_record_update(9, "LTE-FDD2", dev);
 
 
 
-            ret = gDbHelper.device_record_entity_get(ref dt);
+            ret = gDbHelperUpper.device_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 str = "";
@@ -19239,17 +20680,17 @@ namespace ScannerBackgrdServer
             //MessageBox.Show(str + "Stopwatch总共花费ms : " + ts22.TotalMilliseconds.ToString());
 
             //int ret = 0;
-            //ret = gDbHelper.domain_record_insert("深圳", "设备", 0, "this is SZ");
-            //ret = gDbHelper.domain_record_insert("东莞", "设备", 0, "this is DG");
+            //ret = gDbHelperUpper.domain_record_insert("深圳", "设备", 0, "this is SZ");
+            //ret = gDbHelperUpper.domain_record_insert("东莞", "设备", 0, "this is DG");
 
-            //ret = gDbHelper.domain_record_insert("福田", "设备.深圳", 0, "this is FT");
-            //ret = gDbHelper.domain_record_insert("南山", "设备.深圳", 0, "this is NS");
-            //ret = gDbHelper.domain_record_insert("城区", "设备.东莞", 0, "this is NS");
+            //ret = gDbHelperUpper.domain_record_insert("福田", "设备.深圳", 0, "this is FT");
+            //ret = gDbHelperUpper.domain_record_insert("南山", "设备.深圳", 0, "this is NS");
+            //ret = gDbHelperUpper.domain_record_insert("城区", "设备.东莞", 0, "this is NS");
 
-            //ret = gDbHelper.domain_record_insert("中心广场", "设备.深圳.福田", 0, "this is NS");
-            //ret = gDbHelper.domain_record_insert("莲花山", "设备.深圳.福田", 0, "this is NS");
+            //ret = gDbHelperUpper.domain_record_insert("中心广场", "设备.深圳.福田", 0, "this is NS");
+            //ret = gDbHelperUpper.domain_record_insert("莲花山", "设备.深圳.福田", 0, "this is NS");
 
-            //ret = gDbHelper.domain_record_insert("西北监控", "设备.深圳.福田.中心广场", 1, "this is elephant speaking");
+            //ret = gDbHelperUpper.domain_record_insert("西北监控", "设备.深圳.福田.中心广场", 1, "this is elephant speaking");
 
             //string nameFullPath = "{guangdong.shenzhen.nanshan.abc.def.123456789}";
 
@@ -19265,7 +20706,7 @@ namespace ScannerBackgrdServer
             //string name1 = nameFullPath.Substring(i + 1);
             //string name2 = nameFullPath.Substring(0, i - 1);
 
-            gDbHelper.device_record_if_rename(9, "电信FDD", "联通W");
+            gDbHelperUpper.device_record_if_rename(9, "电信FDD", "联通W");
 
             //strBwList list = new strBwList();
             //list.imei = "0123456789ABCDE";
@@ -19278,24 +20719,24 @@ namespace ScannerBackgrdServer
             //list.rbEnd = "123";
             //list.time = DateTime.Now.ToString();
 
-            //int rtv = gDbHelper.bwlist_record_insert(list, 4);
+            //int rtv = gDbHelperUpper.bwlist_record_insert(list, 4);
 
-            //int rtv = gDbHelper.bwlist_record_imei_delete("0123456789ABCDE", bwType.BWTYPE_BLACK, 4);
+            //int rtv = gDbHelperUpper.bwlist_record_imei_delete("0123456789ABCDE", bwType.BWTYPE_BLACK, 4);
 
-            //int rtv = gDbHelper.bwlist_record_imsi_delete("460000123456789", bwType.BWTYPE_BLACK, 4);
-
-
-            //int rtv = gDbHelper.roleprivilege_record_insert("RoleSO", "1,2,3,4,5,6,7,8,9", "afafadf");
+            //int rtv = gDbHelperUpper.bwlist_record_imsi_delete("460000123456789", bwType.BWTYPE_BLACK, 4);
 
 
-            int rtv = gDbHelper.userdomain_record_insert("ABC", "1,3,9,12", "adfadfa");
+            //int rtv = gDbHelperUpper.roleprivilege_record_insert("RoleSO", "1,2,3,4,5,6,7,8,9", "afafadf");
+
+
+            int rtv = gDbHelperUpper.userdomain_record_insert("ABC", "1,3,9,12", "adfadfa");
 
             List<int> listDevId = new List<int>();
-            //rtv = gDbHelper.domain_record_device_id_list_get("设备.深圳.福田.中心广场.西北监控",ref listDevId);
+            //rtv = gDbHelperUpper.domain_record_device_id_list_get("设备.深圳.福田.中心广场.西北监控",ref listDevId);
 
-            rtv = gDbHelper.domain_record_device_id_list_get("设备", ref listDevId);
+            rtv = gDbHelperUpper.domain_record_device_id_list_get("设备", ref listDevId);
 
-            //rtv = gDbHelper.ap_general_para_record_insert(1);
+            //rtv = gDbHelperUpper.ap_general_para_record_insert(1);
 
             strApGenPara apGP = new strApGenPara();
             apGP.mode = "GSM";
@@ -19304,13 +20745,13 @@ namespace ScannerBackgrdServer
             apGP.tac = "46000";
             apGP.earfcnul = "38520";
 
-            //rtv = gDbHelper.ap_general_para_record_update(1, apGP);
+            //rtv = gDbHelperUpper.ap_general_para_record_update(1, apGP);
 
-            rtv = gDbHelper.ap_general_para_record_get_by_devid(1, ref apGP);
+            rtv = gDbHelperUpper.ap_general_para_record_get_by_devid(1, ref apGP);
 
 
             DataTable dt = new DataTable();
-            int ret = gDbHelper.bwlist_record_entity_get(ref dt);
+            int ret = gDbHelperUpper.bwlist_record_entity_get(ref dt);
             foreach (DataRow dr in dt.Rows)
             {
                 string str = "";
@@ -19382,7 +20823,7 @@ namespace ScannerBackgrdServer
             }
             catch(Exception ee)
             {
-                MessageBox.Show(ee.Message.ToString());
+                MessageBox.Show(ee.Message + ee.StackTrace.ToString());
                 return;
             }
 
@@ -19391,10 +20832,10 @@ namespace ScannerBackgrdServer
             // MessageBox.Show(dd.ToString());
 
 
-            gDbHelper.domain_record_update_des("设备.深圳.福田.中心广场", "adfadf");
+            gDbHelperUpper.domain_record_update_des("设备.深圳.福田.中心广场", "adfadf");
 
 
-            gDbHelper.domain_record_rename("设备.深圳.福田.中心广场", "设备.深圳.福田.中心广场");
+            gDbHelperUpper.domain_record_rename("设备.深圳.福田.中心广场", "设备.深圳.福田.中心广场");
         }
 
         private void button13_Click(object sender, EventArgs e)
@@ -19404,32 +20845,32 @@ namespace ScannerBackgrdServer
             // gm.bSMSContentLen = "23";
             //gm.bUeContent= "adsfadfadfa";
 
-            //gDbHelper.gc_misc_record_update(0, 1, gm);
+            //gDbHelperUpper.gc_misc_record_update(0, 1, gm);
 
-            gDbHelper.gc_misc_record_get_by_devid(0, 1,ref  gm);
+            gDbHelperUpper.gc_misc_record_get_by_devid(0, 1,ref  gm);
 
-            gDbHelper.gc_misc_record_insert(0, 1);
-            gDbHelper.gc_misc_record_insert(1, 1);
+            gDbHelperUpper.gc_misc_record_insert(0, 1);
+            gDbHelperUpper.gc_misc_record_insert(1, 1);
 
 
             List<strGcImsiAction> ll = new List<strGcImsiAction>();
-            gDbHelper.gc_imsi_action_record_get_by_devid(0, 1, ref ll);
+            gDbHelperUpper.gc_imsi_action_record_get_by_devid(0, 1, ref ll);
 
             strGcImsiAction gia = new strGcImsiAction();
             gia.bIMSI = "46001123456788";
             gia.bUeActionFlag = "1";
 
-            gDbHelper.gc_imsi_action_record_insert(0, 1, gia);
+            gDbHelperUpper.gc_imsi_action_record_insert(0, 1, gia);
 
             gia.bIMSI = "46001123456787";
             gia.bUeActionFlag = "1";
 
-            gDbHelper.gc_imsi_action_record_insert(0, 1, gia);
+            gDbHelperUpper.gc_imsi_action_record_insert(0, 1, gia);
 
 
-            gDbHelper.gc_param_config_record_delete(0, 1);
+            gDbHelperUpper.gc_param_config_record_delete(0, 1);
             strGcParamConfig gpr1 = new strGcParamConfig();
-            gDbHelper.gc_param_config_record_get_by_devid(0, 1, ref gpr1);
+            gDbHelperUpper.gc_param_config_record_get_by_devid(0, 1, ref gpr1);
 
             strGcParamConfig gpr = new strGcParamConfig();
 
@@ -19438,12 +20879,12 @@ namespace ScannerBackgrdServer
             gpr.bRxGain = "12";              //保留字段。Unit: dB
 
            
-            gDbHelper.gc_param_config_record_update(0, 1,gpr);
+            gDbHelperUpper.gc_param_config_record_update(0, 1,gpr);
 
-            // gDbHelper.gc_param_report_record_insert(0, 1);
-            //gDbHelper.gc_param_report_record_insert(1, 1);
+            // gDbHelperUpper.gc_param_report_record_insert(0, 1);
+            //gDbHelperUpper.gc_param_report_record_insert(1, 1);
 
-            gDbHelper.gc_nb_cell_record_delete(0, 1);
+            gDbHelperUpper.gc_nb_cell_record_delete(0, 1);
 
             strGcNbCell str = new strGcNbCell();
             strGcNbCellItem item = new strGcNbCellItem();
@@ -19471,10 +20912,10 @@ namespace ScannerBackgrdServer
             listBig.Add(str);
             listBig.Add(str);
 
-            gDbHelper.gc_nb_cell_record_insert_batch(0, 1, listBig);
+            gDbHelperUpper.gc_nb_cell_record_insert_batch(0, 1, listBig);
 
             List<strGcNbCell> listTest = new List<strGcNbCell>();
-            gDbHelper.gc_nb_cell_record_get_by_devid(0, 1, ref listTest);
+            gDbHelperUpper.gc_nb_cell_record_get_by_devid(0, 1, ref listTest);
 
             //int rtv;
             //string tmp = "144430757";
@@ -19532,10 +20973,10 @@ namespace ScannerBackgrdServer
 
 
 
-            //gDbHelper.ap_general_para_string_get_by_devid(1, ref tmp);
+            //gDbHelperUpper.ap_general_para_string_get_by_devid(1, ref tmp);
 
             //List<string> lst = new List<string>();
-            //gDbHelper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, 1, ref lst);
+            //gDbHelperUpper.bwlist_record_md5sum_get(bwType.BWTYPE_WHITE, 1, ref lst);
 
             //lst.Sort();
 
@@ -19557,10 +20998,10 @@ namespace ScannerBackgrdServer
             ////更新到数据库中
             //rtv = Get_BwList_From_File(fileFullPath, bwType.BWTYPE_WHITE, ref list, ref info);
 
-            //rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, 1);
+            //rtv = gDbHelperUpper.bwlist_record_bwflag_delete(bwType.BWTYPE_WHITE, 1);
 
 
-            //rtv = gDbHelper.bwlist_record_insert_batch(list, 1);
+            //rtv = gDbHelperUpper.bwlist_record_insert_batch(list, 1);
 
             //从FTP服务器上下载文件
             // rtv = gFtpHelperFile.Get("5678.txt", Application.StartupPath, "5678.txt");
@@ -19573,10 +21014,10 @@ namespace ScannerBackgrdServer
             //更新到数据库中
             // rtv = Get_BwList_From_File(fileFullPath, bwType.BWTYPE_BLACK, ref list, ref info);
 
-            // rtv = gDbHelper.bwlist_record_bwflag_delete(bwType.BWTYPE_BLACK, 1);
+            // rtv = gDbHelperUpper.bwlist_record_bwflag_delete(bwType.BWTYPE_BLACK, 1);
 
 
-            //  rtv = gDbHelper.bwlist_record_insert_batch(list, 1);
+            //  rtv = gDbHelperUpper.bwlist_record_insert_batch(list, 1);
 
 
 
@@ -19702,6 +21143,12 @@ namespace ScannerBackgrdServer
                 label1.Text = parseTimeSeconds(runTimeCnt);
             }
 
+            //if ((runTimeCnt % 8) == 0)
+            //{
+            //    add_log_info(LogInfoType.EROR, "gDbHelperUpper.CloseDbConn", "Main", LogCategory.I);
+            //    gDbHelperUpper.CloseDbConn();
+            //}
+
             //for (int i = 0; i < 50; i++)
             //{
             //    Logger.Trace(LogInfoType.EROR, "sdfadsffadf", "Main", LogCategory.I);
@@ -19761,7 +21208,468 @@ namespace ScannerBackgrdServer
 
         private TLabel tt = new TLabel();
 
-       
+
+
+        #endregion
+
+        #region 时间段控制
+
+        /// <summary>
+        /// 判读当前时间是否落在dt1和dt2之间
+        /// </summary>
+        /// <param name="dt1"></param>
+        /// <param name="dt2"></param>
+        /// <returns>
+        /// true  : 落在
+        /// false : 不落在
+        /// </returns>
+        private bool currentTime_In_Range(string dt1, string dt2)
+        {
+            string tmp = DateTime.Now.ToString("HH:mm:ss");
+
+            if (string.Compare(dt1, tmp) <= 0 && string.Compare(tmp, dt2) <= 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 获取当前射频的开关状态
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns>
+        /// true  : 开启
+        /// false : 关闭
+        /// </returns>
+        private bool getRadio_Status(strSetRadio str)
+        {
+            if (str.devMode == devMode.MODE_GSM)
+            {
+                if (str.rfEnable == "0")
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (str.RADIO == "0")
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 下发命令设置AP的射频
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="swValue"></param>
+        /// <returns></returns>
+        private int setRadio_2_AP(strSetRadio str,int swValue)
+        {
+            string info = "";
+            InterModuleMsgStruct imms = new InterModuleMsgStruct();
+
+
+            if (string.IsNullOrEmpty(str.ipAddr) || string.IsNullOrEmpty(str.port) || string.IsNullOrEmpty(str.innerType))
+            {
+                info = string.Format("setRadio_2_AP:ipAddr,port or innerType are NULL.");
+                add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                return -1;
+            }
+
+            if (!string.IsNullOrEmpty(str.sn))
+            {
+                imms.ApInfo.SN = str.sn;
+            }
+
+            if (!string.IsNullOrEmpty(str.name))
+            {
+                imms.ApInfo.Fullname = str.name;
+            }
+
+            if (!string.IsNullOrEmpty(str.ipAddr))
+            {
+                imms.ApInfo.IP = str.ipAddr;
+            }
+
+            if (!string.IsNullOrEmpty(str.port))
+            {
+                imms.ApInfo.Port = int.Parse(str.port);
+            }
+
+            if (!string.IsNullOrEmpty(str.innerType))
+            {
+                imms.ApInfo.Type = str.innerType;
+            }
+
+            imms.MsgType = MsgType.CONFIG.ToString();
+
+            info = string.Format("Send setRadio_2_AP -> [{0}]:[{1}]:[{2}]", imms.ApInfo.Fullname, imms.ApInfo.IP, imms.ApInfo.Port);
+            add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+            Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+
+            imms.Body.type = Main2ApControllerMsgType.ApSetRadio;
+            imms.Body.dic = new Dictionary<string, object>();
+
+            switch (str.devMode)
+            {
+                case devMode.MODE_GSM:
+                    {
+                        #region GSM
+
+                        //"dic":
+                        //{     
+                        //    "carry":          载波信息 0/1
+                        //    "rfEnable":       射频使能(0,关闭；1，打开)
+                        //	  "rfFreq":         信道号
+                        //	  "rfPwr":          发射功率衰减值
+                        //}
+
+                        imms.Body.dic.Add("carry", str.carry);
+                        imms.Body.dic.Add("rfEnable", swValue.ToString());
+                        imms.Body.dic.Add("rfFreq", str.rfFreq);
+                        imms.Body.dic.Add("rfPwr", str.rfFreq);
+
+                        break;
+
+                        #endregion
+                    }
+                case devMode.MODE_GSM_V2:
+                case devMode.MODE_CDMA:
+                    {
+                        #region CDMA/GSM-V2                                     
+
+                        //"dic":
+                        //{     
+                        //    "carry":     "载波信息 0/1" ,CDMA为"0"
+                        //    "RADIO":     射频使能(0,关闭；1，打开)
+                        //}
+
+                        imms.Body.dic.Add("carry", str.carry);
+                        imms.Body.dic.Add("RADIO", swValue.ToString());                        
+
+                        break;
+
+                        #endregion
+                    }                                
+                case devMode.MODE_TD_SCDMA:
+                    {
+                        break;
+                    }
+                case devMode.MODE_WCDMA:
+                case devMode.MODE_LTE_FDD:
+                case devMode.MODE_LTE_TDD:
+                    {
+                        #region LTE
+
+                        //"dic":
+                        //{     
+                        //    "active_mode":   "1(start), 2(stop)，3(reboot,本消息不用)"
+                        //    "mode":          "1:scanner mode 2: audit mode"
+                        //}
+
+                        if (swValue == 1)
+                        {
+                            imms.Body.dic.Add("active_mode", "1");
+                        }
+                        else
+                        {
+                            imms.Body.dic.Add("active_mode", "2");
+                        }
+                        
+                        imms.Body.dic.Add("mode", str.bootMode);
+
+                        break;
+
+                        #endregion
+                    }
+                case devMode.MODE_UNKNOWN:
+                    {
+                        break;
+                    }
+            }          
+
+            //发送给ApCtrl
+            Send_Msg_2_ApCtrl_Lower(imms);
+
+            return 0;
+        }
+        
+        private long setRadioCnt = 0;
+
+        private long gAppCtrl_Alive_Index = 0;
+        private long[] gAppCtrl_Alive = new long[] { 0, 1, 2 };
+        
+        private LogInfoType srIT = LogInfoType.INFO;
+
+        /// <summary>
+        /// 用于记录设备首次进入两个时间段时的射频状态
+        /// string = ipAddr.port.carry
+        /// bool = true(射频开启),false(射频关闭)
+        /// </summary>
+        private static Dictionary<string, bool> gDicSetRadioFirstStatus = new Dictionary<string, bool>();
+
+        private void timerSetRadio_Tick(object sender, EventArgs e)
+        {
+            int rtv = -1;
+            bool radioFlag,firstFlag;
+            bool locationTwoFlag = false;
+
+            string info = "";
+            bool ts1Flag,ts2Flag;
+            
+
+            setRadioCnt++;
+
+            if (setRadioCnt % 20 == 0)
+            {
+                #region 监控AppCtrl的状态
+
+                // 每隔20秒读一次               
+                lock (mutex_gAppCtrl_Alive)
+                {
+                    // 2018-08-21
+                    gAppCtrl_Alive[gAppCtrl_Alive_Index % 3] = gAppCtrl_Alive_Count;
+                    gAppCtrl_Alive_Index++;
+                }
+
+                // 每1分钟判断一下AppCtrl的状态
+                if ((gAppCtrl_Alive_Index % 3) == 0)
+                {
+                    if ((gAppCtrl_Alive[0] == gAppCtrl_Alive[1]) && (gAppCtrl_Alive[1] == gAppCtrl_Alive[2]))
+                    {
+                        #region 启动用于接收AppCtrl_Upper消息的线程
+
+                        info = string.Format("AppCtrl is NO : [{0}][{1}][{2}],重新启动thread_for_app_controller", gAppCtrl_Alive[0], gAppCtrl_Alive[1], gAppCtrl_Alive[2]);
+
+                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+
+                        //通过ParameterizedThreadStart创建线程
+                        Thread thread3 = new Thread(new ParameterizedThreadStart(thread_for_app_controller));
+
+                        //给方法传值
+                        thread3.Start("thread_for_app_controller!\n");
+                        thread3.IsBackground = true;
+
+                        #endregion
+                    }
+                    else
+                    {
+                        info = string.Format("AppCtrl is OK : [{0}][{1}][{2}]", gAppCtrl_Alive[0], gAppCtrl_Alive[1], gAppCtrl_Alive[2]);
+                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                    }
+                }
+                        
+                #endregion
+            }
+
+            if (setRadioCnt % 60 == 0)
+            {
+                #region 处理射频时段的控制
+
+                Stopwatch sw = new Stopwatch();
+                sw.Start();            
+
+                List<strSetRadio> lstSetRadio = new List<strSetRadio>();
+                rtv = gDbHelperOther.device_set_radio_info_get(ref lstSetRadio);
+
+                if ((int)RC.SUCCESS != rtv )
+                {
+                    info = string.Format("device_set_radio_info_get出错:{0}", gDbHelperOther.get_rtv_str(rtv));
+                    add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                    return;
+                }
+
+                /*
+                 *  遍历所有online的设备
+                 */
+                foreach (strSetRadio str in lstSetRadio)
+                {
+                    if (!string.IsNullOrEmpty(str.activeTime1Start) && !string.IsNullOrEmpty(str.activeTime2Start))
+                    {
+                        #region 设置了两个时间段
+
+                        ts1Flag = currentTime_In_Range(str.activeTime1Start, str.activeTime1Ended);
+                        ts2Flag = currentTime_In_Range(str.activeTime2Start, str.activeTime2Ended);
+                        if (ts1Flag  || ts2Flag)
+                        {
+                            // 落在了两个时间段里面
+                            locationTwoFlag = true;
+
+                            // 初次状态保存
+                            if (!gDicSetRadioFirstStatus.Keys.Contains(str.fullName))
+                            {                                
+                                radioFlag = getRadio_Status(str);
+                                gDicSetRadioFirstStatus.Add(str.fullName, radioFlag);
+
+                                info = string.Format("{0}:初次状态保存:{1}", str.fullName, radioFlag);
+                                add_log_info(srIT, info, "Main", LogCategory.I);
+                                Logger.Trace(srIT, info, "Main", LogCategory.I);
+                            }                        
+                        }
+                        else
+                        {
+                            // 落在了两个时间段以外的3个时间段
+                            locationTwoFlag = false;                            
+                        }
+
+                        #endregion
+                    }
+                    else if (!string.IsNullOrEmpty(str.activeTime1Start))
+                    {
+                        #region 只设置了第一个时间段
+
+                        ts1Flag = currentTime_In_Range(str.activeTime1Start, str.activeTime1Ended);                        
+                        if (ts1Flag)
+                        {
+                            // 落在了第一个时间段里面
+                            locationTwoFlag = true;
+
+                            // 初次状态保存
+                            if (!gDicSetRadioFirstStatus.Keys.Contains(str.fullName))
+                            {
+                                radioFlag = getRadio_Status(str);
+                                gDicSetRadioFirstStatus.Add(str.fullName, radioFlag);
+
+                                info = string.Format("{0}:初次状态保存:{1}", str.fullName, radioFlag);
+                                add_log_info(srIT, info, "Main", LogCategory.I);
+                                Logger.Trace(srIT, info, "Main", LogCategory.I);
+                            }           
+                        }
+                        else
+                        {
+                            // 落在了第一时间段以外的2个时间段
+                            locationTwoFlag = false;
+                        }
+
+                        #endregion
+                    }
+                    else if (!string.IsNullOrEmpty(str.activeTime2Start))
+                    {
+                        #region 只设置了第二个时间段
+
+                        ts2Flag = currentTime_In_Range(str.activeTime2Start, str.activeTime2Ended);
+                        if (ts2Flag)
+                        {
+                            // 落在了第二个时间段里面
+                            locationTwoFlag = true;
+
+                            // 初次状态保存
+                            if (!gDicSetRadioFirstStatus.Keys.Contains(str.fullName))
+                            {
+                                radioFlag = getRadio_Status(str);
+                                gDicSetRadioFirstStatus.Add(str.fullName, radioFlag);
+
+                                info = string.Format("{0}:初次状态保存:{1}", str.fullName, radioFlag);
+                                add_log_info(srIT, info, "Main", LogCategory.I);
+                                Logger.Trace(srIT, info, "Main", LogCategory.I);
+                            }                   
+                        }
+                        else
+                        {
+                            // 落在了第二时间段以外的2个时间段
+                            locationTwoFlag = false;
+                        }
+
+                        #endregion
+                    }
+                    else
+                    {
+                        #region 没有设置时间段
+
+                        // 没有设置时间段
+                        locationTwoFlag = false;
+
+                        #endregion
+                    }
+
+                    #region 射频处理
+
+                    if (locationTwoFlag)
+                    {
+                        // 落在要控制时间段里面(关闭射频)
+                        if (getRadio_Status(str))
+                        {
+                            info = string.Format("{0}:关闭射频", str.fullName);
+                            add_log_info(srIT, info, "Main", LogCategory.I);
+                            Logger.Trace(srIT, info, "Main", LogCategory.I);
+
+                            //关闭射频
+                            setRadio_2_AP(str, 0);
+                        }
+                    }
+                    else
+                    {
+                        // 不落在两个时间段里面(根据首次进入时状态设置射频)
+
+                        if (!gDicSetRadioFirstStatus.Keys.Contains(str.fullName))
+                        {
+                            // 尚未设置过首次状态
+                            // 无需做动作
+                        }
+                        else
+                        {
+                            // 已经设置过首次状态
+                            radioFlag = getRadio_Status(str);
+                            firstFlag = gDicSetRadioFirstStatus[str.fullName];
+
+                            if (radioFlag != firstFlag)
+                            {
+                                if (firstFlag)
+                                {
+                                    info = string.Format("{0}:开启射频", str.fullName);
+                                    add_log_info(srIT, info, "Main", LogCategory.I);
+                                    Logger.Trace(srIT, info, "Main", LogCategory.I);
+
+                                    setRadio_2_AP(str, 1);
+                                }
+                                else
+                                {
+                                    info = string.Format("{0}:关闭射频", str.fullName);
+                                    add_log_info(srIT, info, "Main", LogCategory.I);
+                                    Logger.Trace(srIT, info, "Main", LogCategory.I);
+
+                                    setRadio_2_AP(str, 0);
+                                }
+                            }
+
+                            info = string.Format("{0}:初次状态删除", str.fullName);
+                            add_log_info(srIT, info, "Main", LogCategory.I);
+                            Logger.Trace(srIT, info, "Main", LogCategory.I);
+
+                            // 初次状态删除         
+                            gDicSetRadioFirstStatus.Remove(str.fullName);                                           
+                        }
+                    }
+
+                    #endregion
+                }
+
+                sw.Stop();
+                TimeSpan ts2 = sw.Elapsed;
+
+                string info1 = string.Format("处理射频时段的控制,总共花费:{0}ms", Math.Ceiling(ts2.TotalMilliseconds));
+                add_log_info(LogInfoType.INFO, info1, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, info1, "Main", LogCategory.I);
+
+                #endregion
+            }
+        }
 
         #endregion
     }

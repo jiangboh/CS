@@ -64,6 +64,7 @@ namespace ScannerBackgrdServer
             }
             else
             {
+                MessageBox.Show("只能运行一个服务器！", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
                 InstanceManager.HandleRunningProcess(instance);
             }           
 

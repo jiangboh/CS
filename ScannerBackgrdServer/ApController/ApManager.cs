@@ -48,7 +48,7 @@ namespace ScannerBackgrdServer.ApController
             int count = 0;
 
             Xml_codec.StaticOutputLog(LogInfoType.INFO, "ApContr收到Main侧消息。", "APContr", LogCategory.R);
-            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), "APContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), "APContr", LogCategory.R);
 
             lock (mutex_Main2Ap_Msg)
             {
@@ -266,7 +266,7 @@ namespace ScannerBackgrdServer.ApController
                     if ((MainMsg.ApInfo.IP.Equals(MsgStruct.AllDevice)) || (MainMsg.ApInfo.Type.Equals(DeviceType)))
                     {
                         OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
-                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", str));
+                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", str));
                     }
 
                     ApInnerType flag;
@@ -360,14 +360,14 @@ namespace ScannerBackgrdServer.ApController
         protected void SendMsg2Ap(AsyncUserToken apToKen, byte[] buff)
         {
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息给AP[{0}:{1}]！",apToKen.IPAddress.ToString(),apToKen.Port));
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}\n\n", System.Text.Encoding.UTF8.GetString(buff)));
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}", System.Text.Encoding.UTF8.GetString(buff)));
             MySocket.SendMessage(apToKen, buff);
         }
 
         protected void SendMsg2Ap(AsyncUserToken apToKen, string buff)
         {
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息给AP[{0}:{1}]！", apToKen.IPAddress.ToString(), apToKen.Port));
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}\n\n", buff));
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}", buff));
             MySocket.SendMessage(apToKen, System.Text.Encoding.Default.GetBytes(buff));
         }
 
@@ -477,7 +477,7 @@ namespace ScannerBackgrdServer.ApController
             }
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson),LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson),LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
         }
@@ -589,7 +589,7 @@ namespace ScannerBackgrdServer.ApController
                 mb.bJson = JsonConvert.SerializeObject(msg);
 
                 OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
                 ApManager.sendMsg_2_MainController(mt, mb);
             }
@@ -833,7 +833,7 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
         }
@@ -883,7 +883,7 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
             //OnReceiveMainMsg(mt, mb);
@@ -911,7 +911,7 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
             //OnReceiveMainMsg(mt, mb);
@@ -950,7 +950,7 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
             //OnReceiveMainMsg(mt, mb);
@@ -983,7 +983,7 @@ namespace ScannerBackgrdServer.ApController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
         }

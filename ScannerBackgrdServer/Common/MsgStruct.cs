@@ -1038,7 +1038,8 @@ namespace ScannerBackgrdServer.Common
         //         "online":"0",
         //         "lastOnline":"2018/5/15 12:34:56",
         //         "isActive":"1"
-        //         "innerType":"xxx" //用于软件内部处理
+        //         "innerType":"xxx"    //用于软件内部处理
+        //         "apVersion":"V1.0"   //AP的版本信息，2018-08-17
         //       }
         //       ...
         //    "n_dic":[
@@ -1054,7 +1055,8 @@ namespace ScannerBackgrdServer.Common
         //         "online":"0",
         //         "lastOnline":"2018/5/15 12:34:56",
         //         "isActive":"1"
-        //         "innerType":"xxx" //用于软件内部处理
+        //         "innerType":"xxx"    //用于软件内部处理
+        //         "apVersion":"V1.0"   //AP的版本信息，2018-08-17
         //       }
         //       ... 
         //}
@@ -1492,14 +1494,14 @@ namespace ScannerBackgrdServer.Common
         //   "carry":"0/1/2"     //有载波时包含该字段，2018-07-31
         //                       //0表示载波1，1表示载波2，2表示两个载波都设置
         //
-        //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
-        //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
-        //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
-        //   "activeTime2Ended":"2018-05-28 14:30:00"  生效时间2的结束时间
-        //   "activeTime3Start":"2018-05-28 16:30:00"  生效时间3的起始时间，有的话就添加该项
-        //   "activeTime3Ended":"2018-05-28 18:30:00"  生效时间3的结束时间，有的话就添加该项
-        //   "activeTime4Start":"2018-05-28 20:30:00"  生效时间4的起始时间，有的话就添加该项
-        //   "activeTime4Ended":"2018-05-28 22:30:00"  生效时间4的结束时间，有的话就添加该项
+        //   "activeTime1Start":"09:30:00"  生效时间1的起始时间
+        //   "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+        //   "activeTime2Start":"13:30:00"  生效时间2的起始时间
+        //   "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+        //   "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+        //   "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+        //   "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+        //   "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
         //}
         //
         public const string app_set_GenPara_ActiveTime_Request = "app_set_GenPara_ActiveTime_Request";
@@ -1519,12 +1521,16 @@ namespace ScannerBackgrdServer.Common
         //"dic":
         //    {
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
-        //   "name":"电信FDD"
+        //   "name"   :"电信FDD"
+        //   "carry"  :"0/1"     //GSM或GSM-V2时传入，2018-08-17
         //}
         public const string app_get_GenPara_Request = "app_get_GenPara_Request";
 
         //
         // app获取通用参数的响应
+        //  
+        //  用于TDD/FDD/WCDMA，2018-08-20
+        //
         //"type":"app_get_GenPara_Response"   
         //"dic":
         //    {
@@ -1534,6 +1540,7 @@ namespace ScannerBackgrdServer.Common
         //   "domainParentId":"1",
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
         //   "name":"电信FDD",
+        //  
         //   "mode":"GSM",          设备工作制式：GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD
         //   "primaryplmn:"xxx",    PLMN
         //   "earfcndl:"xxx",       工作频点（下行）
@@ -1560,14 +1567,14 @@ namespace ScannerBackgrdServer.Common
         //   "otherplmn:"xxx,yyy",  多PLMN选项，多个之间用逗号隔开
         //   "periodFreq:"{周期:freq1,freq2,freq3}"  周期以S表示，0表示不做周期性变换；
         //                                          在freq list中进行循环，此时小区配置中的频点失效
-        //   "activeTime1Start":"2018-05-28 09:30:00"  生效时间1的起始时间
-        //   "activeTime1Ended":"2018-05-28 12:30:00"  生效时间1的结束时间
-        //   "activeTime2Start":"2018-05-28 13:30:00"  生效时间2的起始时间
-        //   "activeTime2Ended":"2018-05-28 14:30:00"  生效时间2的结束时间
-        //   "activeTime3Start":"2018-05-28 16:30:00"  生效时间3的起始时间，有的话就添加该项
-        //   "activeTime3Ended":"2018-05-28 18:30:00"  生效时间3的结束时间，有的话就添加该项
-        //   "activeTime4Start":"2018-05-28 20:30:00"  生效时间4的起始时间，有的话就添加该项
-        //   "activeTime4Ended":"2018-05-28 22:30:00"  生效时间4的结束时间，有的话就添加该项
+        //   "activeTime1Start":"09:30:00"  生效时间1的起始时间
+        //   "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+        //   "activeTime2Start":"13:30:00"  生效时间2的起始时间
+        //   "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+        //   "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+        //   "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+        //   "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+        //   "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
         //}
         public const string app_get_GenPara_Response = "app_get_GenPara_Response";
 
@@ -2201,6 +2208,17 @@ namespace ScannerBackgrdServer.Common
         //					"rfEnable":射频使能
         //					"rfFreq":信道号
         //					"rfPwr":发射功率衰减值
+        //
+        //                  2018-08-20
+        //                  "activeTime1Start":"09:30:00"  生效时间1的起始时间
+        //                  "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+        //                  "activeTime2Start":"13:30:00"  生效时间2的起始时间
+        //                  "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+        //                  "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+        //                  "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+        //                  "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+        //                  "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
+        //
         //    "n_dic":[
         //      {
         //         "name":"1",
@@ -2330,6 +2348,20 @@ namespace ScannerBackgrdServer.Common
         //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
         //       }
         //    ],
+        //"n_dic":
+        //   [
+        //       "name":"TIME_CONTROL",            // 2018-08-20
+        //      {
+        //                  "activeTime1Start":"09:30:00"  生效时间1的起始时间
+        //                  "activeTime1Ended":"12:30:00"  生效时间1的结束时间
+        //                  "activeTime2Start":"13:30:00"  生效时间2的起始时间
+        //                  "activeTime2Ended":"14:30:00"  生效时间2的结束时间
+        //                  "activeTime3Start":"16:30:00"  生效时间3的起始时间，有的话就添加该项
+        //                  "activeTime3Ended":"18:30:00"  生效时间3的结束时间，有的话就添加该项
+        //                  "activeTime4Start":"20:30:00"  生效时间4的起始时间，有的话就添加该项
+        //                  "activeTime4Ended":"22:30:00"  生效时间4的结束时间，有的话就添加该项
+        //       }
+        //    ],
         //}
         public const string app_get_GCInfo_Response = "app_get_GCInfo_Response";
 
@@ -2452,7 +2484,7 @@ namespace ScannerBackgrdServer.Common
         //{
         //    "AllOnLineNum": 1（当前在线设备总台数）
         //    "Status":OnLine：上线；OffLine:下线
-        //    "mode":"xxx"  //GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD,2018-06-28
+        //    "mode":"xxx"     //GSM,TD-SCDMA,WCDMA,LTE-TDD,LTE-FDD,2018-06-28
         //    "version":"xxx"  //ap的版本信息,2018-08-17
         //    "timestamp"   时间戳
         //}

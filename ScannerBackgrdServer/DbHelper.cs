@@ -51,6 +51,7 @@ namespace ScannerBackgrdServer
         public string lastOnline;    //最后的上线时间
         public string isActive;      //标识该设备是否生效，0：无效；1：生效
         public string innerType;     //用于软件内部处理
+        public string apVersion;     //AP的版本信息，2018-08-17
         public string affDomainId;   //标识设备的从属于那个域，FK
                        
         //以下字段不保存在库中
@@ -124,6 +125,39 @@ namespace ScannerBackgrdServer
         public string time;              //更新时间戳
     };
 
+
+    /// <summary>
+    /// 射频设置，2018-08-17
+    /// </summary>
+    public struct strSetRadio
+    {
+        public int id;                  //设备id
+        public devMode devMode;         //设备mode
+        public string name;             //设备名称
+        public string sn;               //SN，GSM或第三方设备可能没有该字段
+        public string ipAddr;           //IP地址
+        public string port;             //端口号
+        public string netmask;          //掩码
+        public string innerType;
+
+        public string fullName;         //用于区分每个设备，格式:ipAddr.port.carry
+
+        public string carry;
+        public string RADIO;
+        public string bootMode;      
+        public string rfEnable;          //射频使能
+        public string rfFreq;            //信道号
+        public string rfPwr;             //发射功率衰减值    
+
+        public string activeTime1Start;  //生效时间1的起始时间
+        public string activeTime1Ended;  //生效时间1的结束时间
+        public string activeTime2Start;  //生效时间2的起始时间
+        public string activeTime2Ended;  //生效时间2的结束时间
+        public string activeTime3Start;  //生效时间3的起始时间，有的话就添加该项
+        public string activeTime3Ended;  //生效时间3的结束时间，有的话就添加该项
+        public string activeTime4Start;  //生效时间4的起始时间，有的话就添加该项
+        public string activeTime4Ended;  //生效时间4的结束时间，有的话就添加该项
+    };
 
     /// <summary>
     /// 捕号记录
@@ -630,7 +664,11 @@ namespace ScannerBackgrdServer
         private string uid;
         private string password;
         private string port;
+
         private bool myDbConnFlag = false;
+
+
+        private bool myDbOperFlag = true;
 
         private Dictionary<int, string> dicRTV = new Dictionary<int, string>();
 
@@ -651,6 +689,22 @@ namespace ScannerBackgrdServer
             set
             {
                 myDbConnFlag = value;
+            }
+        }
+
+        /// <summary>
+        /// 是否已经连接上数据库的标识
+        /// </summary>
+        public bool MyDbOperFlag
+        {
+            get
+            {
+                return myDbOperFlag;
+            }
+
+            set
+            {
+                myDbOperFlag = value;
             }
         }
 
@@ -771,19 +825,31 @@ namespace ScannerBackgrdServer
             {
                 myDbConn.Open();
                 myDbConnFlag = true;
+
+                // 2018-08-21
+                myDbOperFlag = true;
                 return true;
             }
             catch (MySqlException e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
                 return false;
             }
         }
 
-
-        public bool ConnIsClosed()
+        /// <summary>
+        /// 判断数据库连接是否关闭，或者已经异常
+        /// </summary>
+        /// <returns></returns>
+        public bool Conn_Is_Closed_Or_Abnormal()
         {
             if (myDbConn.State == ConnectionState.Closed)
+            {
+                return true;
+            }
+
+            // 2018-08-21
+            if (myDbOperFlag == false)
             {
                 return true;
             }
@@ -808,14 +874,14 @@ namespace ScannerBackgrdServer
             }
             catch (MySqlException e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
                 return false;
             }
         }
 
         #endregion
 
-        #region 获取表和列的名称
+        #region 杂项
 
         /// <summary>
         /// 获取数据库中所有的表名称
@@ -888,7 +954,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
                 return null;
             }
 
@@ -923,6 +989,415 @@ namespace ScannerBackgrdServer
             {
                 return null;
             }
+        }
+
+        public int device_set_radio_info_get(ref List<strSetRadio> lstSetRadio)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //public int id;               //设备id
+            //public devMode devMode;      //设备mode
+            //public string name;          //设备名称
+            //public string sn;            //SN，GSM或第三方设备可能没有该字段
+            //public string ipAddr;        //IP地址
+            //public string port;          //端口号
+
+            DataTable dt = new DataTable("device");
+
+            DataColumn column0 = new DataColumn("id", System.Type.GetType("System.UInt32"));
+            DataColumn column1 = new DataColumn("name", System.Type.GetType("System.String"));
+            DataColumn column2 = new DataColumn("sn", System.Type.GetType("System.String"));
+            DataColumn column3 = new DataColumn("ipAddr", System.Type.GetType("System.String"));
+            DataColumn column4 = new DataColumn("port", System.Type.GetType("System.UInt16"));
+            DataColumn column5 = new DataColumn("mode", System.Type.GetType("System.String"));
+            DataColumn column6 = new DataColumn("innerType", System.Type.GetType("System.String"));
+
+            dt.Columns.Add(column0);
+            dt.Columns.Add(column1);
+            dt.Columns.Add(column2);
+            dt.Columns.Add(column3);
+            dt.Columns.Add(column4);
+            dt.Columns.Add(column5);
+            dt.Columns.Add(column6);
+
+            string sql = string.Format("select id,name,sn,ipAddr,port,mode,innerType from device where online = 1");
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            DataRow row = dt.NewRow();
+
+                            row["id"] = Convert.ToUInt32(dr["id"]);
+                            row["name"] = dr["name"].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["sn"].ToString()))
+                            {
+                                row["sn"] = dr["sn"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["ipAddr"].ToString()))
+                            {
+                                row["ipAddr"] = dr["ipAddr"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["port"].ToString()))
+                            {
+                                row["port"] = Convert.ToUInt16(dr["port"]);
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["mode"].ToString()))
+                            {
+                                row["mode"] = dr["mode"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["innerType"].ToString()))
+                            {
+                                row["innerType"] = dr["innerType"].ToString();
+                            }
+
+                            dt.Rows.Add(row);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace , "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message  + e.StackTrace);
+                myDbOperFlag = false;             
+                return (int)RC.OP_FAIL;
+            }
+
+            int rtv = -1;
+            lstSetRadio = new List<strSetRadio>();
+
+            foreach (DataRow dr in dt.Rows)
+            {
+                devMode dm = get_device_mode(dr["mode"].ToString());         
+                if (dm == devMode.MODE_UNKNOWN)
+                {
+                    string errInfo = string.Format("mode = {0},错误的类型.", dr["mode"].ToString());         
+                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                }
+                
+                switch (dm)
+                {
+                    case devMode.MODE_GSM:
+                        {
+                            #region GSM
+
+                            #region 载波0
+
+                            strSetRadio str = new strSetRadio();
+                            strGsmRfPara grp = new strGsmRfPara();
+
+                            rtv = gsm_rf_para_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref grp);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}",get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if ( !string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
+                            {
+                                str.activeTime1Start = grp.activeTime1Start;
+                                str.activeTime1Ended = grp.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
+                            {
+                                str.activeTime2Start = grp.activeTime2Start;
+                                str.activeTime2Ended = grp.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
+
+                            str.carry = "0";
+                            str.rfEnable = grp.rfEnable;
+                            str.rfFreq = grp.rfFreq;
+                            str.rfPwr = grp.rfPwr;
+
+                            lstSetRadio.Add(str);
+
+                            #endregion
+
+                            #region 载波1
+
+                            str = new strSetRadio();
+                            grp = new strGsmRfPara();
+
+                            rtv = gsm_rf_para_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref grp);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
+                            {
+                                str.activeTime1Start = grp.activeTime1Start;
+                                str.activeTime1Ended = grp.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
+                            {
+                                str.activeTime2Start = grp.activeTime2Start;
+                                str.activeTime2Ended = grp.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
+
+                            str.carry = "1";
+                            str.rfEnable = grp.rfEnable;
+                            str.rfFreq = grp.rfFreq;
+                            str.rfPwr = grp.rfPwr;
+
+                            lstSetRadio.Add(str);
+
+                            #endregion
+
+                            break;
+
+                            #endregion
+                        }
+                    case devMode.MODE_GSM_V2:
+                        {
+                            #region GSM-V2                                     
+
+                            #region 载波0
+
+                            strSetRadio str = new strSetRadio();
+                            strGcMisc gm = new strGcMisc();
+                            
+                            rtv = gc_misc_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref gm);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                            {
+                                str.activeTime1Start = gm.activeTime1Start;
+                                str.activeTime1Ended = gm.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                            {
+                                str.activeTime2Start = gm.activeTime2Start;
+                                str.activeTime2Ended = gm.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
+
+                            str.carry = "0";
+                            str.RADIO = gm.RADIO;
+
+                            lstSetRadio.Add(str);
+
+                            #endregion
+
+                            #region 载波1
+
+                            str = new strSetRadio();
+                            gm = new strGcMisc();
+
+                            rtv = gc_misc_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref gm);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                            {
+                                str.activeTime1Start = gm.activeTime1Start;
+                                str.activeTime1Ended = gm.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                            {
+                                str.activeTime2Start = gm.activeTime2Start;
+                                str.activeTime2Ended = gm.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
+
+                            str.carry = "1";
+                            str.RADIO = gm.RADIO;
+
+                            lstSetRadio.Add(str);
+
+                            #endregion
+
+                            break;
+
+                            #endregion
+                        }
+                    case devMode.MODE_CDMA:
+                        {
+                            #region CDMA                                       
+
+                            #region 载波-1
+
+                            strSetRadio str = new strSetRadio();
+                            strGcMisc gm = new strGcMisc();
+
+                            rtv = gc_misc_record_get_by_devid(-1, int.Parse(dr["id"].ToString()), ref gm);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                            {
+                                str.activeTime1Start = gm.activeTime1Start;
+                                str.activeTime1Ended = gm.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                            {
+                                str.activeTime2Start = gm.activeTime2Start;
+                                str.activeTime2Ended = gm.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
+
+                            str.carry = "-1";
+                            str.RADIO = gm.RADIO;
+
+                            lstSetRadio.Add(str);
+
+                            #endregion
+
+                            break;
+
+                            #endregion
+                        }
+                    case devMode.MODE_TD_SCDMA:
+                        {
+                            break;
+                        }
+                    case devMode.MODE_WCDMA:
+                    case devMode.MODE_LTE_FDD:
+                    case devMode.MODE_LTE_TDD:
+                        {
+                            #region LTE
+
+                            strSetRadio str = new strSetRadio();
+                            strApGenPara apGP = new strApGenPara();
+                            
+                            rtv = ap_general_para_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apGP);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("ap_general_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(apGP.activeTime1Start) && !string.IsNullOrEmpty(apGP.activeTime1Ended))
+                            {
+                                str.activeTime1Start = apGP.activeTime1Start;
+                                str.activeTime1Ended = apGP.activeTime1Ended;
+                            }
+
+                            if (!string.IsNullOrEmpty(apGP.activeTime2Start) && !string.IsNullOrEmpty(apGP.activeTime2Ended))
+                            {
+                                str.activeTime2Start = apGP.activeTime2Start;
+                                str.activeTime2Ended = apGP.activeTime2Ended;
+                            }
+
+                            str.id = int.Parse(dr["id"].ToString());
+                            str.devMode = dm;
+                            str.name = dr["name"].ToString();
+                            str.sn = dr["sn"].ToString();
+                            str.ipAddr = dr["ipAddr"].ToString();
+                            str.port = dr["port"].ToString();
+                            str.innerType = dr["innerType"].ToString();
+
+                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
+
+                            strApStatus apSts = new strApStatus();
+                            rtv = ap_status_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apSts);
+                            if (rtv != 0)
+                            {
+                                string errInfo = string.Format("ap_status_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                break;
+                            }
+
+                            str.RADIO = apSts.RADIO;
+                            str.bootMode = apGP.bootMode;
+
+                            lstSetRadio.Add(str);                            
+
+                            break;
+
+                            #endregion
+                        }
+                    case devMode.MODE_UNKNOWN:
+                        {
+                            break;
+                        }
+                }              
+            }
+
+            return (int)RC.SUCCESS;
         }
 
         #endregion
@@ -980,9 +1455,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -1051,14 +1526,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);               
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1120,14 +1595,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);            
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
 
@@ -1140,14 +1615,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
 
@@ -1160,15 +1635,15 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I); 
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1234,9 +1709,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -1316,9 +1791,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             //用户和老密码不匹配 
@@ -1336,15 +1811,15 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1421,9 +1896,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1484,9 +1959,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -1558,14 +2033,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1631,14 +2106,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             sql = string.Format("delete from role where roleType = '{0}'", roleType);
@@ -1649,14 +2124,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1730,9 +2205,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1793,9 +2268,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -1858,7 +2333,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message + dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace + dicRTV[(int)RC.TIME_FMT_ERR], "DB", LogCategory.I);
                 return (int)RC.TIME_FMT_ERR;
             }
 
@@ -1902,14 +2377,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1975,14 +2450,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
 
@@ -1995,14 +2470,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2094,9 +2569,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2157,9 +2632,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -2209,9 +2684,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -2275,14 +2750,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2335,14 +2810,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2423,9 +2898,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2472,9 +2947,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2523,9 +2998,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2587,9 +3062,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -2682,14 +3157,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2744,14 +3219,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2843,9 +3318,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -2913,9 +3388,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (roleName == null)
@@ -2983,7 +3458,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
                 return  (int)RC.OP_FAIL;
             }
 
@@ -3037,7 +3512,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                         //return false;                  
                     }
                 }
@@ -3094,7 +3569,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                         //return false;
                     }
                 }
@@ -3251,14 +3726,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3355,14 +3830,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3415,14 +3890,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3514,9 +3989,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3591,9 +4066,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             listIdSet = new List<string>();
@@ -3697,9 +4172,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3787,9 +4262,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3835,9 +4310,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3896,9 +4371,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -3941,9 +4416,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -4007,8 +4482,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -4058,8 +4533,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -4150,14 +4625,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4229,8 +4704,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4307,14 +4782,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             //再删除节点下面的所有子孙节点
@@ -4331,14 +4806,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             List<string> listDevId = new List<string>();
@@ -4462,14 +4937,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             //重命名本节点本身下的所有子节点           
@@ -4482,14 +4957,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4556,14 +5031,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }           
 
             return (int)RC.SUCCESS;
@@ -4680,8 +5155,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4728,8 +5203,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -4765,7 +5240,7 @@ namespace ScannerBackgrdServer
             rv = domain_record_entity_get(ref dt, 1);
             if (rv != (int)RC.SUCCESS)
             {
-                return (int)RC.OP_FAIL;
+                myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             string domainId = "";
@@ -4782,7 +5257,7 @@ namespace ScannerBackgrdServer
                 rv = device_id_name_get_by_affdomainid(int.Parse(domainId),ref listDevId,ref listDevName);
                 if (rv != (int)RC.SUCCESS)
                 {
-                    return (int)RC.OP_FAIL;
+                    myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                 }
                 else
                 {
@@ -4988,8 +5463,8 @@ namespace ScannerBackgrdServer
         //    }
         //    catch (Exception e)
         //    {
-        //        Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-        //        return (int)RC.OP_FAIL;
+        //        Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+        //        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
         //    }
 
         //    return (int)RC.SUCCESS;
@@ -5106,8 +5581,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5216,8 +5691,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5319,8 +5794,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5364,8 +5839,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5426,8 +5901,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -5479,8 +5954,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -5637,14 +6112,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5705,14 +6180,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5817,14 +6292,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5904,8 +6379,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -5959,8 +6434,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -6026,14 +6501,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -6109,8 +6584,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
 
@@ -6194,8 +6669,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6245,8 +6720,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6404,8 +6879,8 @@ namespace ScannerBackgrdServer
             //}
             //catch (Exception e)
             //{
-            //    Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-            //    return (int)RC.OP_FAIL;
+            //    Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+            //    myDbOperFlag = false;return (int)RC.OP_FAIL;
             //}
 
             //if (mode != "GSM")
@@ -6419,14 +6894,14 @@ namespace ScannerBackgrdServer
             //            if (cmd.ExecuteNonQuery() < 0)
             //            {
             //                Logger.Trace(LogInfoType.WARN, sql);
-            //                return (int)RC.OP_FAIL;
+            //                myDbOperFlag = false;return (int)RC.OP_FAIL;
             //            }
             //        }
             //    }
             //    catch (Exception e)
             //    {
-            //        Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-            //        return (int)RC.OP_FAIL;
+            //        Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+            //        myDbOperFlag = false;return (int)RC.OP_FAIL;
             //    }
             //}
             //else
@@ -6441,14 +6916,14 @@ namespace ScannerBackgrdServer
             //                if (cmd.ExecuteNonQuery() < 0)
             //                {
             //                    Logger.Trace(LogInfoType.WARN, sql);
-            //                    return (int)RC.OP_FAIL;
+            //                    myDbOperFlag = false;return (int)RC.OP_FAIL;
             //                }
             //            }
             //        }
             //        catch (Exception e)
             //        {
-            //            Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-            //            return (int)RC.OP_FAIL;
+            //            Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+            //            myDbOperFlag = false;return (int)RC.OP_FAIL;
             //        }
             //    }
             //}
@@ -6464,14 +6939,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             int id = -1;
@@ -6708,8 +7183,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -6855,7 +7330,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }                
             }
@@ -6907,7 +7382,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -6937,6 +7412,20 @@ namespace ScannerBackgrdServer
                 }
             }
 
+            //(13) , 2018-08-17
+            if (!string.IsNullOrEmpty(dev.apVersion))
+            {
+                if (dev.apVersion.Length > 64)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("apVersion = '{0}',", dev.apVersion);
+                }
+            }
+
 
             if (sqlSub != "")
             {
@@ -6959,14 +7448,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7081,7 +7570,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -7138,7 +7627,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -7168,6 +7657,19 @@ namespace ScannerBackgrdServer
                 }
             }
 
+            //(11) , 2018-08-17
+            if (!string.IsNullOrEmpty(dev.apVersion))
+            {
+                if (dev.apVersion.Length > 64)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("apVersion = '{0}',", dev.apVersion);
+                }
+            }
 
             if (sqlSub != "")
             {
@@ -7189,14 +7691,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7228,14 +7730,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7295,14 +7797,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (rtv != 0)
@@ -7483,8 +7985,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7546,8 +8048,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7704,8 +8206,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7808,6 +8310,15 @@ namespace ScannerBackgrdServer
                             {
                                 dev.innerType = "";
                             }
+
+                            if (!string.IsNullOrEmpty(dr["apVersion"].ToString()))
+                            {
+                                dev.apVersion = dr["apVersion"].ToString();
+                            }
+                            else
+                            {
+                                dev.apVersion = "";
+                            }
                         }
                         dr.Close();
                     }
@@ -7815,8 +8326,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7875,8 +8386,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -7965,10 +8476,15 @@ namespace ScannerBackgrdServer
             column10.DataType = System.Type.GetType("System.String");
             column10.ColumnName = "innerType";
 
+// 2018-08-18 by hjb
             DataColumn column11 = new DataColumn();
-            column11.DataType = System.Type.GetType("System.Int32");
-            column11.ColumnName = "affDomainId";
+            column11.DataType = System.Type.GetType("System.String");
+            column11.ColumnName = "apVersion";
 
+            DataColumn column12 = new DataColumn();
+            column12.DataType = System.Type.GetType("System.Int32");
+            column12.ColumnName = "affDomainId";
+// end
             dt.Columns.Add(column0);
             dt.Columns.Add(column1);
             dt.Columns.Add(column2);
@@ -7981,6 +8497,7 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column9);
             dt.Columns.Add(column10);
             dt.Columns.Add(column11);
+            dt.Columns.Add(column12); // 2018-08-18 by hjb
 
             string sql = string.Format("select * from device where name = '{0}' and affDomainId = {1}", name,affDomainId);
             try
@@ -8033,6 +8550,8 @@ namespace ScannerBackgrdServer
 
                             row["innerType"] = dr["innerType"].ToString();
 
+                            row["apVersion"] = dr["apVersion"].ToString();  // 2018-08-18 by hjb
+
                             if (dr["affDomainId"].ToString() != "")
                             {
                                 row["affDomainId"] = Convert.ToInt32(dr["affDomainId"].ToString());
@@ -8050,8 +8569,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8105,8 +8624,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8161,8 +8680,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             count = cnt;
@@ -8207,7 +8726,7 @@ namespace ScannerBackgrdServer
             }
             catch (Exception ee)
             {
-                Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                 return (int)RC.PAR_FMT_ERR;
             }
 
@@ -8380,14 +8899,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8440,7 +8959,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     continue;
                 }                
 
@@ -8626,14 +9145,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8871,8 +9390,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8921,8 +9440,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -8984,8 +9503,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9047,8 +9566,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9095,8 +9614,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9150,14 +9669,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9318,7 +9837,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     sqlSub += string.Format("time = '{0}',",DateTime.Now.ToString());
                 }                
             }
@@ -9344,14 +9863,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9458,8 +9977,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9498,14 +10017,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -9582,8 +10101,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9663,8 +10182,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9744,8 +10263,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -9825,8 +10344,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -10009,7 +10528,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_LEN_ERR;
                 }
             }
@@ -10067,14 +10586,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10163,7 +10682,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_LEN_ERR;
                 }
             }
@@ -10195,14 +10714,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10468,14 +10987,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
            return (int)RC.SUCCESS;
@@ -10651,7 +11170,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_FMT_ERR] + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_LEN_ERR;
                 }
             }
@@ -10709,14 +11228,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10793,14 +11312,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10877,14 +11396,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -10940,14 +11459,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11024,14 +11543,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11071,14 +11590,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11221,8 +11740,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11397,8 +11916,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11474,8 +11993,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11598,8 +12117,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11802,8 +12321,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11850,8 +12369,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -11911,14 +12430,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12198,7 +12717,7 @@ namespace ScannerBackgrdServer
                     }
                     catch(Exception ee)
                     {
-                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + ",NTP格式有误," + ee.Message, "DB", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + ",NTP格式有误," + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                         return (int)RC.PAR_FMT_ERR;
                     }                    
                 }
@@ -12406,9 +12925,15 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
+            }
+
+            // 2018-08-21
+            if (apGP.activeTime1Start == "" && apGP.activeTime1Ended == "")
+            {
+                sqlSub += string.Format("activeTime1Start = NULL,activeTime1Ended = NULL,");
             }
 
 
@@ -12432,9 +12957,16 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
+            }
+
+
+            // 2018-08-21
+            if (apGP.activeTime2Start == "" && apGP.activeTime2Ended == "")
+            {
+                sqlSub += string.Format("activeTime2Start = NULL,activeTime2Ended = NULL,");
             }
 
 
@@ -12458,7 +12990,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -12483,7 +13015,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -12498,7 +13030,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     sqlSub += string.Format("time = '{0}',", DateTime.Now.ToString());
                 }
             }
@@ -12528,14 +13060,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12777,8 +13309,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12902,14 +13434,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -12970,8 +13502,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13035,8 +13567,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13098,14 +13630,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13158,14 +13690,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13243,8 +13775,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13267,7 +13799,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST ：不存在
         ///   RC.EXIST    ：存在
         /// </returns>
-        public int device_unknown_record_exist(string ipAddr, int port)
+        public int device_unknown_record_exist(string ipAddr)
         {
             UInt32 cnt = 0;
 
@@ -13287,15 +13819,9 @@ namespace ScannerBackgrdServer
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
                 return (int)RC.PAR_LEN_ERR;
-            }
+            }           
 
-            if (port > 65535)
-            {
-                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-                return (int)RC.PAR_LEN_ERR;
-            }
-
-            string sql = string.Format("select count(*) from device_unknown where ipAddr = '{0}' and port = {1}", ipAddr, port);
+            string sql = string.Format("select count(*) from device_unknown where ipAddr = '{0}'", ipAddr);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -13312,8 +13838,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -13367,7 +13893,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.EXIST == device_unknown_record_exist(ipAddr,port))
+            if ((int)RC.EXIST == device_unknown_record_exist(ipAddr))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                 return (int)RC.EXIST;
@@ -13387,14 +13913,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;           
@@ -13456,7 +13982,7 @@ namespace ScannerBackgrdServer
 
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr,port))
+            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -13539,7 +14065,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -13590,14 +14116,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13643,7 +14169,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr,port))
+            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -13657,14 +14183,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13697,14 +14223,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -13861,8 +14387,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14042,8 +14568,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14091,8 +14617,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -14153,14 +14679,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14375,14 +14901,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14487,8 +15013,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14528,14 +15054,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14583,8 +15109,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -14639,14 +15165,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14819,14 +15345,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14916,8 +15442,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -14957,14 +15483,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15012,8 +15538,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -15068,14 +15594,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15233,11 +15759,17 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
 
+
+            // 2018-08-21
+            if (grp.activeTime1Start == "" && grp.activeTime1Ended == "")
+            {
+                sqlSub += string.Format("activeTime1Start = NULL,activeTime1Ended = NULL,");
+            }
 
             //(7,8)
             if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
@@ -15259,11 +15791,17 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
 
+
+            // 2018-08-21
+            if (grp.activeTime2Start == "" && grp.activeTime2Ended == "")
+            {
+                sqlSub += string.Format("activeTime2Start = NULL,activeTime2Ended = NULL,");
+            }
 
             //(9,10)
             if (!string.IsNullOrEmpty(grp.activeTime3Start) && !string.IsNullOrEmpty(grp.activeTime3Ended))
@@ -15285,7 +15823,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -15310,7 +15848,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -15336,14 +15874,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15469,8 +16007,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15510,14 +16048,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15675,14 +16213,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15782,8 +16320,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15823,14 +16361,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -15881,8 +16419,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -15946,14 +16484,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16000,7 +16538,7 @@ namespace ScannerBackgrdServer
                     }
                     catch (Exception ee)
                     {
-                        Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);                  
+                        Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);                  
                     }
                 }
             }
@@ -16239,14 +16777,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16354,8 +16892,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16398,14 +16936,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16608,14 +17146,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -16895,14 +17433,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17018,8 +17556,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17082,8 +17620,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -17144,14 +17682,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17248,7 +17786,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.TIME_FMT_ERR;
                 }
 
@@ -17431,14 +17969,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17571,8 +18109,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17618,14 +18156,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -17688,8 +18226,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -17750,14 +18288,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18076,7 +18614,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     sqlSub += string.Format("time = '{0}',", DateTime.Now.ToString());
                 }
             }
@@ -18102,11 +18640,17 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
 
+
+            // 2018-08-21
+            if (gm.activeTime1Start == "" && gm.activeTime1Ended == "")
+            {
+                sqlSub += string.Format("activeTime1Start = NULL,activeTime1Ended = NULL,");
+            }
 
             //(3,4)
             if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
@@ -18128,11 +18672,16 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
 
+            // 2018-08-21
+            if (gm.activeTime2Start == "" && gm.activeTime2Ended == "")
+            {
+                sqlSub += string.Format("activeTime2Start = NULL,activeTime2Ended = NULL,");
+            }
 
             //(5,6)
             if (!string.IsNullOrEmpty(gm.activeTime3Start) && !string.IsNullOrEmpty(gm.activeTime3Ended))
@@ -18154,7 +18703,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -18179,7 +18728,7 @@ namespace ScannerBackgrdServer
                 }
                 catch (Exception ee)
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message, "DB", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + " " + ee.Message + ee.StackTrace, "DB", LogCategory.I);
                     return (int)RC.PAR_FMT_ERR;
                 }
             }
@@ -18221,14 +18770,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18456,8 +19005,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18497,14 +19046,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18580,8 +19129,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -18654,14 +19203,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18732,9 +19281,9 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);       
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);
-                return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);       
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18767,14 +19316,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18825,14 +19374,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -18895,8 +19444,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             if (cnt > 0)
@@ -18957,14 +19506,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19339,14 +19888,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19508,8 +20057,8 @@ namespace ScannerBackgrdServer
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -19555,14 +20104,14 @@ namespace ScannerBackgrdServer
                     if (cmd.ExecuteNonQuery() < 0)
                     {
                         Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
-                        return (int)RC.OP_FAIL;
+                        myDbOperFlag = false;return (int)RC.OP_FAIL;
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Trace(LogInfoType.EROR, e.Message, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message);return (int)RC.OP_FAIL;
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;

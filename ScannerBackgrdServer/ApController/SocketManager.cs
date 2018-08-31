@@ -343,7 +343,7 @@ namespace ScannerBackgrdServer.ApController
                     //log(LogInfoType.INFO, string.Format("时间[{0}] 客户端({1}:{2}),接收到设备消息进行处理！",
                     //    token.ConnectTime.ToString(), token.IPAddress, token.Port.ToString()));
 
-                    //log(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n\n", System.Text.Encoding.Default.GetString(data)));
+                    //log(LogInfoType.DEBG, string.Format("消息内容:\n{0}", System.Text.Encoding.Default.GetString(data)));
 
                     //将数据包交给后台处理,这里你也可以新开个线程来处理.加快速度.  
                     if (ReceiveClientData != null)
@@ -469,7 +469,7 @@ namespace ScannerBackgrdServer.ApController
                 //        System.Text.Encoding.Default.GetString(buff));
                 //log(LogInfoType.INFO,str);
 
-                //log(LogInfoType.DEBG, string.Format("消息内容:\n({0})\n\n",System.Text.Encoding.Default.GetString(buff)));
+                //log(LogInfoType.DEBG, string.Format("消息内容:\n({0})",System.Text.Encoding.Default.GetString(buff)));
             }
             catch (Exception e)
             {

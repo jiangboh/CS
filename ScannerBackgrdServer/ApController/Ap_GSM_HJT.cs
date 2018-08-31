@@ -2502,14 +2502,14 @@ namespace ScannerBackgrdServer.ApController
             nDic.dic.Add("ueImei", ueImei.Substring(0, ueImsi.Length - 1));
             string ueMsisdn = GetValueByString_String(8,ref data);
             nDic.dic.Add("ueMsisdn", ueMsisdn);
-            Byte uePwr = GetValueByString_Byte(ref data);
-            nDic.dic.Add("uePwr", uePwr-111);
+            SByte uePwr = GetValueByString_SByte(ref data);
+            nDic.dic.Add("uePwr", uePwr);
             Byte UeRegtype = GetValueByString_Byte(ref data);
             nDic.dic.Add("UeRegtype", UeRegtype);
             Byte ueQueryResult = GetValueByString_Byte(ref data);
             nDic.dic.Add("ueQueryResult", ueQueryResult);
             UInt32 ueTmsi = GetValueByString_U32(ref data);
-            nDic.dic.Add("ueTmsi", ueTmsi);
+            nDic.dic.Add("ueTmsi", "0x"+ ueTmsi.ToString("X"));
             UInt16 ueLlac = GetValueByString_U16(ref data);
             nDic.dic.Add("ueLlac", ueLlac);
             UInt16 ueSlac = GetValueByString_U16(ref data);
@@ -2717,28 +2717,37 @@ namespace ScannerBackgrdServer.ApController
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Gsm_Recv_Msg_Type.SEND_MS_SMS_SEND.ToString();
 
-            string imsi = GetValueByString_String(9, ref data);
+            //809
+            GetValueByString_String(3, ref data);
+            string imsi = GetValueByString_String(15, ref data);
             nDic.dic.Add("imsi", imsi.Substring(3));
-            string number = GetValueByString_String(9, ref data);
-            nDic.dic.Add("number", imsi.TrimStart('0').TrimEnd('F'));
+            string number = GetValueByString_String(18, ref data);
+            nDic.dic.Add("number", number.ToUpper().TrimStart('0').TrimEnd('F'));
             Byte codetype = GetValueByString_Byte(ref data);
-            nDic.dic.Add("codetype", codetype.ToString());
+            
             Byte len = GetValueByString_Byte(ref data);
             //nDic.dic.Add("codetype", codetype.ToString());
 
-            if ("1".Equals(codetype))
+            string sms = GetValueByString_String(len * 2, ref data);
+            string smsData = string.Empty;
+            if (codetype == 0x08)
             {
-                nDic.dic.Add("codetype", CodeConver.Unicode2String(data));
+                smsData = CodeConver.Unicode2String(sms,false);
+                nDic.dic.Add("codetype", "UCS2");
             }
-            else if ("0".Equals(codetype))
+            else if (codetype == 0x00)
             {
-                nDic.dic.Add("codetype", CodeConver.Decode7Bit(data));
+                smsData = CodeConver.Decode7Bit(sms);
+                //smsData = SMS.BIT7Decoding(SMS.BIT7Unpack(data, 0, 0, 0));
+                nDic.dic.Add("codetype", "7-bit");
             }
             else
             {
                 OnOutputLog(LogInfoType.WARN, "收到手机主动发起短信编码方式错误!");
                 return;
             }
+
+            nDic.dic.Add("data", smsData);
 
             TypeKeyValue.n_dic.Add(nDic);
 

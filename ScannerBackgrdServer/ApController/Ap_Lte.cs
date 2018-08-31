@@ -172,14 +172,14 @@ namespace ScannerBackgrdServer.ApController
                 Msg_Body_Struct SendMsgBody = msgBody;
                 SendMsgBody.type = Main2ApControllerMsgType.app_add_bwlist_response;
                 // 向Main模块发消息
-                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
             }
             else if (msgBody.type == ApMsgType.imsi_list_delconfig_result)
             {
                 Msg_Body_Struct SendMsgBody = msgBody;
                 SendMsgBody.type = Main2ApControllerMsgType.app_del_bwlist_response;
                 // 向Main模块发消息
-                OnSendMsg2Main(0, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.NOTICE, apToKen, SendMsgBody);
             }
             else if (msgBody.type == ApMsgType.scanner)
             {
@@ -304,13 +304,13 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
 
-                byte carry = GetMsgByteValueInList("carry", MainMsg.Body.dic, Byte.MaxValue);
-                if (carry != 0)
-                {
-                    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，carry字段非法!",
-                        Main2ApControllerMsgType.ApSetRadio));
-                    return;
-                }
+                //byte carry = GetMsgByteValueInList("carry", MainMsg.Body.dic, Byte.MaxValue);
+                //if (carry != 0)
+                //{
+                //    OnOutputLog(LogInfoType.EROR, string.Format("Main模块发送消息[{0}]中，carry字段非法!",
+                //        Main2ApControllerMsgType.ApSetRadio));
+                //    return;
+                //}
 
                 Byte active_mode = GetMsgByteValueInList("active_mode", MainMsg.Body.dic, Byte.MaxValue);
                 if (active_mode != 1 && active_mode != 2)

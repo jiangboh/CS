@@ -48,7 +48,7 @@ namespace ScannerBackgrdServer.AppController
             int count = 0;
 
             Xml_codec.StaticOutputLog(LogInfoType.INFO, "AppContr收到Main侧消息。", "APPContr", LogCategory.R);
-            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), "APPContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), "APPContr", LogCategory.R);
 
             lock (mutex_Main2App_Msg)
             {
@@ -160,32 +160,34 @@ namespace ScannerBackgrdServer.AppController
         {
             startIndex = -1;
             endIndex = -1;
-
+            //起始标志数
             int sFlagNum = 0;
             for (int i = 0; i < buff.Length; i++)
             {
                 if (buff[i] == jsonStartFlag)
                 {
-                    if (sFlagNum == 0)
+                    int j = i;
+                    for (j = i+1;j<buff.Length;j++)
                     {
-                        int j = i;
-                        for (j = i+1;j<buff.Length;j++)
+                        if (buff[j] != '\n' && buff[j] != '\r' && buff[j] != '\t' && buff[j] != ' ')
                         {
-                            if (buff[j] != '\n' && buff[j] != '\r' && buff[j] != '\t' && buff[j] != ' ')
-                            {
-                                break;
-                            }
-                        }
-
-                        if (buff[j] == '"'
-                            && (buff[j + 1] == 'A' || buff[j + 1] == 'a')
-                            && (buff[j + 2] == 'P' || buff[j + 2] == 'p'))
-                        {
-                            startIndex = i;
+                            break;
                         }
                     }
-                    sFlagNum++;
+
+                    if (buff[j] == '"'
+                        && (buff[j + 1] == 'A' || buff[j + 1] == 'a')
+                        && (buff[j + 2] == 'P' || buff[j + 2] == 'p'))
+                    {
+                        startIndex = i;
+                        sFlagNum=1;
+                    }
+                    else
+                    {
+                        sFlagNum++;
+                    }
                 }
+
                 if (buff[i] == jsonEndFlag)
                 {
                     if (sFlagNum > 0)
@@ -221,14 +223,14 @@ namespace ScannerBackgrdServer.AppController
             {
                 if (startIndex == -1)
                 {
-                    OnOutputLog(LogInfoType.WARN, "未找到Xml消息起始标志！");
+                    OnOutputLog(LogInfoType.WARN, "未找到Json消息起始标志！");
                     MyDeviceList.DelMsgBuff(appToKen, 0, endIndex);
                     return string.Empty;
                 }
         
                 if (startIndex >= endIndex)
                 {
-                    OnOutputLog(LogInfoType.WARN, "Xml消息起始标志错误！");
+                    OnOutputLog(LogInfoType.WARN, "Json消息起始标志错误！");
                     MyDeviceList.DelMsgBuff(appToKen, 0, startIndex);
                     return string.Empty;
                 }
@@ -236,9 +238,9 @@ namespace ScannerBackgrdServer.AppController
                 string msgStr = MyDeviceList.GetMsgBuff(appToKen, startIndex, endIndex-startIndex); 
                 MyDeviceList.DelMsgBuff(appToKen, 0, endIndex);
 
-                //OnOutputLog(LogInfoType.INFO, "\n\n收到消息：————————————————————");
+                //OnOutputLog(LogInfoType.INFO, "收到消息：————————————————————");
                 //OnOutputLog(LogInfoType.INFO, msgStr);
-                //OnOutputLog(LogInfoType.INFO, "————————————————————\n\n");
+                //OnOutputLog(LogInfoType.INFO, "————————————————————");
                 return msgStr;
             }
 
@@ -274,7 +276,7 @@ namespace ScannerBackgrdServer.AppController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块！"), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             AppManager.sendMsg_2_MainController(mt, mb);
         }
@@ -314,7 +316,7 @@ namespace ScannerBackgrdServer.AppController
             mb.bJson = JsonConvert.SerializeObject(msg);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块！"), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             AppManager.sendMsg_2_MainController(mt, mb);
         }
@@ -332,7 +334,7 @@ namespace ScannerBackgrdServer.AppController
             mb.bJson = System.Text.Encoding.Default.GetString(buff);
 
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块！"), LogCategory.S);
-            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", mb.bJson), LogCategory.S);
+            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             AppManager.sendMsg_2_MainController(mt, mb);
         }
@@ -403,7 +405,7 @@ namespace ScannerBackgrdServer.AppController
                     if ((MainMsg.AppInfo.Ip.Equals(MsgStruct.AllDevice)) || (MainMsg.AppInfo.Type.Equals(DeviceType)))
                     {
                         OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
-                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", str));
+                        OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", str));
                     }
 
                     AppInnerType flag;
@@ -480,7 +482,7 @@ namespace ScannerBackgrdServer.AppController
                         {
                             OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
                                 deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
-                            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+                            OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
                             MySocket.SendMessage(appToKen, buff);
                         }
                     }
@@ -496,7 +498,7 @@ namespace ScannerBackgrdServer.AppController
 
                     OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
                                 deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
-                    OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+                    OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
                     MySocket.SendMessage(appToKen, buff);
                 }
             }
@@ -531,7 +533,7 @@ namespace ScannerBackgrdServer.AppController
             {
                 OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
                             TypeKeyValue.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
-                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}\n", strJosn), LogCategory.S);
+                OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
             }
 
             byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);

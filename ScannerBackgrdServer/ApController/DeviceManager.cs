@@ -234,13 +234,13 @@ namespace ScannerBackgrdServer.ApController
         private void OnReceiveData(AsyncUserToken token, byte[] buff)
         {
             int count = 0;
-            if (-1 != ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(ApMsgType.status_response)) &&
-                (-1 != ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(AppMsgType.app_heartbeat_request))))
+            if (-1 == ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(ApMsgType.status_response)) &&
+                (-1 == ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(AppMsgType.app_heartbeat_request))))
             {
                 string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]消息！",
                     deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
                 OnOutputLog(LogInfoType.INFO, str);
-                str = string.Format("收到{0}设备消息内容为\n{1}\n\n", DeviceType,
+                str = string.Format("收到{0}设备消息内容为\n{1}", DeviceType,
                     System.Text.Encoding.Default.GetString(buff));
                 OnOutputLog(LogInfoType.DEBG, str, LogCategory.R);
                 str = null;
