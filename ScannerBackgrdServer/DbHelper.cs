@@ -42,6 +42,12 @@ namespace ScannerBackgrdServer
         public int id;               //设备id
         public devMode devMode;      //设备mode
         public string name;          //设备名称
+
+        //
+        // 2018-10-09,"域名.名称"
+        //
+        public string station_and_name; 
+
         public string sn;            //SN，GSM或第三方设备可能没有该字段
         public string ipAddr;        //IP地址
         public string port;          //端口号
@@ -59,7 +65,7 @@ namespace ScannerBackgrdServer
         public string command;         //0:停止 1:开机执行 2:立即执行
         public string txpower;         //Relative to maximum output power
         public string duration;        //白名单自学习时长,单位秒
-        public string clearWhiteList;  //0：否   1：是
+        public string clearWhiteList;  //0：否   1：是        
     };
 
 
@@ -181,6 +187,9 @@ namespace ScannerBackgrdServer
         public string queryResult;    //查询结果
         public string localLAC;       //本地LAC
         public string sourceLAC;      //原LAC
+
+        //2018-09-06
+        public string des;            //IMSI对应的des(bwlist表中的对应关系)
     };
 
 
@@ -231,6 +240,7 @@ namespace ScannerBackgrdServer
         public int totalRecords;
         public int totalPages;
         public int pageSize;
+        public int queryTime; // 2018-09-17
         public DataTable dt;
     };
 
@@ -255,6 +265,7 @@ namespace ScannerBackgrdServer
         public int RmDupFlag;       //是否对设备名称和SN去重标志，0:不去重，1:去重
         public UInt32 topCount;     //返回最前面的记录数，0:所有，非0:指定的记录数          
     };
+
 
     /// <summary>
     /// gsm_sys_para表的各个字段
@@ -288,6 +299,30 @@ namespace ScannerBackgrdServer
         public string opSmsType;    //短信类型
         public string opRegModel;   //注册工作模式
         public string bindingDevId; //绑定的设备ID
+    };
+
+    /// <summary>
+    /// 仅用于时间段控制
+    /// </summary>
+    public struct strActiveTime
+    {
+        // 2018-09-14
+
+        public bool atFlag1;             
+        public string activeTime1Start;  //生效时间1的起始时间
+        public string activeTime1Ended;  //生效时间1的结束时间
+
+        public bool atFlag2;
+        public string activeTime2Start;  //生效时间2的起始时间
+        public string activeTime2Ended;  //生效时间2的结束时间
+
+        public bool atFlag3;
+        public string activeTime3Start;  //生效时间3的起始时间
+        public string activeTime3Ended;  //生效时间3的结束时间
+
+        public bool atFlag4;
+        public string activeTime4Start;  //生效时间4的起始时间，有的话就添加该项
+        public string activeTime4Ended;  //生效时间4的结束时间，有的话就添加该项
     };
 
     /// <summary>
@@ -535,6 +570,94 @@ namespace ScannerBackgrdServer
 
     };
 
+
+    /// <summary>
+    /// 手机主动发起呼叫(截获的号码)
+    /// </summary>
+    public struct strMsCall
+    {
+        public string imsi;          //IMSI号
+        public string number;        //number号
+        public string time;          //感知时间
+        public string bindingDevId;  //绑定的设备ID
+        public string affDeviceId;   //所属设备ID
+        public string devName;       //所属设备名称
+    };
+
+
+    /// <summary>
+    /// 手机主动发起短信(截获的短信)
+    /// </summary>
+    public struct strMsSms
+    {
+        public string imsi;          //IMSI号
+        public string number;        //number号
+        public string codetype;      //编码类型
+        public string data;          //短信内容
+        public string time;          //感知时间
+        public string bindingDevId;  //绑定的设备ID
+        public string affDeviceId;   //所属设备ID
+        public string devName;       //所属设备名称
+    };
+
+
+    /// <summary>
+    /// 手机主动发起呼叫(截获的号码)的历史搜索
+    /// </summary>
+    public struct strMsCallHistoryQuery
+    {
+        public string imsi;          //IMSI号
+        public string number;        //number号
+        public string timeStart;     //开始时间
+        public string timeEnded;     //结束时间
+        public string devName;       //所属设备名称
+
+        /*
+         *  2018-10-09
+         *  设备列表ID，
+         *  count = 0：表示所有的设备
+         *  count = 1：表示一个设备
+         *  count > 1：表示多个设备
+         */
+        public List<int> lstDevId;  
+
+        public int totalRecords;
+        public int totalPages;
+        public int pageSize;
+        public List<strMsCall> lstMsCall;
+    };
+
+
+    /// <summary>
+    /// 手机主动发起短信(截获的短信)的历史搜索
+    /// </summary>
+    public struct strMsSmsHistoryQuery
+    {
+        public string imsi;          //IMSI号
+        public string number;        //number号
+        public string data;          //短信内容
+        public string timeStart;     //开始时间
+        public string timeEnded;     //结束时间
+        public string devName;       //所属设备名称
+
+        /*
+         *  2018-10-09
+         *  设备列表ID，
+         *  count = 0：表示所有的设备
+         *  count = 1：表示一个设备
+         *  count > 1：表示多个设备
+         */
+        public List<int> lstDevId;
+
+        public int totalRecords;
+        public int totalPages;
+        public int pageSize;
+
+        public List<strMsSms> lstMsSms;
+    };
+
+
+
     public enum RC    //数据库返回代码
     {
         SUCCESS = 0,  //成功
@@ -651,6 +774,27 @@ namespace ScannerBackgrdServer
         MODE_UNKNOWN = 7     //"非上述定义类型"
     }
 
+    /// <summary>
+    /// 线程监控下标
+    /// </summary>
+    public enum ThreadMonitorIndex
+    {
+        TMI_AP_CTRL = 0,       //对应ApCtrl
+        TMI_APP_CTRL = 1,      //对应AppCtrl
+        TMI_DB = 2,            //对应数据库
+        TMI_FTP = 3,           //对应FTP
+        TMI_RADIO = 4,         //对应射频开关
+        TMI_BWO = 5,           //对应黑白普通名单
+
+        TMI_AP_LTE = 6,        //对应LTE   
+        TMI_AP_WCDMA = 7,      //对应WCDMA
+        TMI_AP_GSM_ZYF = 8,    //对应GSM_ZYF
+        TMI_AP_CDMA_ZYF = 9,   //对应CDMA_ZYF
+        TMI_AP_GSM_HJT = 10,   //对应GSM_HJT
+        TMI_APP_WINDOWS = 11,  //对应App_Windows
+        TMI_MAX = 12,
+    }
+
     #endregion
 
     public class DbHelper
@@ -740,6 +884,20 @@ namespace ScannerBackgrdServer
             this.database = database;
 
             string conString = "Data Source=" + server + ";" + "port=" + port + ";" + "Database=" + database + ";" + "User Id=" + uid + ";" + "Password=" + password + ";" + "CharSet=utf8";
+
+            /*
+             * 2018-09-07
+             * 
+             * C#读取MySql时，如果存在字段类型为date/datetime时的可能会出现以下问题:
+             * Unable to convert MySQL date/time value to System.DateTime
+             * 原因：可能是该字段（date/datetime）的值默认缺省值为：0000-00-00/0000-00-00 00:00:00,
+             * 这样的数据读出来转换成System.DateTime时就会有问题；
+             * 
+             * 解决办法：
+             * 1、将该字段的缺省值设置为null，而不是0000-00-00/0000-00-00 00:00:00的情况；
+             * 2、在链接MySQL的字符串中添加：Convert Zero Datetime=True 和 Allow Zero Datetime=True两个属性；
+             */
+            conString = string.Format("{0};Convert Zero Datetime=True;Allow Zero Datetime=True;", conString);
             myDbConn = new MySqlConnection(conString);
 
             OpenDbConn();
@@ -991,6 +1149,11 @@ namespace ScannerBackgrdServer
             }
         }
 
+        /// <summary>
+        /// 获取所有在线AP的射频相关信息
+        /// </summary>
+        /// <param name="lstSetRadio"></param>
+        /// <returns></returns>
         public int device_set_radio_info_get(ref List<strSetRadio> lstSetRadio)
         {
             if (false == myDbConnFlag)
@@ -1024,6 +1187,9 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column5);
             dt.Columns.Add(column6);
 
+            /*
+             *  只获取在线的设备
+             */
             string sql = string.Format("select id,name,sn,ipAddr,port,mode,innerType from device where online = 1");
             try
             {
@@ -1080,321 +1246,408 @@ namespace ScannerBackgrdServer
             int rtv = -1;
             lstSetRadio = new List<strSetRadio>();
 
-            foreach (DataRow dr in dt.Rows)
+            try
             {
-                devMode dm = get_device_mode(dr["mode"].ToString());         
-                if (dm == devMode.MODE_UNKNOWN)
+                foreach (DataRow dr in dt.Rows)
                 {
-                    string errInfo = string.Format("mode = {0},错误的类型.", dr["mode"].ToString());         
-                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                    devMode dm = get_device_mode(dr["mode"].ToString());
+                    if (dm == devMode.MODE_UNKNOWN)
+                    {
+                        string errInfo = string.Format("mode = {0},错误的类型.", dr["mode"].ToString());
+                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                    }
+
+                    switch (dm)
+                    {
+                        case devMode.MODE_GSM:
+                            {
+                                #region GSM
+
+                                #region 载波0
+
+                                strSetRadio str = new strSetRadio();
+                                strGsmRfPara grp = new strGsmRfPara();
+
+                                rtv = gsm_rf_para_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref grp);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = grp.activeTime1Start;
+                                    str.activeTime1Ended = grp.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = grp.activeTime2Start;
+                                    str.activeTime2Ended = grp.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime3Start) && !string.IsNullOrEmpty(grp.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = grp.activeTime3Start;
+                                    str.activeTime3Ended = grp.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime4Start) && !string.IsNullOrEmpty(grp.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = grp.activeTime4Start;
+                                    str.activeTime4Ended = grp.activeTime4Ended;
+                                }
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
+
+                                str.carry = "0";
+                                str.rfEnable = grp.rfEnable;
+                                str.rfFreq = grp.rfFreq;
+                                str.rfPwr = grp.rfPwr;
+
+                                lstSetRadio.Add(str);
+
+                                #endregion
+
+                                #region 载波1
+
+                                str = new strSetRadio();
+                                grp = new strGsmRfPara();
+
+                                rtv = gsm_rf_para_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref grp);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = grp.activeTime1Start;
+                                    str.activeTime1Ended = grp.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = grp.activeTime2Start;
+                                    str.activeTime2Ended = grp.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime3Start) && !string.IsNullOrEmpty(grp.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = grp.activeTime3Start;
+                                    str.activeTime3Ended = grp.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(grp.activeTime4Start) && !string.IsNullOrEmpty(grp.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = grp.activeTime4Start;
+                                    str.activeTime4Ended = grp.activeTime4Ended;
+                                }
+
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
+
+                                str.carry = "1";
+                                str.rfEnable = grp.rfEnable;
+                                str.rfFreq = grp.rfFreq;
+                                str.rfPwr = grp.rfPwr;
+
+                                lstSetRadio.Add(str);
+
+                                #endregion
+
+                                break;
+
+                                #endregion
+                            }
+                        case devMode.MODE_GSM_V2:
+                            {
+                                #region GSM-V2                                     
+
+                                #region 载波0
+
+                                strSetRadio str = new strSetRadio();
+                                strGcMisc gm = new strGcMisc();
+
+                                rtv = gc_misc_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref gm);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = gm.activeTime1Start;
+                                    str.activeTime1Ended = gm.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = gm.activeTime2Start;
+                                    str.activeTime2Ended = gm.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime3Start) && !string.IsNullOrEmpty(gm.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = gm.activeTime3Start;
+                                    str.activeTime3Ended = gm.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime4Start) && !string.IsNullOrEmpty(gm.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = gm.activeTime4Start;
+                                    str.activeTime4Ended = gm.activeTime4Ended;
+                                }
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
+
+                                str.carry = "0";
+                                str.RADIO = gm.RADIO;
+
+                                lstSetRadio.Add(str);
+
+                                #endregion
+
+                                #region 载波1
+
+                                str = new strSetRadio();
+                                gm = new strGcMisc();
+
+                                rtv = gc_misc_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref gm);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = gm.activeTime1Start;
+                                    str.activeTime1Ended = gm.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = gm.activeTime2Start;
+                                    str.activeTime2Ended = gm.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime3Start) && !string.IsNullOrEmpty(gm.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = gm.activeTime3Start;
+                                    str.activeTime3Ended = gm.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime4Start) && !string.IsNullOrEmpty(gm.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = gm.activeTime4Start;
+                                    str.activeTime4Ended = gm.activeTime4Ended;
+                                }
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
+
+                                str.carry = "1";
+                                str.RADIO = gm.RADIO;
+
+                                lstSetRadio.Add(str);
+
+                                #endregion
+
+                                break;
+
+                                #endregion
+                            }
+                        case devMode.MODE_CDMA:
+                            {
+                                #region CDMA                                       
+
+                                #region 载波-1
+
+                                strSetRadio str = new strSetRadio();
+                                strGcMisc gm = new strGcMisc();
+
+                                rtv = gc_misc_record_get_by_devid(-1, int.Parse(dr["id"].ToString()), ref gm);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = gm.activeTime1Start;
+                                    str.activeTime1Ended = gm.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = gm.activeTime2Start;
+                                    str.activeTime2Ended = gm.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime3Start) && !string.IsNullOrEmpty(gm.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = gm.activeTime3Start;
+                                    str.activeTime3Ended = gm.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(gm.activeTime4Start) && !string.IsNullOrEmpty(gm.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = gm.activeTime4Start;
+                                    str.activeTime4Ended = gm.activeTime4Ended;
+                                }
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
+
+                                str.carry = "-1";
+                                str.RADIO = gm.RADIO;
+
+                                lstSetRadio.Add(str);
+
+                                #endregion
+
+                                break;
+
+                                #endregion
+                            }
+                        case devMode.MODE_TD_SCDMA:
+                            {
+                                break;
+                            }
+                        case devMode.MODE_WCDMA:
+                        case devMode.MODE_LTE_FDD:
+                        case devMode.MODE_LTE_TDD:
+                            {
+                                #region LTE
+
+                                strSetRadio str = new strSetRadio();
+                                strApGenPara apGP = new strApGenPara();
+
+                                rtv = ap_general_para_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apGP);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("ap_general_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (!string.IsNullOrEmpty(apGP.activeTime1Start) && !string.IsNullOrEmpty(apGP.activeTime1Ended))
+                                {
+                                    str.activeTime1Start = apGP.activeTime1Start;
+                                    str.activeTime1Ended = apGP.activeTime1Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(apGP.activeTime2Start) && !string.IsNullOrEmpty(apGP.activeTime2Ended))
+                                {
+                                    str.activeTime2Start = apGP.activeTime2Start;
+                                    str.activeTime2Ended = apGP.activeTime2Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(apGP.activeTime3Start) && !string.IsNullOrEmpty(apGP.activeTime3Ended))
+                                {
+                                    str.activeTime3Start = apGP.activeTime3Start;
+                                    str.activeTime3Ended = apGP.activeTime3Ended;
+                                }
+
+                                if (!string.IsNullOrEmpty(apGP.activeTime4Start) && !string.IsNullOrEmpty(apGP.activeTime4Ended))
+                                {
+                                    str.activeTime4Start = apGP.activeTime4Start;
+                                    str.activeTime4Ended = apGP.activeTime4Ended;
+                                }
+
+                                str.id = int.Parse(dr["id"].ToString());
+                                str.devMode = dm;
+                                str.name = dr["name"].ToString();
+                                str.sn = dr["sn"].ToString();
+                                str.ipAddr = dr["ipAddr"].ToString();
+                                str.port = dr["port"].ToString();
+                                str.innerType = dr["innerType"].ToString();
+
+                                str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
+
+                                strApStatus apSts = new strApStatus();
+                                rtv = ap_status_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apSts);
+                                if (rtv != 0)
+                                {
+                                    string errInfo = string.Format("ap_status_record_get_by_devid出错:{0}", get_rtv_str(rtv));
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                str.RADIO = apSts.RADIO;
+
+                                //str.bootMode = apGP.bootMode;
+
+                                // 2018-08-24 固定为scanner
+                                str.bootMode = "1";
+
+                                lstSetRadio.Add(str);
+
+                                break;
+
+                                #endregion
+                            }
+                        case devMode.MODE_UNKNOWN:
+                            {
+                                break;
+                            }
+                    }
                 }
-                
-                switch (dm)
-                {
-                    case devMode.MODE_GSM:
-                        {
-                            #region GSM
-
-                            #region 载波0
-
-                            strSetRadio str = new strSetRadio();
-                            strGsmRfPara grp = new strGsmRfPara();
-
-                            rtv = gsm_rf_para_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref grp);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}",get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if ( !string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
-                            {
-                                str.activeTime1Start = grp.activeTime1Start;
-                                str.activeTime1Ended = grp.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
-                            {
-                                str.activeTime2Start = grp.activeTime2Start;
-                                str.activeTime2Ended = grp.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
-
-                            str.carry = "0";
-                            str.rfEnable = grp.rfEnable;
-                            str.rfFreq = grp.rfFreq;
-                            str.rfPwr = grp.rfPwr;
-
-                            lstSetRadio.Add(str);
-
-                            #endregion
-
-                            #region 载波1
-
-                            str = new strSetRadio();
-                            grp = new strGsmRfPara();
-
-                            rtv = gsm_rf_para_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref grp);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("gsm_rf_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(grp.activeTime1Start) && !string.IsNullOrEmpty(grp.activeTime1Ended))
-                            {
-                                str.activeTime1Start = grp.activeTime1Start;
-                                str.activeTime1Ended = grp.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(grp.activeTime2Start) && !string.IsNullOrEmpty(grp.activeTime2Ended))
-                            {
-                                str.activeTime2Start = grp.activeTime2Start;
-                                str.activeTime2Ended = grp.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
-
-                            str.carry = "1";
-                            str.rfEnable = grp.rfEnable;
-                            str.rfFreq = grp.rfFreq;
-                            str.rfPwr = grp.rfPwr;
-
-                            lstSetRadio.Add(str);
-
-                            #endregion
-
-                            break;
-
-                            #endregion
-                        }
-                    case devMode.MODE_GSM_V2:
-                        {
-                            #region GSM-V2                                     
-
-                            #region 载波0
-
-                            strSetRadio str = new strSetRadio();
-                            strGcMisc gm = new strGcMisc();
-                            
-                            rtv = gc_misc_record_get_by_devid(0, int.Parse(dr["id"].ToString()), ref gm);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
-                            {
-                                str.activeTime1Start = gm.activeTime1Start;
-                                str.activeTime1Ended = gm.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
-                            {
-                                str.activeTime2Start = gm.activeTime2Start;
-                                str.activeTime2Ended = gm.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 0);
-
-                            str.carry = "0";
-                            str.RADIO = gm.RADIO;
-
-                            lstSetRadio.Add(str);
-
-                            #endregion
-
-                            #region 载波1
-
-                            str = new strSetRadio();
-                            gm = new strGcMisc();
-
-                            rtv = gc_misc_record_get_by_devid(1, int.Parse(dr["id"].ToString()), ref gm);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
-                            {
-                                str.activeTime1Start = gm.activeTime1Start;
-                                str.activeTime1Ended = gm.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
-                            {
-                                str.activeTime2Start = gm.activeTime2Start;
-                                str.activeTime2Ended = gm.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, 1);
-
-                            str.carry = "1";
-                            str.RADIO = gm.RADIO;
-
-                            lstSetRadio.Add(str);
-
-                            #endregion
-
-                            break;
-
-                            #endregion
-                        }
-                    case devMode.MODE_CDMA:
-                        {
-                            #region CDMA                                       
-
-                            #region 载波-1
-
-                            strSetRadio str = new strSetRadio();
-                            strGcMisc gm = new strGcMisc();
-
-                            rtv = gc_misc_record_get_by_devid(-1, int.Parse(dr["id"].ToString()), ref gm);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("gc_misc_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime1Start) && !string.IsNullOrEmpty(gm.activeTime1Ended))
-                            {
-                                str.activeTime1Start = gm.activeTime1Start;
-                                str.activeTime1Ended = gm.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(gm.activeTime2Start) && !string.IsNullOrEmpty(gm.activeTime2Ended))
-                            {
-                                str.activeTime2Start = gm.activeTime2Start;
-                                str.activeTime2Ended = gm.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
-
-                            str.carry = "-1";
-                            str.RADIO = gm.RADIO;
-
-                            lstSetRadio.Add(str);
-
-                            #endregion
-
-                            break;
-
-                            #endregion
-                        }
-                    case devMode.MODE_TD_SCDMA:
-                        {
-                            break;
-                        }
-                    case devMode.MODE_WCDMA:
-                    case devMode.MODE_LTE_FDD:
-                    case devMode.MODE_LTE_TDD:
-                        {
-                            #region LTE
-
-                            strSetRadio str = new strSetRadio();
-                            strApGenPara apGP = new strApGenPara();
-                            
-                            rtv = ap_general_para_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apGP);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("ap_general_para_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(apGP.activeTime1Start) && !string.IsNullOrEmpty(apGP.activeTime1Ended))
-                            {
-                                str.activeTime1Start = apGP.activeTime1Start;
-                                str.activeTime1Ended = apGP.activeTime1Ended;
-                            }
-
-                            if (!string.IsNullOrEmpty(apGP.activeTime2Start) && !string.IsNullOrEmpty(apGP.activeTime2Ended))
-                            {
-                                str.activeTime2Start = apGP.activeTime2Start;
-                                str.activeTime2Ended = apGP.activeTime2Ended;
-                            }
-
-                            str.id = int.Parse(dr["id"].ToString());
-                            str.devMode = dm;
-                            str.name = dr["name"].ToString();
-                            str.sn = dr["sn"].ToString();
-                            str.ipAddr = dr["ipAddr"].ToString();
-                            str.port = dr["port"].ToString();
-                            str.innerType = dr["innerType"].ToString();
-
-                            str.fullName = string.Format("{0}.{1}.{2}", str.ipAddr, str.port, -1);
-
-                            strApStatus apSts = new strApStatus();
-                            rtv = ap_status_record_get_by_devid(int.Parse(dr["id"].ToString()), ref apSts);
-                            if (rtv != 0)
-                            {
-                                string errInfo = string.Format("ap_status_record_get_by_devid出错:{0}", get_rtv_str(rtv));
-                                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
-                                break;
-                            }
-
-                            str.RADIO = apSts.RADIO;
-                            str.bootMode = apGP.bootMode;
-
-                            lstSetRadio.Add(str);                            
-
-                            break;
-
-                            #endregion
-                        }
-                    case devMode.MODE_UNKNOWN:
-                        {
-                            break;
-                        }
-                }              
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -1417,9 +1670,7 @@ namespace ScannerBackgrdServer
         ///   RC.EXIST    ：存在
         /// </returns>
         public int user_record_exist(string name)
-        {
-            UInt32 cnt = 0;
-
+        {           
             if (false == myDbConnFlag)
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
@@ -1438,18 +1689,28 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from user where name = '{0}'", name);
+            //string sql = string.Format("select count(*) from user where name = '{0}'", name);
+            string sql = string.Format("select 1 from user where name = '{0}' limit 1", name);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -1460,14 +1721,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -1922,7 +2183,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int roletype_record_exist(string roleType)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -1942,18 +2203,29 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from roletype where roleType = '{0}'", roleType);
+            //string sql = string.Format("select count(*) from roletype where roleType = '{0}'", roleType);
+
+            string sql = string.Format("select 1 from roletype where roleType = '{0}' limit 1", roleType);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -1964,14 +2236,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -2231,7 +2503,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int role_record_exist(string name)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -2251,18 +2523,29 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from role where name = '{0}'", name);
+            //string sql = string.Format("select count(*) from role where name = '{0}'", name);
+            string sql = string.Format("select 1 from role where name = '{0}' limit 1", name);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -2273,14 +2556,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -2659,26 +2942,38 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int privilege_record_exist(int priId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
                 return (int)RC.NO_OPEN;
-            }           
+            }
 
-            string sql = string.Format("select count(*) from privilege where priId = {0}", priId);
+            //string sql = string.Format("select count(*) from privilege where priId = {0}", priId);
+
+            string sql = string.Format("select 1 from privilege where priId = {0} limit 1", priId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -2689,14 +2984,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -3025,7 +3320,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int userrole_record_exist(string usrName,string roleName)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -3045,18 +3340,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from userrole where usrName = '{0}' and roleName = '{1}'", usrName, roleName);
+            //string sql = string.Format("select count(*) from userrole where usrName = '{0}' and roleName = '{1}'", usrName, roleName);
+
+            string sql = string.Format("select 1 from userrole where usrName = '{0}' and roleName = '{1}' limit 1", usrName, roleName);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -3067,14 +3374,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -3421,7 +3728,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int roleprivilege_record_exist(string roleName)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -3441,18 +3748,29 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from roleprivilege where roleName = '{0}'", roleName);
+            //string sql = string.Format("select count(*) from roleprivilege where roleName = '{0}'", roleName);
+            string sql = string.Format("select 1 from roleprivilege where roleName = '{0}' limit 1", roleName);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -3462,14 +3780,14 @@ namespace ScannerBackgrdServer
                 return  (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -4391,7 +4709,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int domain_record_exist(int id)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -4399,18 +4717,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from domain where id = {0}", id);
+            //string sql = string.Format("select count(*) from domain where id = {0}", id);
+
+            string sql = string.Format("select 1 from domain where id = {0} limit 1", id);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -4421,14 +4751,14 @@ namespace ScannerBackgrdServer
                 myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -4445,7 +4775,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int domain_record_exist(string nameFullPath)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -4465,18 +4795,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from domain where nameFullPath = '{0}'", nameFullPath);
+            //string sql = string.Format("select count(*) from domain where nameFullPath = '{0}'", nameFullPath);
+
+            string sql = string.Format("select 1 from domain where nameFullPath = '{0}' limit 1", nameFullPath);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -4486,14 +4828,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -5411,67 +5753,23 @@ namespace ScannerBackgrdServer
             return modeStr;
         }
 
-        ///// <summary>
-        ///// 用于快速通过设备的全名早点设备对应的ID
-        ///// 如：设备.深圳.福田.中心广场.西北监控.LTE-FDD-B3，其中
-        ///// 设备.深圳.福田.中心广场.西北监控为域名，LTE-FDD-B3为名称
-        ///// 系统启动后或设备有更改后获取该字典到内存中
-        ///// string = 设备.深圳.福田.中心广场.西北监控.LTE-FDD-B3
-        ///// int    = device的id
-        ///// </summary>
-        ///// <param name="dic">返回的字典</param>
-        ///// <returns>
-        /////   RC.NO_OPEN   ：数据库尚未打开
-        /////   RC.OP_FAIL   ：数据库操作失败 
-        /////   RC.SUCCESS   ：成功
-        ///// </returns>
-        //public int domain_dictionary_info_join_get(ref Dictionary<string, int> dic)
-        //{    
-        //    if (false == myDbConnFlag)
+        //public int domain_dictionary_info_join_get(ref Dictionary<string, strDevice> inDic, ref Dictionary<string, strDevice> inDicDevId)
+        //{
+        //    Dictionary<string, strDevice> tmp = new Dictionary<string, strDevice>();
+        //    Dictionary<string, strDevice> tmpDevId = new Dictionary<string, strDevice>();
+
+        //    if ((int)RC.SUCCESS == (this.domain_dictionary_info_join_get(0, ref tmp, ref tmpDevId)))
         //    {
-        //        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN]);
-        //        return (int)RC.NO_OPEN;
+        //        inDic = tmp;
+        //        inDicDevId = tmpDevId;
+        //        return (int)RC.SUCCESS;
         //    }
-
-        //    dic = new Dictionary<string, int>();
-
-        //    string sql = string.Format("SELECT a.nameFullPath,b.name,b.id FROM (select id,nameFullPath from domain where isStation = 1) AS a INNER JOIN device As b ON a.id = b.affDomainId");
-
-        //    try
-        //    {
-        //        using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
-        //        {
-        //            using (MySqlDataReader dr = cmd.ExecuteReader())
-        //            {
-        //                while (dr.Read())
-        //                {
-        //                    if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()) && 
-        //                        !string.IsNullOrEmpty(dr["name"].ToString()) &&
-        //                        !string.IsNullOrEmpty(dr["id"].ToString()))
-        //                    {
-        //                        string completeName = string.Format("{0}.{1}", dr["nameFullPath"].ToString(), dr["name"].ToString());
-
-        //                        if (!dic.ContainsKey(completeName))
-        //                        {
-        //                            dic.Add(completeName, int.Parse(dr["id"].ToString()));
-        //                        }
-        //                    }                          
-        //                }
-        //                dr.Close();
-        //            }
-        //        }
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-        //        myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
-        //    }
-
-        //    return (int)RC.SUCCESS;
+        //    return (int)RC.OP_FAIL;
         //}
 
+
         /// <summary>
-        /// 用于快速通过设备的全名早点设备对应的ID
+        /// 用于快速通过设备的全名找到设备对应的各种信息
         /// 如：设备.深圳.福田.中心广场.西北监控.LTE-FDD-B3，其中
         /// 设备.深圳.福田.中心广场.西北监控为域名，LTE-FDD-B3为名称
         /// 系统启动后或设备有更改后获取该字典到内存中
@@ -5492,9 +5790,12 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            dic = new Dictionary<string, strDevice>();
+            Dictionary<string, strDevice> dicTemp = new Dictionary<string, strDevice>();
 
-            string sql = string.Format("SELECT a.nameFullPath,b.* FROM (select id,nameFullPath from domain where isStation = 1) AS a INNER JOIN device As b ON a.id = b.affDomainId");
+            //string sql = string.Format("SELECT a.nameFullPath,b.* FROM (select id,nameFullPath from domain where isStation = 1) AS a INNER JOIN device As b ON a.id = b.affDomainId");
+
+            // 2018-10-09
+            string sql = string.Format("SELECT a.name,a.nameFullPath,b.* FROM (select id,name,nameFullPath from domain where isStation = 1) AS a INNER JOIN device As b ON a.id = b.affDomainId");
 
             try
             {
@@ -5504,9 +5805,21 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
-                            if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()) && !string.IsNullOrEmpty(dr["name"].ToString()))
+                            //for (int i = 0; i < dr.FieldCount; i++)
+                            //{
+
+                            //    sql += dr.GetName(i).Trim()+"\n";
+
+                            //}
+
+                            //string a1 = dr["nameFullPath"].ToString();
+                            //string a2 = dr["a.nameFullPath"].ToString();
+                            //string a3 = dr[0].ToString();
+                            //string a4 = dr[3].ToString();
+
+                            if (!string.IsNullOrEmpty(dr["nameFullPath"].ToString()) && !string.IsNullOrEmpty(dr[3].ToString()))
                             {
-                                string completeName = string.Format("{0}.{1}", dr["nameFullPath"].ToString(), dr["name"].ToString());
+                                string completeName = string.Format("{0}.{1}", dr["nameFullPath"].ToString(), dr[3].ToString());
 
                                 strDevice strDev = new strDevice();
 
@@ -5518,9 +5831,12 @@ namespace ScannerBackgrdServer
                                     strDev.id = int.Parse(dr["id"].ToString());
                                 }
 
-                                if (!string.IsNullOrEmpty(dr["name"].ToString()))
-                                {
-                                    strDev.name = dr["name"].ToString();
+                                strDev.name = dr[3].ToString();
+
+                                // 2018-10-09
+                                if (!string.IsNullOrEmpty(dr[0].ToString()))
+                                {                                    
+                                    strDev.station_and_name = string.Format("{0}.{1}",dr[0].ToString(), dr[3].ToString()); 
                                 }
 
                                 if (!string.IsNullOrEmpty(dr["sn"].ToString()))
@@ -5569,10 +5885,10 @@ namespace ScannerBackgrdServer
                                     strDev.online = "0";
                                 }
 
-                                if (!dic.ContainsKey(completeName))
+                                if (!dicTemp.ContainsKey(completeName))
                                 {
-                                    dic.Add(completeName, strDev);
-                                }
+                                    dicTemp.Add(completeName, strDev);
+                                }                               
                             }
                         }
                         dr.Close();
@@ -5582,8 +5898,91 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);    
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
             }
+
+            dic = new Dictionary<string, strDevice>();
+            dic = dicTemp;
+           
+            return (int)RC.SUCCESS;
+        }
+
+
+        /// <summary>
+        /// 用于快速通过设备的全名找到设备对应的各种信息
+        /// 如：设备.深圳.福田.中心广场.西北监控.LTE-FDD-B3，其中
+        /// 设备.深圳.福田.中心广场.西北监控为域名，LTE-FDD-B3为名称
+        /// 系统启动后或设备有更改后获取该字典到内存中
+        /// string = 设备.深圳.福田.中心广场.西北监控.LTE-FDD-B3
+        /// strDevice = 设备的各个字段
+        /// </summary>
+        /// <param name="dic">返回的字典</param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.SUCCESS   ：成功
+        /// </returns>
+        public int domain_dictionary_info_join_imsi_des_get(ref Dictionary<string, Dictionary<string, string>> dic)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            List<string> lstId = new List<string>();
+            Dictionary<string, Dictionary<string, string>> dicTemp = new Dictionary<string, Dictionary<string, string>>();
+
+            string sql = string.Format("select id from device");           
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            if (!string.IsNullOrEmpty(dr["id"].ToString()))
+                            {
+                                lstId.Add(dr["id"].ToString());
+                            }
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }
+
+
+            #region 获取imsi和des的对应关系
+
+            // 2018-09-10
+
+            foreach (string id in lstId)
+            {
+                Dictionary<string, string> dicImsiDes = new Dictionary<string, string>();
+
+                if ((int)RC.SUCCESS == bwlist_record_entity_imsi_des_get(int.Parse(id), ref dicImsiDes))
+                {
+                    if (dicImsiDes.Count > 0)
+                    {
+                        dicTemp.Add(id, dicImsiDes);
+                    }
+                }               
+            }
+
+            #endregion
+
+            dic = new Dictionary<string, Dictionary<string, string>>();
+            dic = dicTemp;
 
             return (int)RC.SUCCESS;
         }
@@ -5864,7 +6263,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int userdomain_record_exist(string usrName)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -5884,18 +6283,29 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from userdomain where usrName = '{0}'", usrName);
+            //string sql = string.Format("select count(*) from userdomain where usrName = '{0}'", usrName);
+            string sql = string.Format("select 1 from userdomain where usrName = '{0}' limit 1", usrName);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -5905,14 +6315,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -5929,7 +6339,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int userdomain_record_exist(int usrDomainId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -5937,18 +6347,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }          
 
-            string sql = string.Format("select count(*) from userdomain where usrDomainId = {0}", usrDomainId);
+            //string sql = string.Format("select count(*) from userdomain where usrDomainId = {0}", usrDomainId);
+
+            string sql = string.Format("select 1 from userdomain where usrDomainId = {0} limit 1", usrDomainId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -5958,14 +6380,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -6632,7 +7054,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int device_record_exist(int affDomainId,string name)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -6652,18 +7074,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from device where affDomainId = {0} and name = '{1}'", affDomainId,name);
+            //string sql = string.Format("select count(*) from device where affDomainId = {0} and name = '{1}'", affDomainId,name);
+
+            string sql = string.Format("select 1 from device where affDomainId = {0} and name = '{1}' limit 1", affDomainId, name);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -6673,14 +7107,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -6695,7 +7129,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int device_record_exist(int devId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -6703,18 +7137,30 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
             
-            string sql = string.Format("select count(*) from device where id = {0}", devId);
+            //string sql = string.Format("select count(*) from device where id = {0}", devId);
+
+            string sql = string.Format("select 1 from device where id = {0} limit 1", devId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -6724,14 +7170,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -8248,6 +8694,7 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
+                            
                             if (!string.IsNullOrEmpty(dr["name"].ToString()))
                             {
                                 dev.name = dr["name"].ToString();
@@ -9172,7 +9619,7 @@ namespace ScannerBackgrdServer
         ///   RC.TIME_ST_EN_ERR     ：开始时间大于结束时间
         ///   RC.SUCCESS            ：成功 
         /// </returns>
-        public int capture_record_entity_query(ref DataTable dt,strCaptureQuery cq)
+        public int capture_record_entity_query(ref DataTable dt,strCaptureQuery cq, Dictionary<string, Dictionary<string,string>> gDicDevId_Imsi_Des)
         {
             /// <summary>
             /// 当affDeviceId为-1时，表示搜索所有的设备
@@ -9330,7 +9777,8 @@ namespace ScannerBackgrdServer
             //}
 
             // 6 + 2 = 8项
-            string sql = string.Format("Select * from (SELECT a.*, b.name,b.sn FROM(select imsi,imei,bwFlag,bsPwr,tmsi,time,affDeviceId from capture where {0}) AS a INNER JOIN device As b ON a.affDeviceId=b.id) As c {1}", sqlSub, RmDupFlagString);
+            // 6 + 3 = 9项,2018-09-06
+            string sql = string.Format("Select * from (SELECT a.*, b.name,b.sn,b.id FROM(select imsi,imei,bwFlag,bsPwr,tmsi,time,affDeviceId from capture where {0}) AS a INNER JOIN device As b ON a.affDeviceId=b.id) As c {1}", sqlSub, RmDupFlagString);
             dt = new DataTable("capturequery");
 
             DataColumn column0 = new DataColumn("imsi",   System.Type.GetType("System.String"));
@@ -9340,7 +9788,11 @@ namespace ScannerBackgrdServer
             DataColumn column4 = new DataColumn("bsPwr",  System.Type.GetType("System.String"));
             DataColumn column5 = new DataColumn("time",   System.Type.GetType("System.String"));
             DataColumn column6 = new DataColumn("bwFlag", System.Type.GetType("System.String"));
-            DataColumn column7 = new DataColumn("sn",     System.Type.GetType("System.String"));   
+            DataColumn column7 = new DataColumn("sn",     System.Type.GetType("System.String"));
+
+            // 2018-09-06
+            DataColumn column8 = new DataColumn("id",  System.Type.GetType("System.String"));
+            DataColumn column9 = new DataColumn("des", System.Type.GetType("System.String"));
 
             dt.Columns.Add(column0);
             dt.Columns.Add(column1);
@@ -9350,6 +9802,12 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column5);
             dt.Columns.Add(column6);
             dt.Columns.Add(column7);
+            dt.Columns.Add(column8);
+            dt.Columns.Add(column9);
+
+            string id = "";
+            string imsi = "";
+            Dictionary<string, string> tmp = new Dictionary<string, string>();
 
             try
             {
@@ -9381,6 +9839,26 @@ namespace ScannerBackgrdServer
 
                             row["bwFlag"] = dr["bwFlag"].ToString();
                             row["sn"] = dr["sn"].ToString();
+
+                            id = dr["id"].ToString();
+                            imsi = dr["imsi"].ToString();
+
+                            if (gDicDevId_Imsi_Des.ContainsKey(id))
+                            {
+                                tmp = gDicDevId_Imsi_Des[id];
+                                if (tmp.ContainsKey(imsi))
+                                {
+                                    row["des"] = tmp[imsi];
+                                }
+                                else
+                                {
+                                    row["des"] = "";
+                                }                               
+                            }
+                            else
+                            {
+                                row["des"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -9589,7 +10067,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int ap_status_record_exist(int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -9597,35 +10075,47 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from ap_status where affDeviceId = {0}", affDeviceId);
+            if (affDeviceId < 0)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR] + ":affDeviceId < 0", "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+            //string sql = string.Format("select count(*) from ap_status where affDeviceId = {0}", affDeviceId);
+
+            // 2018-08-27
+            string sql = string.Format("select 1 from ap_status where affDeviceId = {0} limit 1", affDeviceId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
-                    }
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
+                    }                   
                 }
             }
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
-            }
-
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }           
         }
 
         /// <summary>
@@ -9965,7 +10455,7 @@ namespace ScannerBackgrdServer
                             {
                                 apSts.ApReadySt = dr["ApReadySt"].ToString();
                             }
-
+                           
                             if (!string.IsNullOrEmpty(dr["time"].ToString()))
                             {
                                 apSts.time = dr["time"].ToString();
@@ -10048,9 +10538,9 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST ：不存在
         ///   RC.EXIST    ：存在
         /// </returns>
-        public int bwlist_record_imsi_exist(string imsi, bwType bwFlag, int affDeviceId)
+        public int bwlist_record_imsi_exist(string imsi, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -10072,18 +10562,24 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imsi, affDeviceId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imsi, affDeviceId);
-            }
-            else
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imsi, affDeviceId);
-            }
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    //sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imsi, affDeviceId);
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'black' and affDeviceId = {1} limit 1", imsi, affDeviceId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    //sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imsi, affDeviceId);
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'white' and affDeviceId = {1} limit 1", imsi, affDeviceId);
+            //}
+            //else
+            //{
+            //    //sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imsi, affDeviceId);
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'other' and affDeviceId = {1} limit 1", imsi, affDeviceId);
+            //}
+
+            // 2018-09-18 
+            sql = string.Format("select 1 from bwlist where imsi = '{0}' and affDeviceId = {1} limit 1", imsi, affDeviceId);
 
             try
             {
@@ -10091,11 +10587,20 @@ namespace ScannerBackgrdServer
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -10105,14 +10610,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -10129,9 +10634,9 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST ：不存在
         ///   RC.EXIST    ：存在
         /// </returns>
-        public int bwlist_record_imsi_exist_domain(string imsi, bwType bwFlag, int affDomainId)
+        public int bwlist_record_imsi_exist_domain(string imsi, int affDomainId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -10153,18 +10658,21 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'black' and affDomainId = {1}", imsi, affDomainId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'white' and affDomainId = {1}", imsi, affDomainId);
-            }
-            else
-            {
-                sql = string.Format("select count(*) from bwlist where imsi = '{0}' and bwFlag = 'other' and affDomainId = {1}", imsi, affDomainId);
-            }
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'black' and affDomainId = {1} limit 1", imsi, affDomainId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'white' and affDomainId = {1} limit 1", imsi, affDomainId);
+            //}
+            //else
+            //{
+            //    sql = string.Format("select 1 from bwlist where imsi = '{0}' and bwFlag = 'other' and affDomainId = {1} limit 1", imsi, affDomainId);
+            //}
+
+            // 2018-09-18
+            sql = string.Format("select 1 from bwlist where imsi = '{0}' and affDomainId = {1} limit 1", imsi, affDomainId);
 
             try
             {
@@ -10172,11 +10680,20 @@ namespace ScannerBackgrdServer
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -10186,14 +10703,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -10210,9 +10727,9 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST ：不存在
         ///   RC.EXIST    ：存在
         /// </returns>
-        public int bwlist_record_imei_exist(string imei, bwType bwFlag, int affDeviceId)
+        public int bwlist_record_imei_exist(string imei, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -10234,18 +10751,21 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imei, affDeviceId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imei, affDeviceId);
-            }
-            else
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imei, affDeviceId);
-            }
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'black' and affDeviceId = {1} limit 1", imei, affDeviceId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'white' and affDeviceId = {1} limit 1", imei, affDeviceId);
+            //}
+            //else
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'other' and affDeviceId = {1} limit 1", imei, affDeviceId);
+            //}
+
+            // 2018-09-18
+            sql = string.Format("select 1 from bwlist where imei = '{0}' and affDeviceId = {1} limit 1", imei, affDeviceId);
 
             try
             {
@@ -10253,11 +10773,20 @@ namespace ScannerBackgrdServer
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -10267,14 +10796,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -10293,7 +10822,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int bwlist_record_imei_exist_domain(string imei, bwType bwFlag, int affDomainId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -10315,18 +10844,21 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'black' and affDomainId = {1}", imei, affDomainId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'white' and affDomainId = {1}", imei, affDomainId);
-            }
-            else
-            {
-                sql = string.Format("select count(*) from bwlist where imei = '{0}' and bwFlag = 'other' and affDomainId = {1}", imei, affDomainId);
-            }
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'black' and affDomainId = {1} limit 1", imei, affDomainId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'white' and affDomainId = {1} limit 1", imei, affDomainId);
+            //}
+            //else
+            //{
+            //    sql = string.Format("select 1 from bwlist where imei = '{0}' and bwFlag = 'other' and affDomainId = {1} limit 1", imei, affDomainId);
+            //}
+
+            // 2018-09-18
+            sql = string.Format("select 1 from bwlist where imei = '{0}' and affDomainId = {1} limit 1", imei, affDomainId);
 
             try
             {
@@ -10334,11 +10866,20 @@ namespace ScannerBackgrdServer
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -10348,14 +10889,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -10397,7 +10938,7 @@ namespace ScannerBackgrdServer
             if (!string.IsNullOrEmpty(list.imsi))
             {
                 //检查IMSI是否存在
-                if ((int)RC.EXIST == bwlist_record_imsi_exist(list.imsi, list.bwFlag, affDeviceId))
+                if ((int)RC.EXIST == bwlist_record_imsi_exist(list.imsi, affDeviceId))
                 {
                     Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                     return (int)RC.EXIST;
@@ -10406,7 +10947,7 @@ namespace ScannerBackgrdServer
             else
             {
                 //检查IMEI是否存在
-                if ((int)RC.EXIST == bwlist_record_imei_exist(list.imei, list.bwFlag, affDeviceId))
+                if ((int)RC.EXIST == bwlist_record_imei_exist(list.imei,affDeviceId))
                 {
                     Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                     return (int)RC.EXIST;
@@ -10555,16 +11096,17 @@ namespace ScannerBackgrdServer
                 sqlSub += string.Format("NULL,");
             }
 
-            if (!string.IsNullOrEmpty(list.affDeviceId))
-            {
-                sqlSub += string.Format("0,{0},NULL,", list.affDeviceId);
-            }
+            //if (!string.IsNullOrEmpty(list.affDeviceId))
+            //{
+            //    sqlSub += string.Format("0,{0},NULL,", list.affDeviceId);
+            //}
 
-            if (!string.IsNullOrEmpty(list.affDomainId))
-            {
-                sqlSub += string.Format("1,NULL,{0},", list.affDomainId);
-            }
-           
+            //if (!string.IsNullOrEmpty(list.affDomainId))
+            //{
+            //    sqlSub += string.Format("1,NULL,{0},", list.affDomainId);
+            //}
+
+            sqlSub += string.Format("0,{0},NULL,", affDeviceId);
 
             ///
             /// linkFlag affDeviceId affDomainId
@@ -10639,7 +11181,7 @@ namespace ScannerBackgrdServer
             if (!string.IsNullOrEmpty(cap.imsi))
             {
                 //检查IMSI是否存在(固定为白名单)
-                if ((int)RC.EXIST == bwlist_record_imsi_exist(cap.imsi,bwType.BWTYPE_WHITE, affDeviceId))
+                if ((int)RC.EXIST == bwlist_record_imsi_exist(cap.imsi, affDeviceId))
                 {
                     Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                     return (int)RC.EXIST;
@@ -11039,7 +11581,7 @@ namespace ScannerBackgrdServer
             if (!string.IsNullOrEmpty(list.imsi))
             {
                 //检查IMSI是否存在
-                if ((int)RC.EXIST == bwlist_record_imsi_exist_domain(list.imsi, list.bwFlag, affDomainId))
+                if ((int)RC.EXIST == bwlist_record_imsi_exist_domain(list.imsi, affDomainId))
                 {
                     Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                     return (int)RC.EXIST;
@@ -11256,7 +11798,7 @@ namespace ScannerBackgrdServer
         ///   RC.DEV_NO_EXIST ：设备不存在
         ///   RC.SUCCESS      ：成功
         /// </returns>
-        public int bwlist_record_imsi_delete(string imsi, bwType bwFlag, int affDeviceId)
+        public int bwlist_record_imsi_delete(string imsi, int affDeviceId)
         {
             if (false == myDbConnFlag)
             {
@@ -11284,7 +11826,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == bwlist_record_imsi_exist(imsi, bwFlag, affDeviceId))
+            if ((int)RC.NO_EXIST == bwlist_record_imsi_exist(imsi, affDeviceId))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -11292,19 +11834,21 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imsi, affDeviceId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imsi, affDeviceId);
-            }
-            else
-            {
-                sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imsi, affDeviceId);
-            }
-            
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imsi, affDeviceId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imsi, affDeviceId);
+            //}
+            //else
+            //{
+            //    sql = string.Format("delete from bwlist where imsi = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imsi, affDeviceId);
+            //}
+
+            sql = string.Format("delete from bwlist where imsi = '{0}' and affDeviceId = {1}", imsi, affDeviceId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -11340,7 +11884,7 @@ namespace ScannerBackgrdServer
         ///   RC.DEV_NO_EXIST ：设备不存在
         ///   RC.SUCCESS      ：成功
         /// </returns>
-        public int bwlist_record_imei_delete(string imei, bwType bwFlag, int affDeviceId)
+        public int bwlist_record_imei_delete(string imei, int affDeviceId)
         {
             if (false == myDbConnFlag)
             {
@@ -11368,7 +11912,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == bwlist_record_imei_exist(imei, bwFlag, affDeviceId))
+            if ((int)RC.NO_EXIST == bwlist_record_imei_exist(imei, affDeviceId))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -11376,18 +11920,20 @@ namespace ScannerBackgrdServer
 
             string sql = "";
 
-            if (bwFlag == bwType.BWTYPE_BLACK)
-            {
-                sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imei, affDeviceId);
-            }
-            else if (bwFlag == bwType.BWTYPE_WHITE)
-            {
-                sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imei, affDeviceId);
-            }
-            else
-            {
-                sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imei, affDeviceId);
-            }
+            //if (bwFlag == bwType.BWTYPE_BLACK)
+            //{
+            //    sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'black' and affDeviceId = {1}", imei, affDeviceId);
+            //}
+            //else if (bwFlag == bwType.BWTYPE_WHITE)
+            //{
+            //    sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'white' and affDeviceId = {1}", imei, affDeviceId);
+            //}
+            //else
+            //{
+            //    sql = string.Format("delete from bwlist where imei = '{0}' and bwFlag = 'other' and affDeviceId = {1}", imei, affDeviceId);
+            //}
+
+            sql = string.Format("delete from bwlist where imei = '{0}' and affDeviceId = {1}", imei, affDeviceId);
 
             try
             {
@@ -11515,7 +12061,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == bwlist_record_imsi_exist_domain(imsi, bwFlag, affDomainId))
+            if ((int)RC.NO_EXIST == bwlist_record_imsi_exist_domain(imsi, affDomainId))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -12277,13 +12823,25 @@ namespace ScannerBackgrdServer
 
             //string sql = string.Format("select * from bwlist where {0} group by imsi,imei", devDomainList);
 
+            //if (sqlSub != "")
+            //{
+            //    sql = string.Format("select * from bwlist where ({0}) and ({1}) group by imsi,imei", sqlSub,devDomainList);
+            //}
+            //else
+            //{
+            //    sql = string.Format("select * from bwlist where {0} group by imsi,imei", devDomainList);
+            //}
+
+            //
+            // 不去重处理，2018-10-09
+            //
             if (sqlSub != "")
             {
-                sql = string.Format("select * from bwlist where ({0}) and ({1}) group by imsi,imei", sqlSub,devDomainList);
+                sql = string.Format("select * from bwlist where ({0}) and ({1})", sqlSub, devDomainList);
             }
             else
             {
-                sql = string.Format("select * from bwlist where {0} group by imsi,imei", devDomainList);
+                sql = string.Format("select * from bwlist where {0}", devDomainList);
             }
 
             try
@@ -12328,6 +12886,71 @@ namespace ScannerBackgrdServer
             return (int)RC.SUCCESS;
         }
 
+        /// <summary>
+        /// 通过所属设备ID获取bwlist表中imsi和des的字典
+        /// 2018-09-06
+        /// </summary>     
+        /// <param name="affDeviceId">所属设备ID</param>      
+        /// <param name="dicImsiDes">返回的imsi--des字典</param>      
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   DEV_NO_EXIST ：设备不存在
+        ///   RC.SUCCESS   ：成功 
+        /// </returns>
+        public int bwlist_record_entity_imsi_des_get(int affDeviceId, ref Dictionary<string,string> dicImsiDes)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            dicImsiDes = new Dictionary<string, string>();
+
+            string sql = "";     
+            sql = string.Format("select imsi,des from bwlist where affDeviceId = {0} and imsi <> '' and des <> ''", affDeviceId);
+           
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            if (dr["imsi"] != null && dr["des"] != null)
+                            {
+                                if (!string.IsNullOrEmpty(dr["imsi"].ToString()) &&
+                                     !string.IsNullOrEmpty(dr["des"].ToString()))
+                                {
+                                    dicImsiDes.Add(dr["imsi"].ToString(), dr["des"].ToString());
+                                }
+                            }
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
         #endregion
 
         #region 14-ap_general_para操作
@@ -12344,7 +12967,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int ap_general_para_record_exist(int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -12352,35 +12975,44 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from ap_general_para where affDeviceId = {0}", affDeviceId);
+            string sql = string.Format("select 1 from ap_general_para where affDeviceId = {0} limit 1", affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //    if (cnt > 0)
+            //    {
+            //        return (int)RC.EXIST;
+            //    }
+            //    else
+            //    {
+            //        return (int)RC.NO_EXIST;
+            //    }
         }
 
         /// <summary>
@@ -13465,7 +14097,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int update_info_record_exist(string md5sum)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -13485,18 +14117,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from update_info where md5sum = '{0}' ", md5sum);
+            string sql = string.Format("select 1 from update_info where md5sum = '{0}' limit 1", md5sum);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -13506,14 +14147,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -13530,7 +14171,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int update_info_record_exist_filename(string fileName)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -13550,18 +14191,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            string sql = string.Format("select count(*) from update_info where fileName = '{0}' ", fileName);
+            string sql = string.Format("select 1 from update_info where fileName = '{0}' limit 1", fileName);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -13571,14 +14221,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -13801,7 +14451,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int device_unknown_record_exist(string ipAddr)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -13821,18 +14471,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }           
 
-            string sql = string.Format("select count(*) from device_unknown where ipAddr = '{0}'", ipAddr);
+            string sql = string.Format("select 1 from device_unknown where ipAddr = '{0}' limit 1", ipAddr);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -13842,14 +14501,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -13900,10 +14559,10 @@ namespace ScannerBackgrdServer
             }
 
             // 2018-08-09
-            if (string.IsNullOrEmpty(name))
-            {
-                name = string.Format("{0}:{1}", ipAddr, port);
-            }
+            //if (string.IsNullOrEmpty(name))
+            //{
+            //    name = string.Format("{0}:{1}", ipAddr, port);
+            //}
            
             string sql = string.Format("insert into device_unknown(id,name,ipAddr, port,lastOnline) values(NULL,'{0}','{1}',{2},now())", name,ipAddr, port);
             try
@@ -13954,7 +14613,7 @@ namespace ScannerBackgrdServer
         ///   RC.MODIFIED_EXIST ：修改后的记录已经存在
         ///   RC.SUCCESS        ：成功 
         /// </returns>
-        public int device_unknown_record_update(string ipAddr, int port, strDevice dev)
+        public int device_unknown_record_update(string ipAddr, strDevice dev)
         {
             if (false == myDbConnFlag)
             {
@@ -13974,11 +14633,11 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            if (port > 65535)
-            {
-                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-                return (int)RC.PAR_LEN_ERR;
-            }
+            //if (port > 65535)
+            //{
+            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+            //    return (int)RC.PAR_LEN_ERR;
+            //}
 
 
             //检查记录是否存在
@@ -14107,7 +14766,7 @@ namespace ScannerBackgrdServer
                 return (int)RC.SUCCESS;
             }
 
-            string sql = string.Format("update device_unknown set {0} where ipAddr = '{1}' and port = {2}", sqlSub, ipAddr, port);
+            string sql = string.Format("update device_unknown set {0} where ipAddr = '{1}'", sqlSub, ipAddr);
 
             try
             {
@@ -14142,7 +14801,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST     ：记录不存在
         ///   RC.SUCCESS      ：成功
         /// </returns>
-        public int device_unknown_record_delete(string ipAddr, int port)
+        public int device_unknown_record_delete(string ipAddr)
         {            
             if (false == myDbConnFlag)
             {
@@ -14162,11 +14821,11 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            if (port > 65535)
-            {
-                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-                return (int)RC.PAR_LEN_ERR;
-            }
+            //if (port > 65535)
+            //{
+            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+            //    return (int)RC.PAR_LEN_ERR;
+            //}
 
             //检查记录是否存在
             if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr))
@@ -14175,7 +14834,7 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_EXIST;
             }         
 
-            string sql = string.Format("delete from device_unknown where ipAddr = '{0}' and port = {1}", ipAddr, port);
+            string sql = string.Format("delete from device_unknown where ipAddr = '{0}'", ipAddr);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -14411,7 +15070,7 @@ namespace ScannerBackgrdServer
         ///   RC.OP_FAIL   ：数据库操作失败 
         ///   RC.SUCCESS   ：成功
         /// </returns>
-        public int device_unknown_record_entity_get_by_ipaddr_port(string ipAddr, int port, ref DataTable dt)
+        public int device_unknown_record_entity_get_by_ipaddr_port(string ipAddr, ref DataTable dt)
         {
             if (false == myDbConnFlag)
             {
@@ -14431,11 +15090,11 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            if (port > 65535)
-            {
-                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-                return (int)RC.PAR_LEN_ERR;
-            }
+            //if (port > 65535)
+            //{
+            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+            //    return (int)RC.PAR_LEN_ERR;
+            //}
 
             dt = new DataTable("device_unknown");
 
@@ -14500,7 +15159,7 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column10);
             dt.Columns.Add(column11);
 
-            string sql = string.Format("select * from device_unknown where ipAddr = '{0}' and port = {1}", ipAddr, port);
+            string sql = string.Format("select * from device_unknown where ipAddr = '{0}'", ipAddr);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -14575,6 +15234,126 @@ namespace ScannerBackgrdServer
             return (int)RC.SUCCESS;
         }
 
+        /// <summary>
+        /// 检查设备(未指派)记录是否存在
+        /// </summary>
+        /// <param name="name">IP地址</param>
+        /// <returns>
+        ///   RC.NO_OPEN  ：数据库尚未打开
+        ///   RC.PAR_NULL ：参数为空
+        ///   PAR_LEN_ERR ：参数长度有误
+        ///   RC.OP_FAIL  ：数据库操作失败 
+        ///   RC.NO_EXIST ：不存在
+        ///   RC.EXIST    ：存在
+        /// </returns>
+        public int device_unknown_record_exist_name(string name)
+        {
+            //UInt32 cnt = 0;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, "device_unknown_record_exist_name" + dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select 1 from device_unknown where name = '{0}' limit 1", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {                       
+                        if (dr.HasRows)
+                        {
+                            return (int)RC.EXIST;
+                        }
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
+            }           
+        }
+
+        /// <summary>
+        /// 在设备(未指派)表中删除指定的记录 
+        /// </summary>  
+        /// <param name="ipAddr">IP地址</param>
+        /// <param name="port">端口号</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.NO_EXIST     ：记录不存在
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int device_unknown_record_delete_name(string name)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, "device_unknown_record_delete_name" + dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }           
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == device_unknown_record_exist_name(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            string sql = string.Format("delete from device_unknown where name = '{0}'", name);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        myDbOperFlag = false; return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
         #endregion
 
         #region 17-gsm_sys_para操作
@@ -14592,7 +15371,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gsm_sys_para_record_exist(int carry,int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -14600,18 +15379,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from gsm_sys_para where carry = {0}  and affDeviceId = {1}", carry,affDeviceId);
+            string sql = string.Format("select 1 from gsm_sys_para where carry = {0}  and affDeviceId = {1} limit 1", carry,affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -14621,14 +15409,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -15084,7 +15872,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gsm_sys_option_record_exist(int carry,int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -15092,18 +15880,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from gsm_sys_option where carry = {0} and affDeviceId = {1}", carry,affDeviceId);
+            string sql = string.Format("select 1 from gsm_sys_option where carry = {0} and affDeviceId = {1} limit 1", carry,affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -15113,14 +15910,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -15513,7 +16310,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gsm_rf_para_record_exist(int carry,int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -15521,18 +16318,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from gsm_rf_para where carry = {0} and affDeviceId = {1}", carry,affDeviceId);
+            string sql = string.Format("select 1 from gsm_rf_para where carry = {0} and affDeviceId = {1} limit 1", carry,affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -15542,14 +16348,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -16165,6 +16971,616 @@ namespace ScannerBackgrdServer
 
         #endregion
 
+        #region 19.1-send_ms_call操作
+
+        /// <summary>
+        /// 插入记录到
+        /// </summary>
+        /// <param name="carry">载波标识</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int send_ms_call_record_insert(int carry, int affDeviceId,strMsCall call)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            if (carry != 0 && carry != 1 && carry != -1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST] + ":载波ID有误", "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+            if (string.IsNullOrEmpty(call.imsi) || string.IsNullOrEmpty(call.number) || string.IsNullOrEmpty(call.time))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }           
+
+            try
+            {
+                DateTime.Parse(call.time);
+            }
+            catch (Exception ee)
+            {
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+
+            string sqlSub = "NULL,";
+
+            //(1)
+            if (!string.IsNullOrEmpty(call.imsi))
+            {
+                if (call.imsi.Length > 15)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", call.imsi);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(call.number))
+            {
+                if (call.number.Length > 15)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", call.number);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(call.time))
+            {
+                if (call.time.Length > 19)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", call.time);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(4,5,6)
+            sqlSub += string.Format("{0},NULL,{1}", carry,affDeviceId);
+
+            string sql = string.Format("insert into send_ms_call values({0})", sqlSub);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        myDbOperFlag = false; return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取send_ms_call记录
+        /// </summary>
+        /// <param name="carry">载波标识</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="call">返回的记录列表</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int send_ms_call_get_by_devid(int carry, ref strMsCallHistoryQuery query)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查设备是否存在
+            //if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            //{
+            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+            //    return (int)RC.DEV_NO_EXIST;
+            //}
+
+            query.lstMsCall = new List<strMsCall>();
+
+            //public string imsi;          //IMSI号
+            //public string number;        //number号
+            //public string timeStart;     //开始时间
+            //public string timeEnded;     //结束时间
+
+            string sql = "";
+            string sqlSub = "";
+            string sqlSub1 = "";
+
+            if (!string.IsNullOrEmpty(query.imsi))
+            {
+                sqlSub += string.Format("imsi like '%%{0}%%' and ", query.imsi);
+            }
+
+            if (!string.IsNullOrEmpty(query.number))
+            {
+                sqlSub += string.Format("number like '%%{0}%%' and ", query.number);
+            }
+
+            if (!string.IsNullOrEmpty(query.timeStart) && !string.IsNullOrEmpty(query.timeEnded))
+            {
+                if (string.Compare(query.timeStart, query.timeEnded) > 0)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_ST_EN_ERR], "DB", LogCategory.I);
+                    return (int)RC.TIME_ST_EN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("time>='{0}' and time<='{1}' and ", query.timeStart, query.timeEnded);
+                }
+            }
+           
+            if (sqlSub != "")
+            {
+                sqlSub = sqlSub.Remove(sqlSub.Length - 4, 4);
+            }
+
+            if (query.lstDevId.Count == 0)
+            {
+                sqlSub1 = "";
+            }
+            else if (query.lstDevId.Count == 1)
+            {
+                sqlSub1 = string.Format("carry = {0} and affDeviceId = {1}", carry, query.lstDevId[0]);
+            }
+            else
+            {
+                for (int i = 0; i < query.lstDevId.Count; i++)
+                {
+                    if (i == (query.lstDevId.Count - 1))
+                    {
+                        sqlSub1 += string.Format("affDeviceId = {0} ", query.lstDevId[i]);
+                    }
+                    else
+                    {
+                        sqlSub1 += string.Format("affDeviceId = {0} or ", query.lstDevId[i]);
+                    }
+                }
+            }
+
+
+            //sql = string.Format("select * from send_ms_call where carry = {0} and affDeviceId = {1} and {2}", carry, affDeviceId, sqlSub);
+
+            if (sqlSub1 == "")
+            {
+                sql = string.Format("select * from send_ms_call where {0} ", sqlSub);
+            }
+            else
+            {
+                sql = string.Format("select * from send_ms_call where {0} and ({1}) ", sqlSub, sqlSub1);
+            }
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            strMsCall call = new strMsCall();
+
+                            if (!string.IsNullOrEmpty(dr["imsi"].ToString()))
+                            {
+                                call.imsi = dr["imsi"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["number"].ToString()))
+                            {
+                                call.number = dr["number"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["time"].ToString()))
+                            {
+                                call.time = dr["time"].ToString();
+                            }
+
+                            call.devName = query.devName;
+
+                            query.lstMsCall.Add(call);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
+        #region 19.2-send_ms_sms操作
+
+        /// <summary>
+        /// 插入记录到
+        /// </summary>
+        /// <param name="carry">载波标识</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.DEV_NO_EXIST   ：设备不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int send_ms_sms_record_insert(int carry, int affDeviceId, strMsSms sms)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查设备是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.DEV_NO_EXIST;
+            }
+
+            if (carry != 0 && carry != 1 && carry != -1)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST] + ":载波ID有误", "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+            if (string.IsNullOrEmpty(sms.imsi) || 
+                string.IsNullOrEmpty(sms.number) ||
+                string.IsNullOrEmpty(sms.time))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            try
+            {
+                DateTime.Parse(sms.time);
+            }
+            catch (Exception ee)
+            {
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+
+            string sqlSub = "NULL,";
+
+            //(1)
+            if (!string.IsNullOrEmpty(sms.imsi))
+            {
+                if (sms.imsi.Length > 15)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", sms.imsi);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(2)
+            if (!string.IsNullOrEmpty(sms.number))
+            {
+                if (sms.number.Length > 15)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", sms.number);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(3)
+            if (!string.IsNullOrEmpty(sms.codetype))
+            {
+                if (sms.codetype.Length > 15)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", sms.codetype);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(4)
+            if (!string.IsNullOrEmpty(sms.data))
+            {
+                if (sms.data.Length > 2048)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", sms.data);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(5)
+            if (!string.IsNullOrEmpty(sms.time))
+            {
+                if (sms.time.Length > 19)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_LEN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("'{0}',", sms.time);
+                }
+            }
+            else
+            {
+                sqlSub += string.Format("NULL,");
+            }
+
+            //(6,7,8)
+            sqlSub += string.Format("{0},NULL,{1}", carry, affDeviceId);
+
+            string sql = string.Format("insert into send_ms_sms values({0})", sqlSub);
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.WARN, sql, "DB", LogCategory.I);
+                        myDbOperFlag = false; return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 通过设备ID号获取gsm_msg_option记录
+        /// </summary>
+        /// <param name="carry">载波标识</param>
+        /// <param name="affDeviceId">所属设备ID</param>
+        /// <param name="listCall">返回的记录列表</param>
+        /// <returns>
+        ///   RC.NO_OPEN        ：数据库尚未打开
+        ///   RC.OP_FAIL        ：数据库操作失败 
+        ///   RC.NO_EXIST       ：记录不存在
+        ///   RC.SUCCESS        ：成功 
+        /// </returns>
+        public int send_ms_sms_get_by_devid(int carry, ref strMsSmsHistoryQuery query)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            //检查设备是否存在
+            //if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
+            //{
+            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.DEV_NO_EXIST], "DB", LogCategory.I);
+            //    return (int)RC.DEV_NO_EXIST;
+            //}
+
+            query.lstMsSms = new List<strMsSms>();
+
+
+            //public string imsi;          //IMSI号
+            //public string number;        //number号
+            //public string data;          //短信内容
+            //public string timeStart;     //开始时间
+            //public string timeEnded;     //结束时间
+
+            string sql = "";
+            string sqlSub = "";
+            string sqlSub1 = "";
+
+            if (!string.IsNullOrEmpty(query.imsi))
+            {
+                sqlSub += string.Format("imsi like '%%{0}%%' and ", query.imsi);
+            }
+
+            if (!string.IsNullOrEmpty(query.number))
+            {
+                sqlSub += string.Format("number like '%%{0}%%' and ", query.number);
+            }
+
+            if (!string.IsNullOrEmpty(query.data))
+            {
+                sqlSub += string.Format("data like '%%{0}%%' and ", query.data);
+            }
+
+            if (!string.IsNullOrEmpty(query.timeStart) && !string.IsNullOrEmpty(query.timeEnded))
+            {
+                if (string.Compare(query.timeStart, query.timeEnded) > 0)
+                {
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.TIME_ST_EN_ERR], "DB", LogCategory.I);
+                    return (int)RC.TIME_ST_EN_ERR;
+                }
+                else
+                {
+                    sqlSub += string.Format("time>='{0}' and time<='{1}' and ", query.timeStart, query.timeEnded);
+                }
+            }
+
+            if (sqlSub != "")
+            {
+                sqlSub = sqlSub.Remove(sqlSub.Length - 4, 4);
+            }
+
+            if (query.lstDevId.Count == 0)
+            {
+                sqlSub1 = "";
+            }
+            else if (query.lstDevId.Count == 1)
+            {
+                sqlSub1 = string.Format("carry = {0} and affDeviceId = {1}", carry, query.lstDevId[0]);
+            }
+            else
+            {
+                for (int i = 0; i < query.lstDevId.Count; i++)
+                {
+                    if (i == (query.lstDevId.Count - 1))
+                    {
+                        sqlSub1 += string.Format("affDeviceId = {0} ", query.lstDevId[i]);
+                    }
+                    else
+                    {
+                        sqlSub1 += string.Format("affDeviceId = {0} or ", query.lstDevId[i]);
+                    }
+                }
+            }
+
+
+            //sql = string.Format("select * from send_ms_sms where carry = {0} and affDeviceId = {1} and {2}", carry, affDeviceId, sqlSub);
+
+            if (sqlSub1 == "")
+            {
+                sql = string.Format("select * from send_ms_sms where {0} ", sqlSub);
+            }
+            else
+            {
+                sql = string.Format("select * from send_ms_sms where {0} and ({1}) ", sqlSub, sqlSub1);
+            }
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            strMsSms sms = new strMsSms();
+
+                            if (!string.IsNullOrEmpty(dr["imsi"].ToString()))
+                            {
+                                sms.imsi = dr["imsi"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["number"].ToString()))
+                            {
+                                sms.number = dr["number"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["codetype"].ToString()))
+                            {
+                                sms.codetype = dr["codetype"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["data"].ToString()))
+                            {
+                                sms.data = dr["data"].ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(dr["time"].ToString()))
+                            {
+                                sms.time = dr["time"].ToString();
+                            }
+
+                            sms.devName = query.devName;
+                            query.lstMsSms.Add(sms);
+                        }
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        #endregion
+
         #region 20-gsm_msg_option操作
 
         /// <summary>
@@ -16394,7 +17810,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int redirection_record_exist(int category, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -16402,18 +17818,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.NO_OPEN;
             }
 
-            string sql = string.Format("select count(*) from redirection where category = {0} and affDeviceId = {1}", category, affDeviceId);
+            string sql = string.Format("select 1 from redirection where category = {0} and affDeviceId = {1} limit 1", category, affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -16423,14 +17848,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -16805,7 +18230,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST       ：记录不存在
         ///   RC.SUCCESS        ：成功 
         /// </returns>
-        public int redirection_record_get_by_devid(int category, int affDeviceId, ref strRedirection rd)
+        public int redirection_record_get_by_devid(int category, int affDeviceId, ref List<strRedirection> lstRD)
         {
             if (false == myDbConnFlag)
             {
@@ -16814,14 +18239,24 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == redirection_record_exist(category, affDeviceId))
+            if ((int)RC.NO_EXIST == device_record_exist(affDeviceId))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
             }
 
-            rd = new strRedirection();
-            string sql = string.Format("select * from redirection where category = {0} and affDeviceId = {1}", category, affDeviceId);
+            lstRD = new List<strRedirection>();
+
+            string sql = "";
+
+            if (category == 3)
+            {
+                sql = string.Format("select * from redirection where affDeviceId = {1}", category, affDeviceId);
+            }
+            else
+            {
+                sql = string.Format("select * from redirection where category = {0} and affDeviceId = {1}", category, affDeviceId);
+            }
 
             //public string priority;         //2:2G,3:3G,4:4G,Others:noredirect
             //public string GeranRedirect;    //0:disable;1:enable
@@ -16841,6 +18276,13 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
+                            strRedirection rd = new strRedirection();
+
+                            if (!string.IsNullOrEmpty(dr["category"].ToString()))
+                            {
+                                rd.category = dr["category"].ToString();
+                            }
+
                             if (!string.IsNullOrEmpty(dr["priority"].ToString()))
                             {
                                 rd.priority = dr["priority"].ToString();
@@ -16885,6 +18327,8 @@ namespace ScannerBackgrdServer
                             {
                                 rd.additionalFreq = dr["additionalFreq"].ToString();
                             }
+
+                            lstRD.Add(rd);
                         }
                         dr.Close();
                     }
@@ -17582,7 +19026,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gc_param_config_record_exist(int carry, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -17603,18 +19047,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.DEV_NO_EXIST;
             }
 
-            string sql = string.Format("select count(*) from gc_param_config where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            string sql = string.Format("select 1 from gc_param_config where carry = {0} and affDeviceId = {1} limit 1", carry, affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -17624,14 +19077,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -18188,7 +19641,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gc_misc_record_exist(int carry, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -18209,18 +19662,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.DEV_NO_EXIST;
             }
 
-            string sql = string.Format("select count(*) from gc_misc where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            string sql = string.Format("select 1 from gc_misc where carry = {0} and affDeviceId = {1} limit 1", carry, affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -18230,14 +19692,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -19079,7 +20541,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gc_imsi_action_record_exist(string bIMSI, int carry, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -19112,18 +20574,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.DEV_NO_EXIST;
             }
 
-            string sql = string.Format("select count(*) from gc_imsi_action where bIMSI = '{0}' and carry = {1} and affDeviceId = {2}", bIMSI, carry, affDeviceId);
+            string sql = string.Format("select 1 from gc_imsi_action where bIMSI = '{0}' and carry = {1} and affDeviceId = {2} limit 1", bIMSI, carry, affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -19133,14 +20604,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>
@@ -19191,7 +20662,8 @@ namespace ScannerBackgrdServer
             //检查记录是否存在
             if ((int)RC.EXIST == gc_imsi_action_record_exist(gia.bIMSI, carry, affDeviceId))
             {
-                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
+                string errInfo = string.Format("[{0}][{1}] -> ", gia.bIMSI, carry);
+                Logger.Trace(LogInfoType.EROR, errInfo + dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                 return (int)RC.SUCCESS;
             }
 
@@ -19406,7 +20878,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int gc_carrier_msg_record_exist(int carry, int affDeviceId)
         {
-            UInt32 cnt = 0;
+            //UInt32 cnt = 0;
 
             if (false == myDbConnFlag)
             {
@@ -19427,18 +20899,27 @@ namespace ScannerBackgrdServer
                 return (int)RC.DEV_NO_EXIST;
             }
 
-            string sql = string.Format("select count(*) from gc_carrier_msg where carry = {0} and affDeviceId = {1}", carry, affDeviceId);
+            string sql = string.Format("select 1 from gc_carrier_msg where carry = {0} and affDeviceId = {1} limit 1", carry, affDeviceId);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
                 {
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
-                        while (dr.Read())
+                        //while (dr.Read())
+                        //{
+                        //    cnt = Convert.ToUInt32(dr[0]);
+                        //}
+                        //dr.Close();
+
+                        if (dr.HasRows)
                         {
-                            cnt = Convert.ToUInt32(dr[0]);
+                            return (int)RC.EXIST;
                         }
-                        dr.Close();
+                        else
+                        {
+                            return (int)RC.NO_EXIST;
+                        }
                     }
                 }
             }
@@ -19448,14 +20929,14 @@ namespace ScannerBackgrdServer
                 dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
             }
 
-            if (cnt > 0)
-            {
-                return (int)RC.EXIST;
-            }
-            else
-            {
-                return (int)RC.NO_EXIST;
-            }
+            //if (cnt > 0)
+            //{
+            //    return (int)RC.EXIST;
+            //}
+            //else
+            //{
+            //    return (int)RC.NO_EXIST;
+            //}
         }
 
         /// <summary>

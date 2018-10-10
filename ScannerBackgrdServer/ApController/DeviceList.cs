@@ -18,7 +18,7 @@ namespace ScannerBackgrdServer.ApController
         public DeviceList()
         {
             connList = new HashSet<AsyncUserToken>();
-            //启动AP状态检测线程
+            //启动消息id超时检测线程
             Thread t = new Thread(new ThreadStart(CheckMsgId));
             t.Start();
             t.IsBackground = true;

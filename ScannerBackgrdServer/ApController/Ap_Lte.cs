@@ -18,8 +18,8 @@ namespace ScannerBackgrdServer.ApController
    
     class Ap_LTE: ApBase
     {
-        public static uint heartbeatMsgNum = 0;
-        public static uint imsiMsgNum = 0;
+        public static UInt64 heartbeatMsgNum = 0;
+        public static UInt64 imsiMsgNum = 0;
 
         private string MODE_NAME = ApInnerType.LTE_TDD.ToString();
 
@@ -82,7 +82,14 @@ namespace ScannerBackgrdServer.ApController
             if (msgBody == null)
             {
                 OnOutputLog(LogInfoType.EROR, "收到消息格式错误！");
+                OnOutputLog(LogInfoType.DEBG, "出错消息内容：" + msg);
                 return;
+            }
+
+            if (msgBody.type != ApMsgType.status_response)
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("处理AP[{0}:{1}]消息({2}),消息Id={3}！",
+                    apToKen.IPAddress.ToString(), apToKen.Port, msgBody.type, msgId));
             }
 
             //处理透传消息
@@ -100,10 +107,8 @@ namespace ScannerBackgrdServer.ApController
             if (msgBody.type == ApMsgType.status_response)
             {
                 //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
-                if (heartbeatMsgNum == System.UInt32.MaxValue)
-                    heartbeatMsgNum = 0;
-                else
-                    heartbeatMsgNum++;
+                imsiMsgNum++;
+                heartbeatMsgNum++;
 
                 //UInt32 oldDetail = apToKen.Detail;
                 UInt32 detail = 0;
@@ -121,10 +126,15 @@ namespace ScannerBackgrdServer.ApController
                 apToKen.Mode = GetMsgStringValueInList("mode", msgBody);
                 apToKen.Sn = GetMsgStringValueInList("sn", msgBody);
                 apToKen.FullName = GetMsgStringValueInList("fullname", msgBody);
+
                 if (string.IsNullOrEmpty(apToKen.FullName))   //兼容老Agent拼写错误
                 {
                     apToKen.FullName = GetMsgStringValueInList("fullaname", msgBody);
                 }
+
+                //apToKen.FullName = apToKen.FullName.Replace("BTI.test", "设备");
+                //apToKen.Mode = MsgStruct.ApInnerType.LTE_TDD.ToString();
+
                 apToKen.Id = GetMsgStringValueInList("id", msgBody);
                 //apToKen.Detail = detail;
 
@@ -183,10 +193,7 @@ namespace ScannerBackgrdServer.ApController
             }
             else if (msgBody.type == ApMsgType.scanner)
             {
-                if (imsiMsgNum == System.UInt32.MaxValue)
-                    imsiMsgNum = 0;
-                else
-                    imsiMsgNum++;
+                recvApImsiMsgNum++;
 
                 string imsi = GetMsgStringValueInList("imsi", msgBody);
                 if (!string.IsNullOrEmpty(imsi))
@@ -411,16 +418,11 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
-            byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, MainMsg.Body);
-            if (sendMsg == null)
+            if (!SendMsg2Ap(apToKen, msgId2App.id, MainMsg.Body))
             {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(RecvMainMsg)出错！"));
                 Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
-                    string.Format("封装向AP发送的XML消息出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, sendMsg);
-            
+                    string.Format("封装向AP发送的XML消息({0})出错！", MainMsg.Body.type));
+            }            
         }
 
         /// <summary>
@@ -469,7 +471,7 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
-            SendMsg2Ap(apToKen, sendMsg);
+            SendMsg2Ap(apToKen, MainMsg.Body.type,sendMsg);
 
         }
 
@@ -487,13 +489,7 @@ namespace ScannerBackgrdServer.ApController
                 "mode",mode,
                 "timeout",0);
 
-            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
-            if (sendMsg == null)
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(activate_nodeb_request)出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, sendMsg);
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
         }
 
         /// <summary>
@@ -507,13 +503,7 @@ namespace ScannerBackgrdServer.ApController
                 "timeout", 5,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
-            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
-            if (sendMsg == null)
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(get_general_para_request)出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, sendMsg);
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
         }
 
         /// <summary>
@@ -601,15 +591,12 @@ namespace ScannerBackgrdServer.ApController
                             "添加黑白名单参数错误。没有要发送的名单!");
                 return;
             }
-            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
-            if (sendMsg == null)
+
+            if (!SendMsg2Ap(apToKen,0, TypeKeyValue))
             {
-                OnOutputLog(LogInfoType.EROR, "封装XML消息(imsi_list_setconfig)出错！");
                 Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "封装XML消息(imsi_list_setconfig)出错！");
-                return;
             }
-            SendMsg2Ap(apToKen, sendMsg);
         }
 
         /// <summary>
@@ -680,15 +667,12 @@ namespace ScannerBackgrdServer.ApController
                             "删除黑名单参数错误。没有要发送的名单！");
                 return;
             }
-            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
-            if (sendMsg == null)
+
+            if (!SendMsg2Ap(apToKen, 0, TypeKeyValue))
             {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(imsi_list_delconfig)出错！"));
                 Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                             "封装XML消息(imsi_list_delconfig)出错！");
-                return;
             }
-            SendMsg2Ap(apToKen, sendMsg);
         }
         #endregion
     }

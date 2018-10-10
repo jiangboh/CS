@@ -71,6 +71,15 @@ namespace ScannerBackgrdServer.AppController
 
     class AppBase : DeviceManager
     {
+        /// <summary>
+        /// 发送到App的Imsi条数
+        /// </summary>
+        public static UInt64 sendAppImsiMsgNum = 0;
+        /// <summary>
+        /// 接收到Main模块发过来的IMSI条数
+        /// </summary>
+        public static UInt64 recvMainImsiMsgNum = 0;
+
         private const byte jsonStartFlag = (int)'{';
         private const byte jsonEndFlag = (int)'}';
 
@@ -102,6 +111,7 @@ namespace ScannerBackgrdServer.AppController
         /// </summary>
         private void CheckAppStatusThread()
         {
+            long upTime = 0;
             HashSet<AsyncUserToken> toKenList = new HashSet<AsyncUserToken>();
             HashSet<AsyncUserToken> RemovList = new HashSet<AsyncUserToken>();
 
@@ -109,6 +119,13 @@ namespace ScannerBackgrdServer.AppController
             {
                 try
                 {
+                    if (DeviceType != null && ((DateTime.Now.Ticks - upTime) / 10000000) > 60)
+                    {
+                        upTime = DateTime.Now.Ticks;
+                        //报到线程状态
+                        FrmMainController.write_monitor_status(DeviceType + "_STATUS");
+                    }
+
                     MyDeviceList.CopyConnList(ref toKenList);
                     foreach (AsyncUserToken x in toKenList)
                     {
@@ -275,7 +292,8 @@ namespace ScannerBackgrdServer.AppController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块！"), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type),
+               LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             AppManager.sendMsg_2_MainController(mt, mb);
@@ -315,7 +333,8 @@ namespace ScannerBackgrdServer.AppController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给MainController模块！"), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), 
+                LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             AppManager.sendMsg_2_MainController(mt, mb);
@@ -348,11 +367,19 @@ namespace ScannerBackgrdServer.AppController
             bool noMsg = false;
             int hNum = 0;
             int count = 0;
+            long upTime = 0;
             string str = string.Empty;
             while (true)
             {
                 try
                 {
+                    if (DeviceType != null && ((DateTime.Now.Ticks - upTime) / 10000000) > 60)
+                    {
+                        upTime = DateTime.Now.Ticks;
+                        //报到线程状态
+                        FrmMainController.write_monitor_status("MAIN_2_" + DeviceType + "_HANDLE");
+                    }
+
                     if (noMsg)
                     {
                         Thread.Sleep(100);
@@ -362,7 +389,7 @@ namespace ScannerBackgrdServer.AppController
                         if (hNum >= 100)
                         {
                             hNum = 0;
-                            Thread.Sleep(10);
+                            //Thread.Sleep(10);
                         }
                     }
 
@@ -404,7 +431,8 @@ namespace ScannerBackgrdServer.AppController
 
                     if ((MainMsg.AppInfo.Ip.Equals(MsgStruct.AllDevice)) || (MainMsg.AppInfo.Type.Equals(DeviceType)))
                     {
-                        OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
+                        OnOutputLog(LogInfoType.INFO,
+                            string.Format("接收到MainController消息({0})。",MainMsg.Body.type));
                         OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", str));
                     }
 
@@ -417,6 +445,11 @@ namespace ScannerBackgrdServer.AppController
                         continue;
                     }
 
+                    if (MainMsg.Body.type == ApMsgType.scanner)
+                    {
+                        recvMainImsiMsgNum++;
+                    }
+                    
                     if (ReceiveMainData != null && MainMsg != null)
                         ReceiveMainData(MainMsg);
 
@@ -468,6 +501,11 @@ namespace ScannerBackgrdServer.AppController
                     return;
                 }
 
+                if (deviceServerMsgStruct.Body.type == ApMsgType.scanner)
+                {
+                    sendAppImsiMsgNum++;
+                }
+
                 string strJosn = JsonConvert.SerializeObject(deviceServerMsgStruct);
                 byte[] buff = System.Text.Encoding.Default.GetBytes(strJosn);
 
@@ -480,7 +518,7 @@ namespace ScannerBackgrdServer.AppController
                     {
                         foreach (AsyncUserToken appToKen in toKenList)
                         {
-                            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给APP[{1}:{2}]！",
                                 deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
                             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
                             MySocket.SendMessage(appToKen, buff);
@@ -496,11 +534,14 @@ namespace ScannerBackgrdServer.AppController
                         return;
                     }
 
-                    OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                    OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给APP[{1}:{2}]！",
                                 deviceServerMsgStruct.Body.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
                     OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
                     MySocket.SendMessage(appToKen, buff);
                 }
+
+                buff = null;
+                strJosn = null;
             }
             catch (Exception ee)
             {
@@ -522,6 +563,12 @@ namespace ScannerBackgrdServer.AppController
                 OnOutputLog(LogInfoType.WARN, string.Format("目的设备信息为NULL！"));
                 return;
             }
+
+            if (TypeKeyValue.type == ApMsgType.scanner)
+            {
+                sendAppImsiMsgNum++;
+            }
+
             DeviceServerMsgStruct msgStruct = new DeviceServerMsgStruct();
             msgStruct.Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -531,7 +578,7 @@ namespace ScannerBackgrdServer.AppController
             string strJosn = JsonConvert.SerializeObject(msgStruct);
             if (-1 == strJosn.IndexOf(AppMsgType.app_heartbeat_response))
             {
-                OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给APP[{1}:{2}]！",
+                OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给APP[{1}:{2}]！",
                             TypeKeyValue.type, appToKen.IPAddress, appToKen.Port), LogCategory.S);
                 OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", strJosn), LogCategory.S);
             }

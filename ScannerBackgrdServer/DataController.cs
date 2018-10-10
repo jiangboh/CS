@@ -96,6 +96,11 @@ namespace ScannerBackgrdServer
         private static int imsiParseMode = 1;
 
         /// <summary>
+        /// 号码归属地内存保存的最大个数
+        /// </summary>
+        private static int imsiParseMaxCnt = 30000;
+
+        /// <summary>
         /// 每个Log文件的大小，单位为MB
         /// </summary>
         private static int logMaxSize = 10;
@@ -182,6 +187,7 @@ namespace ScannerBackgrdServer
         public static string StrLogPort { get => strLogPort; set => strLogPort = value; }
         public static LogOutType LogOutputType { get => logOutputType; set => logOutputType = value; }
         public static int LogMaxIdleSeconds { get => logMaxIdleSeconds; set => logMaxIdleSeconds = value; }
+        public static int ImsiParseMaxCnt { get => imsiParseMaxCnt; set => imsiParseMaxCnt = value; }
 
         #endregion
 
@@ -286,7 +292,9 @@ namespace ScannerBackgrdServer
 
                 simuTest = int.Parse(ConfigurationManager.AppSettings["simuTest"].ToString());
                 dataAlignMode = int.Parse(ConfigurationManager.AppSettings["dataAlignMode"].ToString());
+
                 imsiParseMode = int.Parse(ConfigurationManager.AppSettings["imsiParseMode"].ToString());
+                imsiParseMaxCnt = int.Parse(ConfigurationManager.AppSettings["imsiParseMaxCnt"].ToString());               
 
                 logMaxSize = int.Parse(ConfigurationManager.AppSettings["logMaxSize"].ToString());
 

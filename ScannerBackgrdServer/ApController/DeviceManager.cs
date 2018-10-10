@@ -152,12 +152,20 @@ namespace ScannerBackgrdServer.ApController
             bool noMsg = false;
             int hNum = 0;
             int count = 0;
+            long upTime = 0;
 
             RecvDeviceStruct recvDeviceStruct = null;
             while (true)
             {
                 try
                 {
+                    if (DeviceType != null && ((DateTime.Now.Ticks - upTime) / 10000000) > 60)
+                    {
+                        upTime = DateTime.Now.Ticks;
+                        //报到线程状态
+                        FrmMainController.write_monitor_status("DEVICE_2_" + DeviceType + "_HANDLE");
+                    }
+
                     if (noMsg)
                     {
                         Thread.Sleep(100);
@@ -169,7 +177,7 @@ namespace ScannerBackgrdServer.ApController
                             hNum = 0;
                             Thread.Sleep(10);
                         }
-                    }
+                    }                                      
 
                     lock (mutex_Device_Msg)
                     {
@@ -237,9 +245,9 @@ namespace ScannerBackgrdServer.ApController
             if (-1 == ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(ApMsgType.status_response)) &&
                 (-1 == ByteIndexOf(buff, System.Text.Encoding.Default.GetBytes(AppMsgType.app_heartbeat_request))))
             {
-                string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]消息！",
+                string str = string.Format("当前在线{0}设备数[{1}]。收到{0}设备[{2}:{3}]消息！", DeviceType,
                     deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
-                OnOutputLog(LogInfoType.INFO, str);
+                OnOutputLog(LogInfoType.INFO, str, LogCategory.R);
                 str = string.Format("收到{0}设备消息内容为\n{1}", DeviceType,
                     System.Text.Encoding.Default.GetString(buff));
                 OnOutputLog(LogInfoType.DEBG, str, LogCategory.R);
@@ -247,9 +255,9 @@ namespace ScannerBackgrdServer.ApController
             }
             else
             {
-                string str = string.Format("当前在线设备数[{0}]。收到设备[{1}:{2}]心跳消息！",
+                string str = string.Format("当前在线{0}设备数[{1}]。收到{0}设备[{2}:{3}]心跳消息！", DeviceType,
                     deviceList.GetCount().ToString(), token.IPAddress.ToString(), token.Port.ToString());
-                OnOutputLog(LogInfoType.INFO, str);
+                OnOutputLog(LogInfoType.INFO, str, LogCategory.R);
                 str = null;
             }
             RecvDeviceStruct recvDeviceStruct = new RecvDeviceStruct();

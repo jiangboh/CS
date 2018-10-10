@@ -55,10 +55,10 @@ namespace ScannerBackgrdServer.Common
 
         private static long gLogIndex = 0;
 
-        private static long gFileIndex = 0;
+        private static string gFileIndex = DateTime.Now.ToString("HH-mm-ss");
         private static long logMaxSize = 10;
 
-        private static string logRootDirectory = Application.StartupPath + @"\Log";        
+        private static string logRootDirectory = Application.StartupPath + @"\LogSer";        
 
         private enum FileFlushType    //日志文件刷新类型
         {
@@ -127,8 +127,9 @@ namespace ScannerBackgrdServer.Common
             get
             {
                 string tmp = string.Format("{0}\\{1}\\log{2}", logRootDirectory, logSubDirectory, currentLogFileDate.ToString("yyyy-MM-dd"));
-                tmp = string.Format("{0}-{1:D3}.txt", tmp, gFileIndex);
+                tmp = string.Format("{0}-{1}.txt", tmp, gFileIndex);
 
+                //tmp = string.Format("{0} {1}.txt", tmp, DateTime.Now.ToString("HH-mm-ss"));
                 //string tmp = string.Concat(logRootDirectory, '\\', string.Concat(logSubDirectory, @"\log", currentLogFileDate.ToString("yyyy-MM-dd")));
                 //tmp = string.Format("{0}-{1}.txt",tmp, gFileIndex);
 
@@ -263,6 +264,7 @@ namespace ScannerBackgrdServer.Common
             if (logInfo.Contains("今天是个好日子"))
             {
                 tmp = "\r\n\r\n\r\n\r\n" + tmp;
+                logInfo = string.Format("{0}({1})", logInfo, FrmMainController.GSvnVersionString);
             }
 
             if (cat == LogCategory.R)
@@ -338,9 +340,12 @@ namespace ScannerBackgrdServer.Common
         private static void StrategyLog()
         {
             long curFileSize = getFileSize(GetLogFullPath);
-            if ( (curFileSize >= logMaxSize*1024*1024) || (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0))
+
+          //if ( (curFileSize >= logMaxSize*1024*1024) || (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0))
+            if ( curFileSize  >= logMaxSize * 1024 * 1024)
             {
-                gFileIndex++;
+                //gFileIndex++;
+                gFileIndex = DateTime.Now.ToString("HH-mm-ss");
                 DateTime currentDate = DateTime.Now.Date;
 
                 //生成子目录
@@ -491,6 +496,10 @@ namespace ScannerBackgrdServer.Common
             DateTime endTimeConn = System.DateTime.Now;
             TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
+            DateTime startTimeMonitor = System.DateTime.Now;
+            DateTime endTimeMonitor = System.DateTime.Now;
+            TimeSpan tsMonitor = endTimeMonitor.Subtract(startTimeMonitor);
+
 
             while (true)
             {
@@ -503,6 +512,29 @@ namespace ScannerBackgrdServer.Common
                 {
                     //有消息时Sleep一小点
                     Thread.Sleep(2);
+                }
+
+                try
+                {
+                    #region 报告线程状态
+
+                    endTimeMonitor = System.DateTime.Now;
+                    tsMonitor = endTimeMonitor.Subtract(startTimeMonitor);
+
+                    if (tsMonitor.TotalSeconds >= 60)
+                    {
+                        FrmMainController.write_monitor_status("Logger_Status");
+                      
+                        //计时复位
+                        startTimeMonitor = System.DateTime.Now;
+                    }
+
+                    #endregion
+                }
+                catch (Exception ee)
+                {
+                    Logger.Trace(LogInfoType.EROR, ee.Message, "Logger", LogCategory.I);
+                    continue;
                 }
 
                 try
@@ -562,7 +594,9 @@ namespace ScannerBackgrdServer.Common
                             else
                             {
                                 //清空数据                                
-                                lstData = new List<string>();
+                                //lstData = new List<string>();
+                                lstData.Clear();
+                                lstData.TrimExcess();
 
                                 //拷贝数据
                                 while (gQueueLogger.Count > 0)
@@ -581,7 +615,9 @@ namespace ScannerBackgrdServer.Common
                             #region 数量充足
 
                             //清空数据                            
-                            lstData = new List<string>();
+                            //lstData = new List<string>();
+                            lstData.Clear();
+                            lstData.TrimExcess();
 
                             //拷贝数据
                             for (int i = 0; i < BatchValue; i++)
@@ -604,7 +640,7 @@ namespace ScannerBackgrdServer.Common
                                 //检测日志日期
                                 StrategyLog();
 
-                                info = "";
+                                info = null;
                                 foreach (string str in lstData)
                                 {
                                     info += str + "\r\n";
@@ -616,6 +652,7 @@ namespace ScannerBackgrdServer.Common
                                     System.Diagnostics.Trace.Close();
                                 }
 
+                                info = null;
                                 break;
                             }
                         case LogOutType.OT_Net:
@@ -633,7 +670,7 @@ namespace ScannerBackgrdServer.Common
                                 //检测日志日期
                                 StrategyLog();
 
-                                info = "";
+                                info = null;
                                 foreach (string str in lstData)
                                 {
                                     info += str + "\r\n";
@@ -651,6 +688,7 @@ namespace ScannerBackgrdServer.Common
                                     udpSender.Send(sendBytes, sendBytes.Length);
                                 }
 
+                                info = null;
                                 break;
                             }
                     }

@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -47,7 +49,12 @@ namespace ScannerBackgrdServer
     }
 
     static class Program
-    {        
+    {
+        /// <summary>
+        /// 是否退出应用程序
+        /// </summary>
+        static bool glExitApp = true ;
+
         /// <summary>
         /// 应用程序的主入口点。
         /// </summary>
@@ -55,12 +62,22 @@ namespace ScannerBackgrdServer
         static void Main()
         {
             Process instance = InstanceManager.RunningInstance();
+
+            //处理未捕获的异常
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            
+            //处理UI线程异常
+            Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(Application_ThreadException);
+
+            //处理非线程异常
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+
             if (instance == null)
             {   
                 //下面的三行代码是之前Main函数中的
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new FrmMainController());
+                Application.Run(new FrmMainController());               
             }
             else
             {
@@ -71,6 +88,66 @@ namespace ScannerBackgrdServer
             //Application.EnableVisualStyles();
             //Application.SetCompatibleTextRenderingDefault(false);
             //Application.Run(new FrmMainController());
+        }
+
+
+        /// <summary>
+        /// 处理未捕获异常
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {      
+            SaveLog("\r\n\r\n");
+            SaveLog("-----------------------begin--------------------------");
+            SaveLog("CurrentDomain_UnhandledException " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss"));
+            SaveLog("IsTerminating : " + e.IsTerminating.ToString());
+            SaveLog(e.ExceptionObject.ToString());
+            SaveLog("-----------------------ended--------------------------");
+            SaveLog("\r\n\r\n");
+
+            while (true)
+            {
+                //循环处理，否则应用程序将会退出
+                if (glExitApp)
+                {
+                    //标志应用程序可以退出，否则程序退出后，进程仍然在运行
+                    SaveLog("ExitApp");          
+                    System.Environment.Exit(System.Environment.ExitCode);                   
+                }
+
+                SaveLog("ExitApp...");
+                System.Threading.Thread.Sleep(2 * 1000);
+            };
+        }
+
+        /// <summary>
+        /// 处理UI主线程异常
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void Application_ThreadException(object sender, System.Threading.ThreadExceptionEventArgs e)
+        {
+            SaveLog("\r\n\r\n");
+            SaveLog("-----------------------begin--------------------------");
+            SaveLog("Application_ThreadException:" + e.Exception.Message);
+            SaveLog(e.Exception.StackTrace);
+            SaveLog("-----------------------ended--------------------------");
+            SaveLog("\r\n\r\n");
+        }
+
+        public static void SaveLog(string log)
+        {
+            string filePath = AppDomain.CurrentDomain.BaseDirectory + @"\LogSer\Exception.txt";
+
+            //采用using关键字，会自动释放
+            using (FileStream fs = new FileStream(filePath, FileMode.Append))
+            {
+                using (StreamWriter sw = new StreamWriter(fs, Encoding.Default))
+                {
+                    sw.WriteLine(log);
+                }
+            }
         }
     }
 }

@@ -57,11 +57,6 @@ namespace ScannerBackgrdServer.Common
             return ErrorCode[System.Math.Abs(errorno)].ToString();
         }
 
-        static private void OutputLog(string str)
-        {
-            //Console.WriteLine(str);
-        }
-
         static private XmlNode Get_Node_By_NodeName(XmlNodeList listNodes, String NodeName)
         {
             if (listNodes == null) return null;
@@ -246,7 +241,7 @@ namespace ScannerBackgrdServer.Common
             }
             catch (Exception)
             {
-                OutputLog(getErrorMsg(-1));
+                StaticOutputLog(LogInfoType.EROR,"加载Xml消息结构出错。","XML");
                 return null;
             }
 
@@ -254,7 +249,7 @@ namespace ScannerBackgrdServer.Common
             FirstNode = root.FirstChild;
             if (FirstNode == null)
             {
-                OutputLog(getErrorMsg(-2));
+                StaticOutputLog(LogInfoType.EROR, "获取Xml消息中第一个子节点出错。", "XML");
                 return null;
             }
 
@@ -262,7 +257,7 @@ namespace ScannerBackgrdServer.Common
             LastNode = FirstNode.NextSibling;
             if (LastNode == null)
             {
-                OutputLog(getErrorMsg(-2));
+                StaticOutputLog(LogInfoType.EROR, "获取Xml消息中第二个子节点出错。", "XML");
                 return null;
             }
 
@@ -293,8 +288,6 @@ namespace ScannerBackgrdServer.Common
 
             TypeKeyValueList= TypeKeyValue;
             
-
-            OutputLog(getErrorMsg(0));
             return TypeKeyValueList;
         }
 

@@ -1254,7 +1254,7 @@ namespace ScannerBackgrdServer.Common
         //"dic":
         //    {                  
         //   "bwListApplyTo":"device",                                    //黑白名单适用于那种类型，device或者domain        
-        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",  //bwListApplyTo为device时起作用
+        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",   //bwListApplyTo为device时起作用
         //   "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
         //   "imsi":"46000xxxxxxxxx",                                     //指定要过滤的IMSI号或包含的字段，不指定是为""
         //   "imei":"46000xxxxxxxxx",                                     //指定要过滤的IMEI号或包含的字段，不指定是为""
@@ -1300,7 +1300,7 @@ namespace ScannerBackgrdServer.Common
         //       ....
         //
         //}
-        public const string app_all_bwlist_response = "app_all_bwlist_response"; 
+        public const string app_all_bwlist_response = "app_all_bwlist_response";
 
 
         //
@@ -1309,7 +1309,7 @@ namespace ScannerBackgrdServer.Common
         //"dic":
         //    {                  
         //   "bwListApplyTo":"device",                                    //黑白名单适用于那种类型，device或者domain        
-        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",  //bwListApplyTo为device时起作用
+        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",   //bwListApplyTo为device时起作用
         //   "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
         //},
         //    "n_dic":[
@@ -1319,6 +1319,8 @@ namespace ScannerBackgrdServer.Common
         //         "imsi":"46000123456788",       //imsi和imei可以同时存在
         //         "imei":"46000123456789",       //imei和imsi可以同时存在
         //         "bwFlag":"black",              //黑白名单类型，black,white或者other
+        //                                        //为other时，不下发给AP，直接存库， 2018-09-18
+        //                            
         //         "rbStart":"23",                //imsi号不空时有用
         //         "rbEnd":"34",                  //imsi号不空时有用
         //         "time":"2018-05-24 18:58:50",  //时间信息
@@ -1347,7 +1349,7 @@ namespace ScannerBackgrdServer.Common
         //"dic":
         //    {                  
         //   "bwListApplyTo":"device",                                    //黑白名单适用于那种类型，device或者domain        
-        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",  //bwListApplyTo为device时起作用
+        //   "deviceFullPathName":"设备.深圳.福田.中心广场.西北监控.电信TDD",   //bwListApplyTo为device时起作用
         //   "domainFullPathName":"设备.深圳.福田",                         //bwListApplyTo为domain时起作用
         //},
         //    "n_dic":[
@@ -1357,6 +1359,7 @@ namespace ScannerBackgrdServer.Common
         //         "imsi":"46000123456788",       //imsi和imei可以同时存在
         //         "imei":"46000123456789",       //imei和imsi可以同时存在        
         //         "bwFlag":"black",              //黑白名单类型，black,white或者other
+        //                                        //为other时，不下发给AP，直接存库， 2018-09-18
         //       }
         //      ...
         //
@@ -1676,9 +1679,10 @@ namespace ScannerBackgrdServer.Common
         //    "TotalRecords":"10000",
         //    "CurPageIndex":"1:50",
         //    "PageSize":"200",
+
         //     "n_dic":[         
         //      {
-        //         "name":null,
+        //         "name":"1",
         //         "dic":{
         //         "imsi":"46000123456788",       //imsi
         //         "imei":"46000123456789",       //imei
@@ -1687,7 +1691,8 @@ namespace ScannerBackgrdServer.Common
         //         "bsPwr":"-20",                 //bsPwr
         //         "time":"2018-05-24 18:58:50",  //时间信息
         //         "bwFlag":"black",              //黑白名单类型，black,white或者other
-        //         "sn":"EN16110123456789",       //SN号             
+        //         "sn":"EN16110123456789",       //SN号     
+        //         "des":"imsi对应的别名"           //2018-09-06新增
         //       }
         //       ....
         //
@@ -2051,7 +2056,7 @@ namespace ScannerBackgrdServer.Common
         //      {
         //					"imsi":IMSI
         //                  "number":手机号
-        //					"codetype":编码烊型
+        //					"codetype":编码类型
         //					"data":短信内容
         //       }
         //    ],
@@ -2306,6 +2311,7 @@ namespace ScannerBackgrdServer.Common
         //					"bUeContentLen":XXX	    Ue主叫内容长度
         //					"bUeContent":XXX	    Ue主叫内容。最大249字节。
         //       }
+
         //    ],
         //"n_dic":
         //   [
@@ -2365,6 +2371,182 @@ namespace ScannerBackgrdServer.Common
         //}
         public const string app_get_GCInfo_Response = "app_get_GCInfo_Response";
 
+
+
+        //
+        //  app获取截获的号码信息请求(用于HJT GSM/GSM-V2/CDMA)
+        //"type":"app_get_MsCall_Request" 
+        //"dic":
+        //    {
+        //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",   //为""时表示所有的设备
+        //   "name":"GSM-Name"                                    //GSM的名称，为""时表示parentFullPathName下所有的设备
+        //   "carry":"0"                                          //GSM的载波标识，"0"或者"1",CDMA时为"-1"
+        //   "imsi":"46000xxxxxxxxx",                             //指定要搜索的IMSI号，不指定是为""
+        //   "number":"138xxxxxxx",                               //指定要搜索的手机号，不指定是为""
+        //   "timeStart":"2018-09-26 12:34:56",                   //开始时间，不指定是为""
+        //   "timeEnded":"2018-95-27 12:34:56",                   //结束时间，不指定是为""
+        //}
+        public const string app_get_MsCall_Request = "app_get_MsCall_Request";
+
+        //  
+        //   获取下一页的请求
+        //"dic":
+        //    {
+        //    "CurPageIndex":"1:50",
+        //    }
+        //}
+        public const string app_get_MsCall_NextPage_Request = "app_get_MsCall_NextPage_Request";
+
+        //
+        //  app获取截获的号码信息响应(用于HJT GSM/GSM-V2/CDMA)
+        //"type":"app_get_MsCall_Response" 
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
+        //    "name":"GSM-Name",
+        //    "carry":"0"        
+        //    "TotalRecords":"10000",
+        //    "CurPageIndex":"1:50",
+        //    "PageSize":"200",
+        //    "n_dic":[
+        //      {
+        //         "name":"1",
+        //         "dic":{
+        //          "imsi":IMSI
+        //          "number":手机号
+        //          "time":时间  
+        //       }，
+        //      {
+        //         "name":"2",
+        //         "dic":{
+        //          "imsi":IMSI
+        //          "number":手机号
+        //          "time":时间  
+        //       }，
+        //       ...
+        //}
+        public const string app_get_MsCall_Response = "app_get_MsCall_Response";
+
+        //  
+        //   app获取截获的号码信息,导出csv文件的请求
+        //"dic":
+        //    {
+        //    "fileName":"abc.csv", //将当前的历史记录搜索导出为abc.csv文件
+        //
+        //}
+        public const string app_get_MsCall_ExportCSV_Request = "app_get_MsCall_ExportCSV_Request";
+
+        //  
+        //   app获取截获的号码信息,导出csv文件的响应
+        //
+        //"type":"app_get_MsCall_ExportCSV_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，            //返回码：0,成功；其它值为失败
+        //    "ReturnStr": "成功"，         //失败原因值。ReturnCode不为0时有意义
+        //    "ftpUsrName":"root",       
+        //    "ftpPwd":"root",
+        //    "ftpRootDir": "updaeFile",
+        //    "ftpServerIp": "172.17.0.210",
+        //    "ftpPort":"21",
+        //    "fileName":"abc.csv",
+        //}
+        public const string app_get_MsCall_ExportCSV_Response = "app_get_MsCall_ExportCSV_Response";
+
+
+
+        //
+        //  app获取截获的短信信息请求(用于HJT GSM/GSM-V2/CDMA)
+        //"type":"app_get_MsSms_Request" 
+        //"dic":
+        //    {
+        //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",   //为""时表示所有的设备
+        //   "name":"GSM-Name"                                    //GSM的名称，为""时表示parentFullPathName下所有的设备
+        //   "carry":"0"                                          //GSM的载波标识，"0"或者"1",CDMA时为"-1"
+        //   "imsi":"46000xxxxxxxxx",                             //指定要搜索的IMSI号，不指定是为""
+        //   "number":"138xxxxxxx",                               //指定要搜索的手机号，不指定是为""
+        //   "data":"服务器",                                      //指定要搜索的内容，不指定是为""
+        //   "timeStart":"2018-09-26 12:34:56",                   //开始时间，不指定是为""
+        //   "timeEnded":"2018-95-27 12:34:56",                   //结束时间，不指定是为""
+        //}
+        public const string app_get_MsSms_Request = "app_get_MsSms_Request";
+
+        //  
+        //   获取下一页的请求
+        //"dic":
+        //    {
+        //    "CurPageIndex":"1:50",
+        //    }
+        //}
+        public const string app_get_MsSms_NextPage_Request = "app_get_MsSms_NextPage_Request";
+
+        //
+        //  app获取截获的短信信息响应(用于HJT GSM/GSM-V2/CDMA)
+        //"type":"app_get_MsSms_Response" 
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
+        //    "name":"GSM-Name",
+        //    "carry":"0"       
+        //    "TotalRecords":"10000",
+        //    "CurPageIndex":"1:50",
+        //    "PageSize":"200",
+        //    "n_dic":[
+        //      {
+        //         "name":"1",
+        //         "dic":{
+        //          "imsi":IMSI
+        //          "number":手机号
+        //          "codetype":编码类型
+        //          "data":短信内容
+        //          "time":时间  
+        //       }，
+        //      {
+        //         "name":"2",
+        //         "dic":{
+        //          "imsi":IMSI
+        //          "number":手机号
+        //          "codetype":编码类型
+        //          "data":短信内容
+        //          "time":时间  
+        //       }，
+        //       ...
+        //}
+        public const string app_get_MsSms_Response = "app_get_MsSms_Response";
+
+        //  
+        //   app获取截获的号码信息,导出csv文件的请求
+        //"dic":
+        //    {
+        //    "fileName":"abc.csv", //将当前的历史记录搜索导出为abc.csv文件
+        //
+        //}
+        public const string app_get_MsSms_ExportCSV_Request = "app_get_MsSms_ExportCSV_Request";
+
+        //  
+        //   app获取截获的号码信息,导出csv文件的响应
+        //
+        //"type":"app_get_MsSms_ExportCSV_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，            //返回码：0,成功；其它值为失败
+        //    "ReturnStr": "成功"，         //失败原因值。ReturnCode不为0时有意义
+        //    "ftpUsrName":"root",       
+        //    "ftpPwd":"root",
+        //    "ftpRootDir": "updaeFile",
+        //    "ftpServerIp": "172.17.0.210",
+        //    "ftpPort":"21",
+        //    "fileName":"abc.csv",
+        //}
+        public const string app_get_MsSms_ExportCSV_Response = "app_get_MsSms_ExportCSV_Response";
+
+
         #endregion
 
         #region 重定向相关
@@ -2407,10 +2589,12 @@ namespace ScannerBackgrdServer.Common
         //    {
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
         //   "name":"电信FDD"
-        //   "category":"0"     //0:white,1:black,2:other       
+        //   "category":"0"     //0:white,1:black,2:other 
+        //                      //3:all,返回所有，2018-09-28
         //}
         //
         public const string app_get_redirection_request = "app_get_redirection_request";
+
 
         // 
         // app重定向获取的响应
@@ -2422,17 +2606,37 @@ namespace ScannerBackgrdServer.Common
         //   "domainParentId":"1",
         //   "parentFullPathName":"设备.深圳.福田.中心广场.西北监控",
         //   "name":"电信FDD",
-
-        //   "category":"0"                       //0:white,1:black,2:other  
-        //   "priority":"2"                       //2:2G,3:3G,4:4G,Others:noredirect
-        //   "GeranRedirect":"0"                  //0:disable;1:enable
-        //   "arfcn":"2G frequency"               //2G frequency
-        //   "UtranRedirect":"0"                  //0:disable;1:enable
-        //   "uarfcn":"3G frequency"              //3G frequency
-        //   "EutranRedirect":"0"                 //0:disable;1:enable
-        //   "earfcn":"4G frequency"              //4G frequency
-        //   "RejectMethod":"1"                   //1,2,0xFF,0x10-0xFE
-        //   "additionalFreq":"uarfcn1,uarfcn2"   //不超过7个freq，超过7个freq的默认丢弃
+        //
+        //     "n_dic":[         
+        //      {
+        //         "name":"0",
+        //         "dic":{
+        //          "category":"0"                       //0:white,1:black,2:other  
+        //          "priority":"2"                       //2:2G,3:3G,4:4G,Others:noredirect
+        //          "GeranRedirect":"0"                  //0:disable;1:enable
+        //          "arfcn":"2G frequency"               //2G frequency
+        //           "UtranRedirect":"0"                  //0:disable;1:enable
+        //          "uarfcn":"3G frequency"              //3G frequency
+        //          "EutranRedirect":"0"                 //0:disable;1:enable
+        //          "earfcn":"4G frequency"              //4G frequency
+        //          "RejectMethod":"1"                   //1,2,0xFF,0x10-0xFE
+        //          "additionalFreq":"uarfcn1,uarfcn2"   //不超过7个freq，超过7个freq的默认丢弃
+        //      }
+        //     "n_dic":[         
+        //      {
+        //         "name":"1",
+        //         "dic":{
+        //          "category":"1"                       //0:white,1:black,2:other  
+        //          "priority":"2"                       //2:2G,3:3G,4:4G,Others:noredirect
+        //          "GeranRedirect":"0"                  //0:disable;1:enable
+        //          "arfcn":"2G frequency"               //2G frequency
+        //           "UtranRedirect":"0"                  //0:disable;1:enable
+        //          "uarfcn":"3G frequency"              //3G frequency
+        //          "EutranRedirect":"0"                 //0:disable;1:enable
+        //          "earfcn":"4G frequency"              //4G frequency
+        //          "RejectMethod":"1"                   //1,2,0xFF,0x10-0xFE
+        //          "additionalFreq":"uarfcn1,uarfcn2"   //不超过7个freq，超过7个freq的默认丢弃
+        //      }
         //}
         public const string app_get_redirection_response = "app_get_redirection_response";
 

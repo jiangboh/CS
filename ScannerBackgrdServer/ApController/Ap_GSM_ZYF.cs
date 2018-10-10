@@ -62,7 +62,7 @@ namespace ScannerBackgrdServer.ApController
             FAP_TRACE_MSG = 210,  //FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
             UE_STATUS_REPORT_MSG = 212,  //FAP上报UE相关状态. 
             UE_ORM_REPORT_MSG = 219,  //FAP上报UE主叫信息，只用于GSM和CDMA
-            CONFIG_SMS_CONTENT_MSG_ID = 192,  //FAP 配置下发短信号码和内容
+            CONFIG_SMS_CONTENT_MSG = 192,  //FAP 配置下发短信号码和内容
             FAP_PARAM_REPORT_MSG = 198,  //FAP上报FAP运行参数. 
             CONTROL_FAP_RADIO_ON_MSG = 193,  //	GUI 控制FAP开启射频
             CONTROL_FAP_RADIO_OFF_MSG = 194,  //GUI 控制FAP关闭射频
@@ -252,7 +252,7 @@ namespace ScannerBackgrdServer.ApController
         #endregion
 
         #region 类参数定义及构造函数
-        public static uint heartbeatMsgNum = 0;
+        public static UInt64 heartbeatMsgNum = 0;
         public static uint imsiMsgNum = 0;
 
         private string MODE_NAME = ApInnerType.GSM_V2.ToString();
@@ -397,7 +397,14 @@ namespace ScannerBackgrdServer.ApController
             if (msgBody == null)
             {
                 OnOutputLog(LogInfoType.EROR, "收到消息格式错误！");
+                OnOutputLog(LogInfoType.DEBG, "出错消息内容：" + msg);
                 return;
+            }
+
+            if (msgBody.type != ApMsgType.status_response)
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("处理AP[{0}:{1}]消息({2}),消息Id={3}！",
+                    apToKen.IPAddress.ToString(), apToKen.Port, msgBody.type, msgId));
             }
 
             //处理透传消息
@@ -415,10 +422,7 @@ namespace ScannerBackgrdServer.ApController
             if (msgBody.type == ApMsgType.status_response)
             {
                 //OnOutputLog(LogInfoType.INFO, "收到心跳消息");
-                if (heartbeatMsgNum == System.UInt32.MaxValue)
-                    heartbeatMsgNum = 0;
-                else
-                    heartbeatMsgNum++;
+                heartbeatMsgNum++;
 
                 //UInt32 oldDetail = apToKen.Detail;
                 UInt32 detail = 0;
@@ -653,7 +657,7 @@ namespace ScannerBackgrdServer.ApController
             if (recv.bMsgId == Recv_Msg_Id.QUERY_NB_CELL_INFO_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONFIG_FAP_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_REBOOT_MSG ||
-                recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID ||
+                recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_ON_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RESET_MSG ||
@@ -707,7 +711,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 Send2Main_UE_ORM_REPORT_MSG(apToKen, recv, Main2ApControllerMsgType.ReportGenPara);
             }
-            else if (recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID)
+            else if (recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG)
             {
                 Send2Main_CONFIG_SMS_CONTENT_MSG_ID(apToKen, recv);
             }
@@ -783,15 +787,11 @@ namespace ScannerBackgrdServer.ApController
 
             if (MyDeviceList.AddMsgId2App(apToKen, msgId2App))
             {
-                byte[] sendMsg = EncodeApXmlMessage(msgId2App.id, MainMsg.Body);
-                if (sendMsg == null)
+                if (!SendMsg2Ap(apToKen, msgId2App.id, MainMsg.Body))
                 {
-                    OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(RecvMainMsg)出错！"));
                     Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
-                        string.Format("封装向AP发送的XML消息出错！"));
-                    return;
+                        string.Format("封装向AP发送的XML消息({0})出错！", MainMsg.Body.type));
                 }
-                SendMsg2Ap(apToKen, sendMsg);
             }
         }
 
@@ -840,13 +840,7 @@ namespace ScannerBackgrdServer.ApController
                 new Msg_Body_Struct(ApMsgType.agent_straight_msg,
                 "data", sendMsg.Trim());
 
-            byte[] bMsg = EncodeApXmlMessage(msgId2App.id, TypeKeyValue);
-            if (bMsg == null)
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(Send2ap_TransparentMsg)出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, bMsg);
+            SendMsg2Ap(apToKen, msgId2App.id, TypeKeyValue);
         }
 
         /// <summary>
@@ -885,13 +879,7 @@ namespace ScannerBackgrdServer.ApController
                 new Msg_Body_Struct(ApMsgType.agent_straight_msg,
                 "data", sendData.Trim());
 
-            byte[] bMsg = EncodeApXmlMessage(sendMsg.wSqn, TypeKeyValue);
-            if (bMsg == null)
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(Send2ap_GSM_V2)出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, bMsg);
+            SendMsg2Ap(apToKen, sendMsg.wSqn, TypeKeyValue);
         }
 
         private void Send2ap_QUERY_NB_CELL_INFO_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo , Device_Sys sys)
@@ -2347,7 +2335,7 @@ namespace ScannerBackgrdServer.ApController
 
             TypeKeyValue.n_dic.Add(nDic);
 
-            OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
+            OnSendMsg2Main(0, MsgType.CONFIG, apToKen, TypeKeyValue);
         }
 
         private void Send2Main_CONFIG_SMS_CONTENT_MSG_ID(AsyncUserToken apToKen, MsgRecvStruct recv)
@@ -2358,7 +2346,7 @@ namespace ScannerBackgrdServer.ApController
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
-            nDic.name = Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG_ID.ToString();
+            nDic.name = Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString();
 
             nDic.dic.Add("bSMSOriginalNumLen", GetValueByString_Byte(ref data).ToString());
             nDic.dic.Add("bSMSOriginalNum", CodeConver.strToToHexByte(GetValueByString_String(36, ref data).ToString()));

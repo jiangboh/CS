@@ -264,12 +264,11 @@ namespace ScannerBackgrdServer.Common
         public static string Decode7Bit(string userData)
         {
             string result = string.Empty;
-            byte[] b = new byte[100];
+            byte[] b = new byte[4096];
             string temp = string.Empty;
             for (int i = 0; i < userData.Length; i += 2)
             {
                 b[i / 2] = (byte)Convert.ToByte((userData[i].ToString() + userData[i + 1].ToString()), 16);
-                //b[i / 2] = (byte)Convert.ToByte((userData[i + 1].ToString() + userData[i].ToString()), 16);
             }
             int j = 0;            //while计数
             int tmp = 1;            //temp中二进制字符字符个数
@@ -296,6 +295,7 @@ namespace ScannerBackgrdServer.Common
                     result += (char)Convert.ToInt32(Convert.ToString(b[j], 2) + temp, 2);
                 }
             }
+            b = null;
             return result;
         }
         #endregion
@@ -548,7 +548,7 @@ namespace ScannerBackgrdServer.Common
             /// <param name="Septets">7-Bit编码字符数</param>
             /// <param name="FillBits">填充Bit位数</param>
             /// <returns>7-Bit字节序列</returns>
-            public static Byte[] BIT7Unpack(String data, Int32 Index, Int32 Septets, Int32 FillBits)
+            private static Byte[] BIT7Unpack(String data, Int32 Index, Int32 Septets, Int32 FillBits)
             {
                 Byte[] Bit7Array = new Byte[Septets];
                 // 每8个7-Bit编码字符存放到7个字节
@@ -579,7 +579,7 @@ namespace ScannerBackgrdServer.Common
             /// </summary>
             /// <param name="Bit7Array">7-Bit编码字节序列</param>
             /// <returns>Unicode字符串</returns>
-            public static String BIT7Decoding(Byte[] Bit7Array)
+            private static String BIT7Decoding(Byte[] Bit7Array)
             {
                 StringBuilder sb = new StringBuilder(Bit7Array.Length);
                 for (Int32 i = 0; i < Bit7Array.Length; i++)

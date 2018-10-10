@@ -74,6 +74,19 @@ namespace ScannerBackgrdServer.ApController
         protected string OffLine = "OffLine";
         protected string OnLine = "OnLine";
 
+        /// <summary>
+        /// 发送到Main模块的Imsi条数
+        /// </summary>
+        public static UInt64 sendMainImsiMsgNum = 0;
+        /// <summary>
+        /// 接收到Ap发过来的IMSI条数
+        /// </summary>
+        public static UInt64 recvApImsiMsgNum = 0;
+        /// <summary>
+        /// 心跳不正常，未上报的imsi数量
+        /// </summary>
+        public static UInt64 noSendMainImsiNum = 0;
+
         protected enum ApReadyStEnum : Byte
         {
             XML_Not_Ready = 0,                    
@@ -128,6 +141,7 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>
         private void CheckApStatusThread()
         {
+            long upTime = 0;
             HashSet<AsyncUserToken> toKenList = new HashSet<AsyncUserToken>();
             HashSet<AsyncUserToken> RemovList = new HashSet<AsyncUserToken>();
 
@@ -135,6 +149,13 @@ namespace ScannerBackgrdServer.ApController
             {
                 try
                 {
+                    if (DeviceType != null && ((DateTime.Now.Ticks - upTime) / 10000000) > 60)
+                    {
+                        upTime = DateTime.Now.Ticks;
+                        //报到线程状态
+                        FrmMainController.write_monitor_status(DeviceType + "_STATUS");
+                    }
+
                     MyDeviceList.CopyConnList(ref toKenList);
                     foreach (AsyncUserToken x in toKenList)
                     {
@@ -209,10 +230,18 @@ namespace ScannerBackgrdServer.ApController
             int hNum = 0;
             int count = 0;
             string str = string.Empty;
+            long upTime = 0;
             while (true)
             {
                 try
                 {
+                    if (DeviceType != null && ((DateTime.Now.Ticks - upTime) / 10000000) > 60)
+                    {
+                        upTime = DateTime.Now.Ticks;
+                        //报到线程状态
+                        FrmMainController.write_monitor_status("MAIN_2_" + DeviceType + "_HANDLE");
+                    }
+
                     if (noMsg)
                     {
                         Thread.Sleep(100);
@@ -265,7 +294,8 @@ namespace ScannerBackgrdServer.ApController
 
                     if ((MainMsg.ApInfo.IP.Equals(MsgStruct.AllDevice)) || (MainMsg.ApInfo.Type.Equals(DeviceType)))
                     {
-                        OnOutputLog(LogInfoType.INFO, "接收到MainController消息。");
+                        OnOutputLog(LogInfoType.INFO, 
+                            string.Format("接收到MainController消息({0})。",MainMsg.Body.type));
                         OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", str));
                     }
 
@@ -357,18 +387,39 @@ namespace ScannerBackgrdServer.ApController
         /// </summary>
         /// <param name="apToKen">Ap信息</param>
         /// <param name="buff">消息内容</param>
-        protected void SendMsg2Ap(AsyncUserToken apToKen, byte[] buff)
+        protected void SendMsg2Ap(AsyncUserToken apToKen,string type, byte[] buff)
         {
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给AP[{0}:{1}]！",apToKen.IPAddress.ToString(),apToKen.Port));
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给AP[{1}:{2}]！",
+                type,apToKen.IPAddress.ToString(),apToKen.Port));
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}", System.Text.Encoding.UTF8.GetString(buff)));
             MySocket.SendMessage(apToKen, buff);
         }
 
-        protected void SendMsg2Ap(AsyncUserToken apToKen, string buff)
+        protected void SendMsg2Ap(AsyncUserToken apToKen,string type, string buff)
         {
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息给AP[{0}:{1}]！", apToKen.IPAddress.ToString(), apToKen.Port));
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给AP[{1}:{2}]！",
+                type,apToKen.IPAddress.ToString(), apToKen.Port));
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}", buff));
             MySocket.SendMessage(apToKen, System.Text.Encoding.Default.GetBytes(buff));
+        }
+
+        /// <summary>
+        /// 向AP发送消息
+        /// </summary>
+        /// <param name="apToKen">Ap信息</param>
+        /// <param name="id">消息id</param>
+        /// <param name="body">消息内容</param>
+        /// <returns>消息封装是否成功</returns>
+        protected bool SendMsg2Ap(AsyncUserToken apToKen,ushort id, Msg_Body_Struct body)
+        {
+            byte[] sendMsg = EncodeApXmlMessage(id, body);
+            if (sendMsg == null)
+            {
+                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息({0})出错！",body.type));
+                return false;
+            }
+            SendMsg2Ap(apToKen, body.type,sendMsg);
+            return true;
         }
 
         /// <summary>
@@ -383,13 +434,7 @@ namespace ScannerBackgrdServer.ApController
                 "timeout", 5,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
-            byte[] sendMsg = EncodeApXmlMessage(0, TypeKeyValue);
-            if (sendMsg == null)
-            {
-                OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息(status_request)出错！"));
-                return;
-            }
-            SendMsg2Ap(apToKen, sendMsg);
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
         }
 
         #endregion
@@ -469,14 +514,24 @@ namespace ScannerBackgrdServer.ApController
             if ((String.Compare(MyDeviceList.GetMainControllerStatus(apToKen), OnLine, true) != 0) &&
                 (!TypeKeyValue.type.Equals(Main2ApControllerMsgType.OnOffLine)))
             {
-                    OnOutputLog(LogInfoType.WARN,
+                OnOutputLog(LogInfoType.WARN,
                     string.Format("设备[{0}:{1}]在线状态为：{2}，OnLine状态才向Main模块发送消息{3}！",
                     apToKen.IPAddress.ToString(), apToKen.Port.ToString(), 
                     MyDeviceList.GetMainControllerStatus(apToKen), TypeKeyValue.type));
+
+                if (TypeKeyValue.type == ApMsgType.scanner)
+                {
+                    noSendMainImsiNum++;
+                }
                 return;
             }
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            if (TypeKeyValue.type == ApMsgType.scanner)
+            {
+                 sendMainImsiMsgNum++;
+            }
+
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson),LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
@@ -588,7 +643,7 @@ namespace ScannerBackgrdServer.ApController
                 msg.Body = TypeKeyValue;
                 mb.bJson = JsonConvert.SerializeObject(msg);
 
-                OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+                OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
                 OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
                 ApManager.sendMsg_2_MainController(mt, mb);
@@ -832,7 +887,7 @@ namespace ScannerBackgrdServer.ApController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
@@ -882,7 +937,7 @@ namespace ScannerBackgrdServer.ApController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
@@ -910,7 +965,7 @@ namespace ScannerBackgrdServer.ApController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
@@ -949,7 +1004,7 @@ namespace ScannerBackgrdServer.ApController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);
@@ -982,7 +1037,7 @@ namespace ScannerBackgrdServer.ApController
             msg.Body = TypeKeyValue;
             mb.bJson = JsonConvert.SerializeObject(msg);
 
-            OnOutputLog(LogInfoType.INFO, string.Format("发送消息{0}给MainController模块！", TypeKeyValue.type), LogCategory.S);
+            OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给MainController模块！", TypeKeyValue.type), LogCategory.S);
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), LogCategory.S);
 
             ApManager.sendMsg_2_MainController(mt, mb);

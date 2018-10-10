@@ -75,6 +75,7 @@ namespace ScannerBackgrdServer.AppController
             {
                 OnOutputLog(LogInfoType.EROR, "收到消息格式错误！");
                 SendErrorMsg2App(appToKen, null, "收到消息格式错误！");
+                OnOutputLog(LogInfoType.DEBG, "出错消息内容：" + msg);
                 return;
             }            
 
@@ -85,7 +86,13 @@ namespace ScannerBackgrdServer.AppController
                 SendErrorMsg2App(appToKen, null, "消息内容为NULL！");
                 return;
             }
-            
+
+            if (msgBody.type != ApMsgType.status_response)
+            {
+                OnOutputLog(LogInfoType.INFO, string.Format("处理APP[{0}:{1}]消息({2})！",
+                    appToKen.IPAddress.ToString(), appToKen.Port, msgBody.type));
+            }
+
             //心跳消息
             if (AppMsg.Body.type == AppMsgType.app_heartbeat_request)
             {
@@ -146,12 +153,11 @@ namespace ScannerBackgrdServer.AppController
 
             OnOutputLog(LogInfoType.INFO, string.Format("处理MainController消息。消息类型:{0}。",MainMsg.Body.type ));
 
-            DeviceServerMsgStruct deviceServerMsgStruct = new DeviceServerMsgStruct();
-            deviceServerMsgStruct.Version = MainMsg.Version;
-            deviceServerMsgStruct.ApInfo = MainMsg.ApInfo;
-            deviceServerMsgStruct.Body = MainMsg.Body;
-            string strJosn = JsonConvert.SerializeObject(MainMsg.Body);
-            SendMsg2App(MainMsg.AppInfo, deviceServerMsgStruct);
+            //deviceServerMsgStruct.Version = MainMsg.Version;
+            //deviceServerMsgStruct.ApInfo = MainMsg.ApInfo;
+            //deviceServerMsgStruct.Body = MainMsg.Body;
+           
+            SendMsg2App(MainMsg.AppInfo, MainMsg);
 
             return;
         }

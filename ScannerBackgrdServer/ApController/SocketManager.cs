@@ -432,6 +432,27 @@ namespace ScannerBackgrdServer.ApController
             Interlocked.Decrement(ref m_clientCount);
         }
 
+
+        private struct SendStruct
+        {
+            public AsyncUserToken token;
+            public byte[] message;
+        }
+
+        private void BeginInvoke_SendMsg(object msg)
+        {
+            try
+            {
+                SendStruct sendStruct = (SendStruct)msg;
+                sendStruct.token.Socket.Send(sendStruct.message);
+            }
+            catch (Exception e)
+            {
+                log(LogInfoType.EROR, "BeginInvoke_SendMsg:" + e.Message);
+            }
+
+            return;
+        }
         /// <summary>  
         /// 对数据进行打包,然后再发送  
         /// </summary>  
@@ -453,16 +474,15 @@ namespace ScannerBackgrdServer.ApController
 
             try
             {
-                byte[] buff = new byte[message.Length];
-                //byte[] len = BitConverter.GetBytes(message.Length);
-                //Array.Copy(len, buff, 4);
-                Array.Copy(message,  buff, message.Length);
-                //token.Socket.Send(buff);  //这句也可以发送, 可根据自己的需要来选择  
                 //新建异步发送对象, 发送消息  
-                SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
-                sendArg.UserToken = token;
-                sendArg.SetBuffer(buff, 0, buff.Length);  //将数据放置进去.  
-                token.Socket.SendAsync(sendArg);
+                //SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
+                //sendArg.SetBuffer(message, 0, message.Length);  //将数据放置进去.  
+                //token.Socket.SendAsync(sendArg);
+
+                SendStruct sendStruct;
+                sendStruct.token = token;
+                sendStruct.message = message;
+                ThreadPool.QueueUserWorkItem(new WaitCallback(BeginInvoke_SendMsg), sendStruct);
 
                 //string str = string.Format("时间:[{0}] 客户端({1}:{2}),发送消息给设备成功！",
                 //        token.ConnectTime.ToString(), token.IPAddress,token.Port.ToString(),
