@@ -100,7 +100,7 @@ namespace ScannerBackgrdServer
         {      
             SaveLog("\r\n\r\n");
             SaveLog("-----------------------begin--------------------------");
-            SaveLog("CurrentDomain_UnhandledException " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss"));
+            SaveLog("CurrentDomain_UnhandledException " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
             SaveLog("IsTerminating : " + e.IsTerminating.ToString());
             SaveLog(e.ExceptionObject.ToString());
             SaveLog("-----------------------ended--------------------------");
@@ -112,11 +112,19 @@ namespace ScannerBackgrdServer
                 if (glExitApp)
                 {
                     //标志应用程序可以退出，否则程序退出后，进程仍然在运行
-                    SaveLog("ExitApp");          
+                    SaveLog("CurrentDomain_UnhandledException_ExitApp");
+
+                    if (FrmMainController.process_is_exit("Monitor"))
+                    {
+                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor.");
+                        FrmMainController.send_data_2_monitor("RESTART_ME_RIGHTNOW");
+                    }
+
+                    System.Threading.Thread.Sleep(100);
                     System.Environment.Exit(System.Environment.ExitCode);                   
                 }
 
-                SaveLog("ExitApp...");
+                SaveLog("CurrentDomain_UnhandledException_ExitApp...");
                 System.Threading.Thread.Sleep(2 * 1000);
             };
         }
@@ -130,10 +138,34 @@ namespace ScannerBackgrdServer
         {
             SaveLog("\r\n\r\n");
             SaveLog("-----------------------begin--------------------------");
+            SaveLog("Application_ThreadException " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
             SaveLog("Application_ThreadException:" + e.Exception.Message);
             SaveLog(e.Exception.StackTrace);
             SaveLog("-----------------------ended--------------------------");
             SaveLog("\r\n\r\n");
+
+            while (true)
+            {
+                //循环处理，否则应用程序将会退出
+                if (glExitApp)
+                {
+                    //标志应用程序可以退出，否则程序退出后，进程仍然在运行
+                    SaveLog("Application_ThreadException_ExitApp");
+
+                    if (FrmMainController.process_is_exit("Monitor"))
+                    {
+                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor.");
+                        FrmMainController.send_data_2_monitor("RESTART_ME_RIGHTNOW");
+                    }
+
+                    System.Threading.Thread.Sleep(100);
+
+                    System.Environment.Exit(System.Environment.ExitCode);
+                }
+
+                SaveLog("Application_ThreadException_ExitApp...");
+                System.Threading.Thread.Sleep(2 * 1000);
+            };
         }
 
         public static void SaveLog(string log)

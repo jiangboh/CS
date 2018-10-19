@@ -737,8 +737,17 @@ namespace ScannerBackgrdServer
         // 2018-07-03
         private static Dictionary<string, strDevice> gDicDevFullName = new Dictionary<string, strDevice>();
 
-        // 2018-09-06
+        /// <summary>
+        /// 2018-09-06
+        /// 用于保存每个设备中对应的IMSI--Des集合
+        /// </summary>
         private static Dictionary<string, Dictionary<string, string>> gDicDevId_Imsi_Des = new Dictionary<string, Dictionary<string, string>>();
+
+        /// <summary>
+        /// 2018-10-11
+        /// 用于保存每个设备中对应的"站点.设备名称"
+        /// </summary>
+        private static Dictionary<string, string> gDicDevId_Station_DevName = new Dictionary<string, string>();
 
         private static List<strLoginUserInfo> gLoginUserInfo = new List<strLoginUserInfo>();
 
@@ -2689,11 +2698,11 @@ namespace ScannerBackgrdServer
 
                         if (rtv == 0)
                         {
-                            if (dt.Rows.Count > 0)
-                            {
+                            //if (dt.Rows.Count > 0)
+                            //{
                                 imms.Body.n_dic = new List<Name_DIC_Struct>();
                                 set_device_unknown_info_by_datatable(dt, ref imms);
-                            }
+                            //}
                         }
 
                         string info = string.Format("发送app_all_device_response给AppCtrl,未指派个数{0}", dt.Rows.Count);
@@ -2766,11 +2775,11 @@ namespace ScannerBackgrdServer
 
                     if (rtv == 0)
                     {
-                        if (dt.Rows.Count > 0)
-                        {
+                        //if (dt.Rows.Count > 0)
+                        //{
                             imms.Body.n_dic = new List<Name_DIC_Struct>();
                             set_device_unknown_info_by_datatable(dt, ref imms);
-                        }
+                        //}
                     }
 
                     string info = string.Format("发送app_all_device_response给AppCtrl,未指派个数{0}", dt.Rows.Count);
@@ -4510,9 +4519,11 @@ namespace ScannerBackgrdServer
             try
             {
                 int rtv = -1;
-                Dictionary<string, strDevice> dicDeviceIdCheck = new Dictionary<string, strDevice>();
 
-                rtv = gDbHelperLower.domain_dictionary_info_join_get(ref dicDeviceIdCheck);
+                Dictionary<string, strDevice> dicDeviceIdCheck = new Dictionary<string, strDevice>();
+                Dictionary<string, string> dicDSN = new Dictionary<string, string>();
+
+                rtv = gDbHelperLower.domain_dictionary_info_join_get(ref dicDeviceIdCheck,ref dicDSN);
                 if ((int)RC.SUCCESS != rtv)
                 {
                     string errInfo = string.Format("dicDeviceIdCheck -> ({0})获取FAILED！", gDbHelperLower.get_rtv_str(rtv));
@@ -9063,7 +9074,7 @@ namespace ScannerBackgrdServer
 
                                                 if (rtv == 0)
                                                 {
-                                                    if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDevFullName))
+                                                    if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDevFullName,ref gDicDevId_Station_DevName))
                                                     {
                                                         add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                                                         Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -10090,7 +10101,7 @@ namespace ScannerBackgrdServer
                     Stopwatch sw = new Stopwatch();
                     sw.Start();
                                       
-                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq,gDicDevId_Imsi_Des);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq,gDicDevId_Imsi_Des,gDicDevId_Station_DevName);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -10125,7 +10136,7 @@ namespace ScannerBackgrdServer
                     sw.Start();
 
                     //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des, gDicDevId_Station_DevName);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -10325,7 +10336,7 @@ namespace ScannerBackgrdServer
                     Stopwatch sw = new Stopwatch();
                     sw.Start();
                                       
-                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des, gDicDevId_Station_DevName);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -10360,7 +10371,7 @@ namespace ScannerBackgrdServer
                     sw.Start();
 
                     //每次都从库中取吧，因为再次查询时，库可能已经发生变化了。
-                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des);
+                    rtv = gDbHelperUpper.capture_record_entity_query(ref qi.dt, cq, gDicDevId_Imsi_Des, gDicDevId_Station_DevName);
                     if (rtv == 0)
                     {
                         qi.totalRecords = qi.dt.Rows.Count;
@@ -11143,7 +11154,7 @@ namespace ScannerBackgrdServer
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -11319,7 +11330,7 @@ namespace ScannerBackgrdServer
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -12179,7 +12190,7 @@ namespace ScannerBackgrdServer
 
                                 if (rtv == 0)
                                 {
-                                    if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName))
+                                    if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
                                     {
                                         add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -12416,7 +12427,7 @@ namespace ScannerBackgrdServer
 
                             if (rtv == 0)
                             {
-                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName))
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
                                 {
                                     add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                                     Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -14847,7 +14858,7 @@ namespace ScannerBackgrdServer
 
                                     qi.dt = new DataTable();
 
-                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq,gDicDevId_Station_DevName);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -14869,7 +14880,7 @@ namespace ScannerBackgrdServer
                                     qi.dt = new DataTable();
 
                                     //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, devInfo.id, bq, gDicDevId_Station_DevName);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -14984,6 +14995,16 @@ namespace ScannerBackgrdServer
                                         else
                                         {
                                             ndic.dic.Add("des", dr["des"].ToString());
+                                        }
+
+                                        // 2018-10-11
+                                        if (string.IsNullOrEmpty(dr["name"].ToString()))
+                                        {
+                                            ndic.dic.Add("name", "");
+                                        }
+                                        else
+                                        {
+                                            ndic.dic.Add("name", dr["name"].ToString());
                                         }
 
                                         gAppUpper.Body.n_dic.Add(ndic);
@@ -15029,7 +15050,7 @@ namespace ScannerBackgrdServer
                                     qi.domainFullPathName = domainFullPathName;
                                     qi.dt = new DataTable();
 
-                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq,gDicDevId_Station_DevName);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -15051,7 +15072,7 @@ namespace ScannerBackgrdServer
                                     qi.dt = new DataTable();
 
                                     //每次都从库中取吧，因为再次查询时，库可能已经发生变化了。
-                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq);
+                                    rtv = gDbHelperUpper.bwlist_record_entity_get(ref qi.dt, listDevId, affDomainId, bq, gDicDevId_Station_DevName);
                                     if (rtv == 0)
                                     {
                                         qi.totalRecords = qi.dt.Rows.Count;
@@ -15166,6 +15187,16 @@ namespace ScannerBackgrdServer
                                         else
                                         {
                                             ndic.dic.Add("des", dr["des"].ToString());
+                                        }
+
+                                        // 2018-10-11
+                                        if (string.IsNullOrEmpty(dr["name"].ToString()))
+                                        {
+                                            ndic.dic.Add("name", "");
+                                        }
+                                        else
+                                        {
+                                            ndic.dic.Add("name", dr["name"].ToString());
                                         }
 
                                         gAppUpper.Body.n_dic.Add(ndic);
@@ -15358,6 +15389,16 @@ namespace ScannerBackgrdServer
                                 else
                                 {
                                     ndic.dic.Add("des", dr["des"].ToString());
+                                }
+
+                                // 2018-10-11
+                                if (string.IsNullOrEmpty(dr["name"].ToString()))
+                                {
+                                    ndic.dic.Add("name", "");
+                                }
+                                else
+                                {
+                                    ndic.dic.Add("name", dr["name"].ToString());
                                 }
 
                                 gAppUpper.Body.n_dic.Add(ndic);
@@ -17886,7 +17927,7 @@ namespace ScannerBackgrdServer
                                               
                             if (!gDicStrMsCallHistoryQuery.ContainsKey(appId))
                             {        
-                                rtv = gDbHelperUpper.send_ms_call_get_by_devid(int.Parse(carry),ref query);
+                                rtv = gDbHelperUpper.send_ms_call_get_by_devid(int.Parse(carry),ref query,gDicDevId_Station_DevName);
                                 if (rtv == 0)
                                 {
                                     query.totalRecords = query.lstMsCall.Count ;
@@ -17902,7 +17943,7 @@ namespace ScannerBackgrdServer
                                 gDicStrMsCallHistoryQuery.Remove(appId);
 
                                 //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                                rtv = gDbHelperUpper.send_ms_call_get_by_devid(int.Parse(carry),ref query);
+                                rtv = gDbHelperUpper.send_ms_call_get_by_devid(int.Parse(carry),ref query, gDicDevId_Station_DevName);
                                 if (rtv == 0)
                                 {
                                     query.totalRecords = query.lstMsCall.Count;
@@ -17962,6 +18003,16 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         ndic.dic.Add("imsi", tmp.imsi);
+                                    }
+
+                                    // 2018-10-11
+                                    if (string.IsNullOrEmpty(tmp.devName))
+                                    {
+                                        ndic.dic.Add("name", "");
+                                    }
+                                    else
+                                    {
+                                        ndic.dic.Add("name", tmp.devName);
                                     }
 
                                     if (string.IsNullOrEmpty(tmp.number))
@@ -18107,6 +18158,16 @@ namespace ScannerBackgrdServer
                                 else
                                 {
                                     ndic.dic.Add("imsi", tmp.imsi);
+                                }
+
+                                // 2018-10-11
+                                if (string.IsNullOrEmpty(tmp.devName))
+                                {
+                                    ndic.dic.Add("name", "");
+                                }
+                                else
+                                {
+                                    ndic.dic.Add("name", tmp.devName);
                                 }
 
                                 if (string.IsNullOrEmpty(tmp.number))
@@ -18489,7 +18550,7 @@ namespace ScannerBackgrdServer
 
                             if (!gDicStrMsSmsHistoryQuery.ContainsKey(appId))
                             {
-                                rtv = gDbHelperUpper.send_ms_sms_get_by_devid(int.Parse(carry), ref query);
+                                rtv = gDbHelperUpper.send_ms_sms_get_by_devid(int.Parse(carry), ref query,gDicDevId_Station_DevName);
                                 if (rtv == 0)
                                 {
                                     query.totalRecords = query.lstMsSms.Count;
@@ -18505,7 +18566,7 @@ namespace ScannerBackgrdServer
                                 gDicStrMsSmsHistoryQuery.Remove(appId);
 
                                 //每次都从库中取吧，因为再次查询时，库已经发生变化了。
-                                rtv = gDbHelperUpper.send_ms_sms_get_by_devid(int.Parse(carry), ref query);
+                                rtv = gDbHelperUpper.send_ms_sms_get_by_devid(int.Parse(carry), ref query, gDicDevId_Station_DevName);
                                 if (rtv == 0)
                                 {
                                     query.totalRecords = query.lstMsSms.Count;
@@ -18565,6 +18626,16 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         ndic.dic.Add("imsi", tmp.imsi);
+                                    }
+
+                                    // 2018-10-11
+                                    if (string.IsNullOrEmpty(tmp.devName))
+                                    {
+                                        ndic.dic.Add("name", "");
+                                    }
+                                    else
+                                    {
+                                        ndic.dic.Add("name", tmp.devName);
                                     }
 
                                     if (string.IsNullOrEmpty(tmp.number))
@@ -18728,6 +18799,16 @@ namespace ScannerBackgrdServer
                                 else
                                 {
                                     ndic.dic.Add("imsi", tmp.imsi);
+                                }
+
+                                // 2018-10-11
+                                if (string.IsNullOrEmpty(tmp.devName))
+                                {
+                                    ndic.dic.Add("name", "");
+                                }
+                                else
+                                {
+                                    ndic.dic.Add("name", tmp.devName);
                                 }
 
                                 if (string.IsNullOrEmpty(tmp.number))
@@ -20076,7 +20157,7 @@ namespace ScannerBackgrdServer
                 sw.Start();
 
                 //用于快速通过设备的全名早点设备对应的ID
-                if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDevFullName))
+                if (0 == gDbHelperLower.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
                 {
                     add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
                     Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
@@ -22566,7 +22647,7 @@ namespace ScannerBackgrdServer
 
             //int ret  = gDbHelperUpper.update_info_record_insert("f1d63db8b273b92b51339c78f8d04227", "1.tar.gz","x.y.z");
 
-            int ret = gDbHelperUpper.capture_record_entity_query(ref dt,cq, gDicDevId_Imsi_Des);
+            int ret = gDbHelperUpper.capture_record_entity_query(ref dt,cq, gDicDevId_Imsi_Des, gDicDevId_Station_DevName);
 
             string str;
             foreach (DataRow dr in dt.Rows)
@@ -23306,7 +23387,7 @@ namespace ScannerBackgrdServer
             query.imsi = "4600";
             query.number = "2410";
 
-            gDbHelperRadio.send_ms_sms_get_by_devid(-1, ref query);
+            gDbHelperRadio.send_ms_sms_get_by_devid(-1, ref query, gDicDevId_Station_DevName);
 
 
             //    private void button15_Click(object sender, EventArgs e)
@@ -24740,11 +24821,11 @@ namespace ScannerBackgrdServer
         [DllImport("Kernel32.dll", EntryPoint = "CloseHandle")]
         private static extern int CloseHandle(IntPtr hObject);
 
-        private Semaphore m_Write;       //可写的信号
-        private Semaphore m_Read;        //可读的信号
-        private IntPtr handle;           //文件句柄
-        private IntPtr addr;             //共享内存地址
-        private uint mapLength = 1024;   //共享内存长
+        private static Semaphore m_Write;       //可写的信号
+        private static Semaphore m_Read;        //可读的信号
+        private static IntPtr handle;           //文件句柄
+        private static IntPtr addr;             //共享内存地址
+        private static uint mapLength = 1024;   //共享内存长
 
         private static Object mutex_Monitor = new object();
         private static long gThreadMonitorCnt = 0;
@@ -24757,7 +24838,7 @@ namespace ScannerBackgrdServer
         /// </summary>
         /// <param name="processName"></param>
         /// <returns></returns>
-        private static bool process_is_exit(string processName)
+        public static bool process_is_exit(string processName)
         {
             if (string.IsNullOrEmpty(processName))
             {
@@ -24800,7 +24881,7 @@ namespace ScannerBackgrdServer
         /// 发送数据到
         /// </summary>
         /// <param name="info"></param>
-        private void send_data_2_monitor(string info)
+        public static void send_data_2_monitor(string info)
         {
             try
             {

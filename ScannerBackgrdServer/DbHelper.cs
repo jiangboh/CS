@@ -5782,7 +5782,7 @@ namespace ScannerBackgrdServer
         ///   RC.OP_FAIL   ：数据库操作失败 
         ///   RC.SUCCESS   ：成功
         /// </returns>
-        public int domain_dictionary_info_join_get(ref Dictionary<string, strDevice> dic)
+        public int domain_dictionary_info_join_get(ref Dictionary<string, strDevice> dic,ref Dictionary<string, string> dicDevIdStationName)
         {
             if (false == myDbConnFlag)
             {
@@ -5791,6 +5791,7 @@ namespace ScannerBackgrdServer
             }
 
             Dictionary<string, strDevice> dicTemp = new Dictionary<string, strDevice>();
+            Dictionary<string, string> dicDevISN = new Dictionary<string, string>();
 
             //string sql = string.Format("SELECT a.nameFullPath,b.* FROM (select id,nameFullPath from domain where isStation = 1) AS a INNER JOIN device As b ON a.id = b.affDomainId");
 
@@ -5888,7 +5889,13 @@ namespace ScannerBackgrdServer
                                 if (!dicTemp.ContainsKey(completeName))
                                 {
                                     dicTemp.Add(completeName, strDev);
-                                }                               
+                                }
+
+                                // 2018-10-11
+                                if (!dicDevISN.ContainsKey(strDev.id.ToString()))
+                                {
+                                    dicDevISN.Add(strDev.id.ToString(), strDev.station_and_name);
+                                }
                             }
                         }
                         dr.Close();
@@ -5905,6 +5912,9 @@ namespace ScannerBackgrdServer
 
             dic = new Dictionary<string, strDevice>();
             dic = dicTemp;
+
+            dicDevIdStationName = new Dictionary<string, string>();
+            dicDevIdStationName = dicDevISN;
            
             return (int)RC.SUCCESS;
         }
@@ -9619,7 +9629,7 @@ namespace ScannerBackgrdServer
         ///   RC.TIME_ST_EN_ERR     ：开始时间大于结束时间
         ///   RC.SUCCESS            ：成功 
         /// </returns>
-        public int capture_record_entity_query(ref DataTable dt,strCaptureQuery cq, Dictionary<string, Dictionary<string,string>> gDicDevId_Imsi_Des)
+        public int capture_record_entity_query(ref DataTable dt,strCaptureQuery cq, Dictionary<string, Dictionary<string,string>> gDicDevId_Imsi_Des, Dictionary<string,string> gDicDevId_Station_Name)
         {
             /// <summary>
             /// 当affDeviceId为-1时，表示搜索所有的设备
@@ -9827,7 +9837,9 @@ namespace ScannerBackgrdServer
                             }                            
 
 
-                            row["name"] = dr["name"].ToString();
+                            //row["name"] = dr["name"].ToString();                            
+
+
                             row["time"] = dr["time"].ToString();
 
                             if (!string.IsNullOrEmpty(dr["tmsi"].ToString()))
@@ -9841,8 +9853,18 @@ namespace ScannerBackgrdServer
                             row["sn"] = dr["sn"].ToString();
 
                             id = dr["id"].ToString();
-                            imsi = dr["imsi"].ToString();
 
+                            // 2018-10-11
+                            if (gDicDevId_Station_Name.ContainsKey(id))
+                            {
+                                row["name"] = gDicDevId_Station_Name[id];
+                            }
+                            else
+                            {
+                                row["name"] = dr["name"].ToString();
+                            }
+
+                            imsi = dr["imsi"].ToString();
                             if (gDicDevId_Imsi_Des.ContainsKey(id))
                             {
                                 tmp = gDicDevId_Imsi_Des[id];
@@ -12308,7 +12330,7 @@ namespace ScannerBackgrdServer
         ///   DEV_NO_EXIST ：设备不存在
         ///   RC.SUCCESS   ：成功 
         /// </returns>
-        public int bwlist_record_entity_get(ref DataTable dt,int affDeviceId,strBwQuery bq)
+        public int bwlist_record_entity_get(ref DataTable dt,int affDeviceId,strBwQuery bq,Dictionary<string,string> dicDSN)
         {
             if (false == myDbConnFlag)
             {
@@ -12351,7 +12373,12 @@ namespace ScannerBackgrdServer
 
             DataColumn column6 = new DataColumn();
             column6.DataType = System.Type.GetType("System.String");
-            column6.ColumnName = "des";            
+            column6.ColumnName = "des";
+
+            // 2018-10-11
+            DataColumn column7 = new DataColumn();
+            column7.DataType = System.Type.GetType("System.String");
+            column7.ColumnName = "name";
 
             dt.Columns.Add(column0);
             dt.Columns.Add(column1);
@@ -12360,6 +12387,7 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column4);
             dt.Columns.Add(column5);
             dt.Columns.Add(column6);
+            dt.Columns.Add(column7);
 
             string sql = "";
             string sqlSub = "";
@@ -12452,7 +12480,17 @@ namespace ScannerBackgrdServer
                             }
 
                             row["time"] = dr["time"].ToString();
-                            row["des"] = dr["des"].ToString();                                                      
+                            row["des"] = dr["des"].ToString();
+
+                            // 2018-10-11
+                            if (dicDSN.ContainsKey(affDeviceId.ToString()))
+                            {
+                                row["name"] = dicDSN[affDeviceId.ToString()];
+                            }
+                            else
+                            {
+                                row["name"] = "";
+                            }
 
                             dt.Rows.Add(row);
                         }
@@ -12686,7 +12724,7 @@ namespace ScannerBackgrdServer
         ///   DOMAIN_NO_EXIST ：域不存在
         ///   RC.SUCCESS      ：成功 
         /// </returns>
-        public int bwlist_record_entity_get(ref DataTable dt, List<int> listAffDeviceId,int affDomainId, strBwQuery bq)
+        public int bwlist_record_entity_get(ref DataTable dt, List<int> listAffDeviceId,int affDomainId, strBwQuery bq,Dictionary<string,string> dicDSN)
         {
             if (false == myDbConnFlag)
             {
@@ -12724,6 +12762,7 @@ namespace ScannerBackgrdServer
             devDomainList += string.Format("or affDomainId = {0} ", affDomainId);
 
             dt = new DataTable("bwlist");
+            string affDeviceId = "";
 
             DataColumn column0 = new DataColumn();
             column0.DataType = System.Type.GetType("System.String");
@@ -12751,7 +12790,12 @@ namespace ScannerBackgrdServer
 
             DataColumn column6 = new DataColumn();
             column6.DataType = System.Type.GetType("System.String");
-            column6.ColumnName = "des";           
+            column6.ColumnName = "des";
+
+            // 2018-10-11
+            DataColumn column7 = new DataColumn();
+            column7.DataType = System.Type.GetType("System.String");
+            column7.ColumnName = "name";
 
             dt.Columns.Add(column0);
             dt.Columns.Add(column1);
@@ -12760,6 +12804,7 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column4);
             dt.Columns.Add(column5);
             dt.Columns.Add(column6);
+            dt.Columns.Add(column7);
 
             string sql = "";
             string sqlSub = "";
@@ -12869,8 +12914,25 @@ namespace ScannerBackgrdServer
                             }
 
                             row["time"] = dr["time"].ToString();
-                            row["des"] = dr["des"].ToString();                           
+                            row["des"] = dr["des"].ToString();
 
+                            if (!string.IsNullOrEmpty(dr["affDeviceId"].ToString()))
+                            {
+                                affDeviceId = dr["affDeviceId"].ToString();
+                                if (dicDSN.ContainsKey(affDeviceId))
+                                {
+                                    row["name"] = dicDSN[affDeviceId];
+                                }
+                                else
+                                {
+                                    row["name"] = "";
+                                }
+                            }
+                            else
+                            {
+                                row["name"] = "";
+                            }
+                             
                             dt.Rows.Add(row);
                         }
                         dr.Close();
@@ -17114,7 +17176,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST       ：记录不存在
         ///   RC.SUCCESS        ：成功 
         /// </returns>
-        public int send_ms_call_get_by_devid(int carry, ref strMsCallHistoryQuery query)
+        public int send_ms_call_get_by_devid(int carry, ref strMsCallHistoryQuery query,Dictionary<string,string> dicDSN)
         {
             if (false == myDbConnFlag)
             {
@@ -17139,6 +17201,7 @@ namespace ScannerBackgrdServer
             string sql = "";
             string sqlSub = "";
             string sqlSub1 = "";
+            string affDeviceId = "";
 
             if (!string.IsNullOrEmpty(query.imsi))
             {
@@ -17228,8 +17291,19 @@ namespace ScannerBackgrdServer
                                 call.time = dr["time"].ToString();
                             }
 
-                            call.devName = query.devName;
-
+                            if (!string.IsNullOrEmpty(dr["affDeviceId"].ToString()))
+                            {
+                                affDeviceId = dr["affDeviceId"].ToString();
+                                if (dicDSN.ContainsKey(affDeviceId))
+                                {
+                                    call.devName = dicDSN[affDeviceId];
+                                }
+                                else
+                                {
+                                    call.devName = query.devName;
+                                }
+                            }
+                                                     
                             query.lstMsCall.Add(call);
                         }
                         dr.Close();
@@ -17430,7 +17504,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST       ：记录不存在
         ///   RC.SUCCESS        ：成功 
         /// </returns>
-        public int send_ms_sms_get_by_devid(int carry, ref strMsSmsHistoryQuery query)
+        public int send_ms_sms_get_by_devid(int carry, ref strMsSmsHistoryQuery query,Dictionary<string, string> dicDSN)
         {
             if (false == myDbConnFlag)
             {
@@ -17457,6 +17531,7 @@ namespace ScannerBackgrdServer
             string sql = "";
             string sqlSub = "";
             string sqlSub1 = "";
+            string affDeviceId = "";
 
             if (!string.IsNullOrEmpty(query.imsi))
             {
@@ -17561,7 +17636,19 @@ namespace ScannerBackgrdServer
                                 sms.time = dr["time"].ToString();
                             }
 
-                            sms.devName = query.devName;
+                            if (!string.IsNullOrEmpty(dr["affDeviceId"].ToString()))
+                            {
+                                affDeviceId = dr["affDeviceId"].ToString();
+                                if (dicDSN.ContainsKey(affDeviceId))
+                                {
+                                    sms.devName = dicDSN[affDeviceId];
+                                }
+                                else
+                                {
+                                    sms.devName = query.devName;
+                                }
+                            }
+                            
                             query.lstMsSms.Add(sms);
                         }
                         dr.Close();
@@ -19127,7 +19214,22 @@ namespace ScannerBackgrdServer
                 return (int)RC.EXIST;
             }
 
-            string sql = string.Format("insert into gc_param_config(id,dwDateTime,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},-1,{1})", carry, affDeviceId);
+            //string sql = string.Format("insert into gc_param_config(id,dwDateTime,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},-1,{1})", carry, affDeviceId);
+
+            string sql = "";
+            if (carry == -1)
+            {
+                sql = string.Format("insert into gc_param_config(id,dwDateTime,bPLMNId,carry,bindingDevId,affDeviceId) values(NULL,now(),'46011',{0},-1,{1})", carry, affDeviceId);
+            }
+            else if (carry == 0)
+            {
+                sql = string.Format("insert into gc_param_config(id,dwDateTime,bPLMNId,carry,bindingDevId,affDeviceId) values(NULL,now(),'46000',{0},-1,{1})", carry, affDeviceId);
+            }
+            else
+            {
+                sql = string.Format("insert into gc_param_config(id,dwDateTime,bPLMNId,carry,bindingDevId,affDeviceId) values(NULL,now(),'46001',{0},-1,{1})", carry, affDeviceId);
+            }
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))

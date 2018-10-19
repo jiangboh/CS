@@ -1287,7 +1287,7 @@ namespace ScannerBackgrdServer.Common
         //    "PageSize":"200",
         //     "n_dic":[
         //      {
-        //         "name":null,
+        //         "name":"1",
         //         "dic":{
         //         "imsi":"46000123456788",       //imsi
         //         "imei":"46000123456789",       //imei
@@ -1295,7 +1295,8 @@ namespace ScannerBackgrdServer.Common
         //         "rbStart":"23",                //imsi号不空时有用
         //         "rbEnd":"34",                  //imsi号不空时有用
         //         "time":"2018-05-24 18:58:50",  //时间信息
-        //         "des":"黑白名单描述",            //黑白名单描述                    
+        //         "des":"黑白名单描述",            //黑白名单描述    
+        //         "name":西北监控.电信TDD          //2018-10-11
         //       }
         //       ....
         //
@@ -2415,6 +2416,7 @@ namespace ScannerBackgrdServer.Common
         //         "name":"1",
         //         "dic":{
         //          "imsi":IMSI
+        //          "name":西北监控.GSM-Name //2018-10-11
         //          "number":手机号
         //          "time":时间  
         //       }，
@@ -2422,6 +2424,7 @@ namespace ScannerBackgrdServer.Common
         //         "name":"2",
         //         "dic":{
         //          "imsi":IMSI
+        //          "name":西北监控.GSM-Name //2018-10-11
         //          "number":手机号
         //          "time":时间  
         //       }，
@@ -2501,6 +2504,7 @@ namespace ScannerBackgrdServer.Common
         //         "name":"1",
         //         "dic":{
         //          "imsi":IMSI
+        //          "name":西北监控.GSM-Name //2018-10-11
         //          "number":手机号
         //          "codetype":编码类型
         //          "data":短信内容
@@ -2510,6 +2514,7 @@ namespace ScannerBackgrdServer.Common
         //         "name":"2",
         //         "dic":{
         //          "imsi":IMSI
+        //          "name":西北监控.GSM-Name //2018-10-11
         //          "number":手机号
         //          "codetype":编码类型
         //          "data":短信内容
