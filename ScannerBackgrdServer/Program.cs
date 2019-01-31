@@ -112,11 +112,11 @@ namespace ScannerBackgrdServer
                 if (glExitApp)
                 {
                     //标志应用程序可以退出，否则程序退出后，进程仍然在运行
-                    SaveLog("CurrentDomain_UnhandledException_ExitApp");
+                    SaveLog("CurrentDomain_UnhandledException_ExitApp " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
 
                     if (FrmMainController.process_is_exit("Monitor"))
                     {
-                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor.");
+                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor. " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                         FrmMainController.send_data_2_monitor("RESTART_ME_RIGHTNOW");
                     }
 
@@ -124,7 +124,7 @@ namespace ScannerBackgrdServer
                     System.Environment.Exit(System.Environment.ExitCode);                   
                 }
 
-                SaveLog("CurrentDomain_UnhandledException_ExitApp...");
+                SaveLog("CurrentDomain_UnhandledException_ExitApp... " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                 System.Threading.Thread.Sleep(2 * 1000);
             };
         }
@@ -150,11 +150,10 @@ namespace ScannerBackgrdServer
                 if (glExitApp)
                 {
                     //标志应用程序可以退出，否则程序退出后，进程仍然在运行
-                    SaveLog("Application_ThreadException_ExitApp");
-
+                    SaveLog("Application_ThreadException_ExitApp " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                     if (FrmMainController.process_is_exit("Monitor"))
-                    {
-                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor.");
+                    {            
+                        SaveLog("send RESTART_ME_RIGHTNOW to Monitor. " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                         FrmMainController.send_data_2_monitor("RESTART_ME_RIGHTNOW");
                     }
 
@@ -163,7 +162,7 @@ namespace ScannerBackgrdServer
                     System.Environment.Exit(System.Environment.ExitCode);
                 }
 
-                SaveLog("Application_ThreadException_ExitApp...");
+                SaveLog("Application_ThreadException_ExitApp... " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                 System.Threading.Thread.Sleep(2 * 1000);
             };
         }

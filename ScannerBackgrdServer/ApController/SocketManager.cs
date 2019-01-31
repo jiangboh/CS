@@ -347,8 +347,10 @@ namespace ScannerBackgrdServer.ApController
 
                     //将数据包交给后台处理,这里你也可以新开个线程来处理.加快速度.  
                     if (ReceiveClientData != null)
-                        ReceiveClientData(token, data);
-
+                    {
+                        string gbk_str = System.Text.Encoding.UTF8.GetString(data);
+                        ReceiveClientData(token, System.Text.Encoding.Default.GetBytes(gbk_str));
+                    }
                     data = null;
                     //继续接收. 为什么要这么写,请看Socket.ReceiveAsync方法的说明  
                     if (!token.Socket.ReceiveAsync(e))
@@ -478,10 +480,12 @@ namespace ScannerBackgrdServer.ApController
                 //SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
                 //sendArg.SetBuffer(message, 0, message.Length);  //将数据放置进去.  
                 //token.Socket.SendAsync(sendArg);
-
+                string gbk_str = System.Text.Encoding.Default.GetString(message);
+                byte[] utf8_byt = System.Text.Encoding.UTF8.GetBytes(gbk_str);
+                //string gbk_str1 = System.Text.Encoding.UTF8.GetString(utf8_byt);
                 SendStruct sendStruct;
                 sendStruct.token = token;
-                sendStruct.message = message;
+                sendStruct.message = utf8_byt;
                 ThreadPool.QueueUserWorkItem(new WaitCallback(BeginInvoke_SendMsg), sendStruct);
 
                 //string str = string.Format("时间:[{0}] 客户端({1}:{2}),发送消息给设备成功！",

@@ -38,7 +38,6 @@ namespace ScannerBackgrdServer.ApController
         //    Console.WriteLine("[" + MODE_NAME + "] " + str);
         //}
 
-
         /// <summary>
         /// 重载收到Ap侧消息处理
         /// </summary>
@@ -54,6 +53,7 @@ namespace ScannerBackgrdServer.ApController
                     //OnOutputLog(LogInfoType.DEBG, "消息已解析完。缓存里没有完整消息了！");
                     return;
                 }
+                
                 HandleApMsg(apToKen, msg);
             }
         }
@@ -537,7 +537,7 @@ namespace ScannerBackgrdServer.ApController
 
                 if (bwFlag.Equals("white"))
                 {
-                    String imsi = GetMsgStringValueInList("imsi", dic);
+                    String imsi = GetMsgStringValueInList("imsi", dic,string.Empty);
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "添加白名单参数错误。imsi字段错误!");
@@ -552,7 +552,7 @@ namespace ScannerBackgrdServer.ApController
                 }
                 if (bwFlag.Equals("black"))
                 {
-                    String imsi = GetMsgStringValueInList("imsi", dic);
+                    String imsi = GetMsgStringValueInList("imsi", dic,string.Empty);
                     if (imsi.Equals(String.Empty))
                     {
                         OnOutputLog(LogInfoType.WARN, "添加黑名单参数错误。imsi字段错误!");

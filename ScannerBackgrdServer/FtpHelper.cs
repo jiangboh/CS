@@ -400,7 +400,7 @@ namespace ScannerBackgrdServer
             while (true)
             {
                 int iBytes = socketData.Receive(buffer, buffer.Length, 0);
-                strMsg += Encoding.Default.GetString(buffer, 0, iBytes);
+                strMsg += Encoding.UTF8.GetString(buffer, 0, iBytes);
                 if (iBytes < buffer.Length)
                 {
                     break;
@@ -482,7 +482,7 @@ namespace ScannerBackgrdServer
             while (true)
             {
                 int iBytes = socketData.Receive(buffer, buffer.Length, 0);
-                strMsg += Encoding.Default.GetString(buffer, 0, iBytes);
+                strMsg += Encoding.UTF8.GetString(buffer, 0, iBytes);
                 if (iBytes < buffer.Length)
                 {
                     break;
@@ -510,7 +510,7 @@ namespace ScannerBackgrdServer
         /// 删除
         /// </summary>
         /// <param name="strFileName">待删除文件名</param>
-        public void Delete(string strFileName)
+        public int Delete(string strFileName)
         {
             if (!bConnected)
             {
@@ -520,8 +520,10 @@ namespace ScannerBackgrdServer
             SendCommand("DELE " + strFileName);
             if (iReplyCode != 250)
             {
-                throw new IOException(strReply.Substring(4));
+                throw new IOException(strReply.Substring(4));                
             }
+
+            return 0;
         }
 
 
@@ -598,11 +600,11 @@ namespace ScannerBackgrdServer
                 strLocalFileName = strRemoteFileName;
             }
 
-            if (!File.Exists(strLocalFileName))
-            {
-                Stream st = File.Create(strLocalFileName);
-                st.Close();
-            }
+            //if (!File.Exists(strLocalFileName))
+            //{
+            //    Stream st = File.Create(strLocalFileName);
+            //    st.Close();
+            //}
 
             FileStream output = new FileStream(strFolder + "\\" + strLocalFileName, FileMode.Create);
 

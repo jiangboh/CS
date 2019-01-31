@@ -1206,6 +1206,7 @@ namespace ScannerBackgrdServer.Common
         //         "SYNC":"0",                    //同步状态     ：1,正常；0，不正常
         //         "LICENSE":"1",                 //LICENSE状态 ：1,正常；0，不正常
         //         "RADIO":"1",                   //射频状态     ：1,正常；0，不正常
+        //         "ALIGN":                       //对齐状态     ：1,已经对齐；0，尚未对齐，2018-11-05
         //         "wSelfStudy"  "0"              //"0"正常状态，"1"自学习状态 ，2018-07-19
         //         "ApReadySt"   "XML-Not-Ready"  //0-"XML-Not-Ready"
         //                                        //1-"XML-Ready"
@@ -1228,6 +1229,7 @@ namespace ScannerBackgrdServer.Common
         //         "SYNC":"0",                    //同步状态     ：1,正常；0，不正常
         //         "LICENSE":"1",                 //LICENSE状态 ：1,正常；0，不正常
         //         "RADIO":"1",                   //射频状态     ：1,正常；0，不正常
+        //         "ALIGN":                       //对齐状态     ：1,已经对齐；0，尚未对齐，2018-11-05
         //         "wSelfStudy"  "0"              //"0"正常状态，"1"自学习状态 ，2018-07-19
         //         "ApReadySt" "XML-Not-Ready"    //0-"XML-Not-Ready"
         //                                        //1-"XML-Ready"
@@ -1609,7 +1611,7 @@ namespace ScannerBackgrdServer.Common
         //    "ftpRootDir": "updaeFile",
         //    "ftpServerIp": "172.17.0.210",
         //    "ftpPort":"21",
-        //    "needToUpdate":"0",         //是否需求上传，0不需要，1需要   
+        //    "needToUpdate":"0",         //是否需要上传，0不需要，1需要   
         //}
         public const string app_ftp_oper_response = "app_ftp_oper_response";
 
@@ -1726,6 +1728,23 @@ namespace ScannerBackgrdServer.Common
         //    "fileName":"abc.csv",
         //}
         public const string app_history_record_export_csv_response = "app_history_record_export_csv_response";
+
+
+        //  
+        //   历史记录搜索窗口退出的通知（用于释放搜索记录所占的内存）
+        //   2018-11-12
+        //
+        public const string app_history_record_exit_request = "app_history_record_exit_request";
+
+        //  
+        //  历史记录搜索窗口退出通知的响应
+        //  2018-11-12
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //}
+        public const string app_history_record_exit_response = "app_history_record_exit_response";
 
         #endregion
 
@@ -1874,6 +1893,14 @@ namespace ScannerBackgrdServer.Common
         //    ];
         //"n_dic":
         //   [
+        //       "name":"PAGE_UE_MSG",                 //4.9  GUI寻呼目标IMSI手机
+        //      {
+        //					"bpageType":XXX	    	寻呼类型。1=寻呼定位；3=发送短信
+        //					"bUeId":XXX	            UE id,一般为IMSI。
+        //       }
+        //    ],
+        //"n_dic":
+        //   [
         //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
         //      {
         //					"bSMSOriginalNum":XXX	    	主叫号码
@@ -1981,6 +2008,7 @@ namespace ScannerBackgrdServer.Common
         //					"ueImei":手机IMEI号
         //					"ueMsisdn":手机号码号段
         //					"uePwr":设备接收的手机功率
+        //                  "userType":用户类型，2018-11-05
         //					"UeRegtype":0表示位置更新接受，6表示位置更新拒绝
         //					"ueQueryResult":查询结果，同查询响应SEND_QUERY_RSP中的flagType
         //					"ueTmsi":TMSI号
@@ -2119,18 +2147,19 @@ namespace ScannerBackgrdServer.Common
         //       "name":"UE_STATUS_REPORT_MSG",                 //4.8  FAP上报UE相关状态
         //      {
         //					"imsi":XXX	    //上报imsi，如果没有为空
-        //					"imei":XXX      //上报imsi，如果没有为空      
-        //					"tmsi":XXX	    //上报imsi，如果没有为空       
-        //					"rsrp":XXX	    //上报imsi，如果没有为空
+        //					"imei":XXX      //上报imei，如果没有为空      
+        //					"tmsi":XXX	    //上报tmsi，如果没有为空       
+        //					"rsrp":XXX	    //上报rsrp，如果没有为空
         //                  "sn":XXX        //上报ap的Sn
-        //                  "userType":XXX  //用户类型，该版本一直为空
+        //                  "userType":XXX  //用户类型，2018-11-05
         //       }
         //    ],
         //"n_dic":
         //   [
         //       "name":"UE_ORM_REPORT_MSG",                 //4.9  FAP上报UE主叫信息，只用于GSM和CDMA
         //      {
-        //					"bOrmType":XXX	    	主叫类型。1=呼叫号码, 2=短消息PDU,3=寻呼测量
+        //					"bOrmType":XXX	    	主叫类型。1=呼叫号码, 2=短消息PDU,3=寻呼测量,
+        //                                                    4=短信发送报告（bUeContent表示成功或失败）
         //					"bUeId":XXX	     	    IMSI
         //					"cRSRP":XXX	    	    接收信号强度。寻呼测量时，-128表示寻呼失败
         //					"bUeContentLen":XXX	    Ue主叫内容长度
@@ -2169,7 +2198,7 @@ namespace ScannerBackgrdServer.Common
         //       }
         //    ], 
         #endregion
-        public const string gsm_msg_recv = "gsm_msg_recv"; 
+        public const string gsm_msg_recv = "gsm_msg_recv";
 
         //
         //  app获取GSM设备的信息
@@ -2346,15 +2375,15 @@ namespace ScannerBackgrdServer.Common
         //					"wARFCN4Period":XXX	    工作频点4扫描间隔
         //       }
         //    ];
-        //"n_dic":
-        //   [
-        //       "name":"CONFIG_IMSI_MSG_V3_ID",    //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
-        //      {
-        //					"wTotalImsi":XXX		总的IMSI数（此版本忽略）				
-        //					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
-        //					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
-        //       }
-        //    ],
+        ////////"n_dic":  2018-11-09，这部分移除掉，变成了用app_all_bwlist_request进行请求,因为如果有很多bIMSI时，方便分页处理
+        ////////   [
+        ////////       "name":"CONFIG_IMSI_MSG_V3_ID",    //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
+        ////////      {
+        ////////					"wTotalImsi":XXX		总的IMSI数（此版本忽略）				
+        ////////					"bIMSI_#n#":XXX	        IMSI数组。0~9	配置/删除/查询的IMSI
+        ////////					"bUeActionFlag_#n#":XXX 目标IMSI对应的动作。1 = Reject；5 = Hold ON	
+        ////////       }
+        ////////    ],
         //"n_dic":
         //   [
         //       "name":"TIME_CONTROL",            // 2018-08-20
@@ -2668,6 +2697,361 @@ namespace ScannerBackgrdServer.Common
         public const string transparent_msg_response = "transparent_msg_response";
 
         #endregion
+
+        #region 服务器配置操作
+
+        // 2018-11-19        
+        //
+        //  
+        //   app获取服务器各种配置的请求
+        //"dic":
+        //    {
+        //
+        //}
+        public const string app_get_ServerConfig_Request = "app_get_ServerConfig_Request";
+
+        //  
+        //   app获取服务器各种配置请求的响应(共18项)
+        //
+        //"type":"app_get_ServerConfig_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，                   //返回码：0,成功；其它值为失败
+        //    "ReturnStr": "成功"，                //失败原因值。ReturnCode不为0时有意义
+        //    "strDbIpAddr":"127.0.0.1",          //数据库IP地址    
+        //    "logOutputLevel": "1",              //DEBG = "0", INFO = "1",WARN = "2", EROR = "3"
+        //    "strFtpIpAddr":"127.0.0.1",         //FTP服务器IP地址
+        //    "strFtpUserId": "ftpuser",          //FTP用户名
+        //    "strFtpUserPsw":"ftpuser",          //FTP用户密码
+        //    "strFtpPort":"21",                  //FTP端口
+        //    "strFtpUpdateDir": "Update",        //FTP的更新路径
+        //    "strStartPortCDMA_ZYF": "14783",    //CDMA，ZYF的端口
+        //    "strStartPortGSM_ZYF": "14784",     //GSM，ZYF的端口
+        //    "strStartPortGSM_HJT": "14785",     //GSM，HJT的端口
+        //    "strStartPortLTE": "14786",         //LTE的端口
+        //    "strStartPortTDS": "14787",         //TDS的端口
+        //    "strStartPortWCDMA": "14788",       //WCDMA的端口
+        //    "strStartPortAppWindows": "14789",  //Windows APP的端口
+        //    "strStartPortAppLinux": "14790",    //Linux APP的端口
+        //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+        //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
+        //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
+        //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
+        //    "apFtpUploadNameFormat": "%A_[%#I]_%04y_%02m_%02d_%02h_%02f_%02s.pns"                   //文件名格式定义
+        //    "apFtpUploadDataFormat": "%E,%S,%U,%04y-%02m-%02d %02h:%02f:%02s,%R,%.6J,%.6W,%O\r\n"   //数据格式定义
+        //    "imsiThresholdValue": "0.7"                                                             //IMSI的分析阈值
+        //}
+        public const string app_get_ServerConfig_Response = "app_get_ServerConfig_Response";
+
+        //  
+        //   app设置服务器各种配置的请求(可以只设置一部分)
+        //
+        //"type":"app_set_ServerConfig_Request"   
+        //       
+        //"dic":
+        //    {
+        //    "strDbIpAddr":"127.0.0.1",          //数据库IP地址    
+        //    "logOutputLevel": "1",              //DEBG = "0", INFO = "1",WARN = "2", EROR = "3"
+        //    "strFtpIpAddr":"127.0.0.1",         //FTP服务器IP地址
+        //    "strFtpUserId": "ftpuser",          //FTP用户名
+        //    "strFtpUserPsw":"ftpuser",          //FTP用户密码
+        //    "strFtpPort":"21",                  //FTP端口
+        //    "strFtpUpdateDir": "Update",        //FTP的更新路径
+        //    "strStartPortCDMA_ZYF": "14783",    //CDMA，ZYF的端口
+        //    "strStartPortGSM_ZYF": "14784",     //GSM，ZYF的端口
+        //    "strStartPortGSM_HJT": "14785",     //GSM，HJT的端口
+        //    "strStartPortLTE": "14786",         //LTE的端口
+        //    "strStartPortTDS": "14787",         //TDS的端口
+        //    "strStartPortWCDMA": "14788",       //WCDMA的端口
+        //    "strStartPortAppWindows": "14789",  //Windows APP的端口
+        //    "strStartPortAppLinux": "14790",    //Linux APP的端口
+        //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+        //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
+        //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
+        //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
+        //    "apFtpUploadNameFormat": "%A_[%#I]_%04y_%02m_%02d_%02h_%02f_%02s.pns"                   //文件名格式定义
+        //    "apFtpUploadDataFormat": "%E,%S,%U,%04y-%02m-%02d %02h:%02f:%02s,%R,%.6J,%.6W,%O\r\n"   //数据格式定义
+        //    "imsiThresholdValue": "0.7"                                                             //IMSI的分析阈值
+        //}
+        public const string app_set_ServerConfig_Request = "app_set_ServerConfig_Request";
+
+        //  
+        //   app设置服务器各种配置请求的效应
+        // 
+        //"type":"app_set_ServerConfig_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，            //返回码：0,成功；其它值为失败
+        //    "ReturnStr": "成功"，         //失败原因值。ReturnCode不为0时有意义
+        //    "UpdateCnt": "2"，           //成功更新的个数
+        //}
+        public const string app_set_ServerConfig_Response = "app_set_ServerConfig_Response";
+
+        #endregion
+
+        #region 批量导入导出
+
+        // 2018-11-19        
+        //  
+        //   app获取批量导出配置的请求
+        //"dic":
+        //    {
+        //    "fileName":"abc.txt", //将当前的数据库各种配置导出到abc.txt文件中
+        //
+        //}
+        public const string app_get_BIE_ExportConfig_Request = "app_get_BIE_ExportConfig_Request";
+
+        //  
+        //   app获取批量导出配置请求的响应
+        //
+        //"type":"app_get_BIE_ExportConfig_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，            //返回码：0,成功；其它值为失败
+        //    "ReturnStr": "成功"，         //失败原因值。ReturnCode不为0时有意义
+        //    "ftpUsrName":"root",       
+        //    "ftpPwd":"root",
+        //    "ftpRootDir": "updaeFile",
+        //    "ftpServerIp": "172.17.0.210",
+        //    "ftpPort":"21",
+        //    "fileName":"abc.txt",
+        //}
+        public const string app_get_BIE_ExportConfig_Response = "app_get_BIE_ExportConfig_Response";
+
+        //  
+        //   app设置批量导入配置的请求2
+        //"dic":
+        //    {
+        //    "fileName":"abc.txt", //上传到服务器的文件
+        //
+        //}
+        public const string app_set_BIE_ImportConfig_Request = "app_set_BIE_ImportConfig_Request";
+
+        //  
+        //   app获取批量导入配置请求2的响应
+        // 
+        //"type":"app_get_BIE_ExportConfig_Response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 0，            //返回码：0:导入abc.txt到数据库成功，
+        //                                 //      其他:导入abc.txt到数据库失败
+        //    "ReturnStr": "成功"，         //失败原因值。ReturnCode不为0时有意义
+        //}
+        public const string app_set_BIE_ImportConfig_Response = "app_set_BIE_ImportConfig_Response";
+
+        #endregion
+
+        #region 地图相关
+
+        //
+        //  获取站点的地理位置
+        //"type":"app_get_station_location_request",
+        //"dic":
+        //    {
+        //    "name":"南山",
+        //    "parentNameFullPath":"设备.深圳",
+        //}
+        public const string app_get_station_location_request = "app_get_station_location_request";
+
+        //
+        //  获取站点的地理位置响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "name":"南山",
+        //    "parentNameFullPath":"设备.深圳",
+        //    "longitude":"114.06667",
+        //    "latitude":"22.61667",
+        //}
+        public const string app_get_station_location_response = "app_get_station_location_response";
+
+        //  
+        //   设置站点的地理位置
+        //"dic":
+        //    {
+        //    "name":"南山",
+        //    "parentNameFullPath":"设备.深圳",
+        //    "longitude":"114.06667",
+        //    "latitude":"22.61667",
+        //}
+        public const string app_set_station_location_request = "app_set_station_location_request";
+
+        //  
+        //   设置站点的地理位置的响应
+        // 
+        //"type":"app_set_station_location_response"   
+        //   
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr":  失败原因值。ReturnCode不为0时有意义
+        //    "name":"南山",
+        //    "parentNameFullPath":"设备.深圳",
+        //}
+        public const string app_set_station_location_response = "app_set_station_location_response";
+
+        //
+        //  获取统计信息(分时或实时)
+        //"type":"app_get_statistics_request",
+        //"dic":
+        //    {     
+        //   "timeStart":"2018-05-23 12:34:56",                      //开始时间，不指定是为""
+        //   "timeEnded":"2018-05-29 12:34:56",                      //结束时间，不指定是为""
+        //   "deviceCount":"3",                                      //设备列表个数
+        //   "deviceFullPathName1":"设备.深圳.西北监控.电信TDD1",        //设备1的全路径   
+        //   "deviceFullPathName2":"设备.深圳.西北监控.电信TDD2",        //设备2的全路径   
+        //   "deviceFullPathName3":"设备.深圳.西北监控.电信TDD3",        //设备3的全路径   
+        //   "bwFlag":"black",                                       //用户类型，black,white,other,不指定是为""
+        //   "operators":"移动",                                      //运营商，移动，联通，电信,不指定是为""
+        //},
+        public const string app_get_statistics_request = "app_get_statistics_request";
+
+        //
+        //   获取统计信息(分时或实时)的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "ImsiTotal":"10000",       //IMSI总个数(没有去重)
+        //    "ImsiTotalRmDup":"9000",   //IMSI总个数(已经去重)
+        //    "queryTime":"123ms"        //查询时间，单位毫秒 
+        //}
+        public const string app_get_statistics_response = "app_get_statistics_response";
+
+        //
+        //  获取轨迹统计
+        //"type":"app_get_imsi_path_request",
+        //"dic":
+        //    {     
+        //   "timeStart":"2018-05-23 12:34:56",        //开始时间，不指定是为""
+        //   "timeEnded":"2018-05-29 12:34:56",        //结束时间，不指定是为""
+        //   "imsi":"46000xxxxxxxxx",                  //指定要进行轨迹统计的IMSI号
+        //},
+        public const string app_get_imsi_path_request = "app_get_imsi_path_request";
+
+        //
+        //   获取轨迹统计的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "WarnInfo": "警告信息"                  //警告信息
+        //    "queryTime":"123ms"                    //查询时间，单位毫秒 
+        //    "stationCount":"3",                    //抓取到该IMSI的站点个数
+        //
+        //    "nameFullPath1":"设备.深圳.西北监控1",    //站点1的全名
+        //    "longitude1":"114.06667",              //站点1的经度
+        //    "latitude1":"22.61667",                //站点1的纬度
+        //
+        //    "nameFullPath2":"设备.深圳.西北监控1",    //站点2的全名
+        //    "longitude2":"114.06667",              //站点2的经度
+        //    "latitude2":"22.61667",                //站点2的纬度
+        //
+        //    "nameFullPath3":"设备.深圳.西北监控1",    //站点3的全名
+        //    "longitude3":"114.06667",              //站点3的经度
+        //    "latitude3":"22.61667",                //站点4的纬度
+        //}
+        public const string app_get_imsi_path_response = "app_get_imsi_path_response";
+
+        //
+        //  获取常驻人口，阈值是可以设置值，默认是70%
+        //"type":"app_get_resident_imsi_list_request",
+        //"dic":
+        //    {     
+        //   "timeStart":"2018-05-23 12:34:56",                  //开始时间，以天为粒度
+        //   "timeEnded":"2018-05-29 12:34:56",                  //结束时间，范围为[2,30]
+        //   "deviceFullPathName":"设备.深圳.西北监控.电信TDD",      //设备的全路径   
+        //},
+        public const string app_get_resident_imsi_list_request = "app_get_resident_imsi_list_request";
+
+        //
+        //   获取常驻人口的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "queryTime1":"123ms"         //查询时间，单位毫秒 
+        //    "queryTime2":"1230ms"        //计算时间，单位毫秒 
+        //    "imsiTotal":"1000",          //IMSI的总个数 -- 2019-01-28
+        //    "imsiCount":"3",             //常驻IMSI个数
+        //    "imsi1":"46000xxxxxxxxx",    //第1个IMSI
+        //    "imsi2":"46000xxxxxxxxx",    //第2个IMSI
+        //    "imsi3":"46000xxxxxxxxx",    //第3个IMSI
+        //}
+        public const string app_get_resident_imsi_list_response = "app_get_resident_imsi_list_response";
+
+        //
+        //  获取碰撞的IMSI列表
+        //"type":"app_get_collision_imsi_list_request",
+        //"dic":
+        //    {     
+        //   "groupCount":"4",                                   //条件组的个数，范围为[2,8]组
+        //   "timeStart1":"2018-05-23 12:34:56",                 //开始时间1
+        //   "timeEnded1":"2018-05-29 12:34:56",                 //结束时间1       
+        //   "deviceFullPathName1":"设备.深圳.西北监控.电信TDD1",    //设备1的全路径   
+        //
+        //   "timeStart2":"2018-05-23 12:34:56",                 //开始时间2
+        //   "timeEnded2":"2018-05-29 12:34:56",                 //结束时间2      
+        //   "deviceFullPathName2":"设备.深圳.西北监控.电信TDD2",    //设备2的全路径
+        //
+        //   "timeStart3":"2018-05-23 12:34:56",                 //开始时间3
+        //   "timeEnded3":"2018-05-29 12:34:56",                 //结束时间3     
+        //   "deviceFullPathName3":"设备.深圳.西北监控.电信TDD3",    //设备3的全路径
+        //
+        //   "timeStart4":"2018-05-23 12:34:56",                 //开始时间4
+        //   "timeEnded4":"2018-05-29 12:34:56",                 //结束时间4    
+        //   "deviceFullPathName4":"设备.深圳.西北监控.电信TDD4",    //设备4的全路径
+        //},
+        public const string app_get_collision_imsi_list_request = "app_get_collision_imsi_list_request";
+
+        //
+        //   获取碰撞的IMSI列表的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "queryTime1":"123ms"         //查询时间，单位毫秒 
+        //    "queryTime2":"1230ms"        //计算时间，单位毫秒 
+        //    "imsiCount":"3",             //碰撞IMSI个数
+        //    "imsi1":"46000xxxxxxxxx",    //第1个IMSI
+        //    "imsi2":"46000xxxxxxxxx",    //第2个IMSI
+        //    "imsi3":"46000xxxxxxxxx",    //第3个IMSI
+        //}
+        public const string app_get_collision_imsi_list_response = "app_get_collision_imsi_list_response";
+
+        //
+        //  获取指定IMSI是否为伴随IMSI，阈值是可以设置值，默认是70%
+        //"type":"app_get_accompany_request",
+        //"dic":
+        //    {     
+        //   "imsi":"46000xxxxxxxxx",                                //指定的IMSI
+        //   "timeStart":"2018-05-23 12:34:56",                      //开始时间
+        //   "timeEnded":"2018-05-29 12:34:56",                      //结束时间,范围最大7天
+        //   "timeWindow":"10",                                      //时间窗口，10分钟
+        //},
+        public const string app_get_accompany_request = "app_get_accompany_request";
+
+        //
+        //   获取指定IMSI是否为伴随IMSI的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "queryTime1":"123ms"          //查询时间，单位毫秒 
+        //    "queryTime2":"1230ms"         //计算时间，单位毫秒 
+        //    "imsiCount":"3",              //伴随IMSI个数
+        //    "imsi1":"46000xxxxxxxxx",     //第1个IMSI
+        //    "imsi2":"46000xxxxxxxxx",     //第2个IMSI
+        //    "imsi3":"46000xxxxxxxxx",     //第3个IMSI
+        //}
+        public const string app_get_accompany_response = "app_get_accompany_response";
+
+        #endregion
     }
 
     class Main2ApControllerMsgType : AppMsgType
@@ -2736,6 +3120,7 @@ namespace ScannerBackgrdServer.Common
         //    "SYNC":       同步状态：1,正常；0，不正常
         //    "LICENSE":    LICENSE状态：1,正常；0，不正常
         //    "RADIO":      射频状态：1,正常；0，不正常
+        //    "ALIGN":      对齐状态：1,已经对齐；0，尚未对齐，2018-11-05
         //    "timestamp"   时间戳
         //    "wSelfStudy"  "0"      //"0"正常状态，"1"只学习状态 ，2018-07-19
         //                           // 2018-08-09
@@ -2847,7 +3232,7 @@ namespace ScannerBackgrdServer.Common
         //                                               在freq list中进行循环，此时小区配置中的频点失效
         //      }
         #endregion
-        #region GSM通用参数
+        #region GSM_HJT通用参数
         //"dic":
         //    {
         //          "reportType":"change或report" change:表示以下参数有修改（以n_dic有一项或多项）。report：表示上报所有参数(用于数据对齐)
@@ -2916,14 +3301,12 @@ namespace ScannerBackgrdServer.Common
         //       }
         //    ];
         #endregion
-        #region'CDMA通用参数
+        #region GSM/CDMA_ZYF通用参数
         //"dic":       --n_dic可以有一个或多个
         //      {
-        //          "ApIsBase":"xxx"       对齐基准。0表示数据库为基准，1表示以Ap为基准
-        //          "FtpUrl_White":"xxx"   白名单文件FTP地址  （预留接口，暂不支持）
-        //          "FtpUrl_Black":"xxx"   黑名单文件FTP地址  （预留接口，暂不支持）
-        //          "FtpUser":"xxx"        FTP用户名           （预留接口，暂不支持）
-        //          "FtpPas":"xxx"         FTP密码            （预留接口，暂不支持）
+        //          "reportType":"change或report" change:表示以下参数有修改。report：表示上报所有参数(用于数据对齐)
+        //          "whiteimsi_md5":"xxx"  白名单MD5校验值。"reportType"为“report”且sys为0时才有该项
+        //          "blackimsi_md5":"xxx"  黑名单MD5校验值。"reportType"为“report”且sys为0时才有该项
         //          "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
         //    }
         //"n_dic":
@@ -2933,27 +3316,26 @@ namespace ScannerBackgrdServer.Common
         //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
         //					"bC":XXX		            是否自动切换模式。保留
         //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
-        //					"dwDateTime":XXX			当前时间	
-        //					"bPLMNId":XXX		    PLMN标志
-        //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
-        //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
-        //					"wPhyCellId":XXX		物理小区ID.
-        //					"wLAC":XXX			    追踪区域码。GSM：LAC;CDMA：REG_ZONE
-        //					"wUARFCN":XXX			小区频点. CDMA 制式为BSID
-        //					"dwCellId":XXX			小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
+        //					"bPLMNId":XXX		        PLMN标志
+        //					"bTxPower":XXX			    实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
+        //					"bRxGain":XXX			    接收信号衰减寄存器. 每增加1增加1DB的增益
+        //					"wPhyCellId":XXX		    物理小区ID.
+        //					"wLAC":XXX			        追踪区域码。GSM：LAC;CDMA：REG_ZONE
+        //					"wUARFCN":XXX			    小区频点. CDMA 制式为BSID
+        //					"dwCellId":XXX			    小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
         //       }
         //    ];
-        //"n_dic":
+        //"n_dic":  --"reportType"为“change”时才有该项
         //   [
-        //       "name":"FAP_TRACE_MSG",                 //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
+        //       "name":"FAP_TRACE_MSG",             //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
         //      {
         //					"wTraceLen":XXX	      Trace长度
         //                  "cTrace":XXX          Trace内容
         //       }
         //    ],
-        //"n_dic":
+        //"n_dic":   ----"reportType"为“change”时才有该项
         //   [
-        //       "name":"UE_ORM_REPORT_MSG",                 //4.9  FAP上报UE主叫信息，只用于GSM和CDMA
+        //       "name":"UE_ORM_REPORT_MSG",        //4.9  FAP上报UE主叫信息，只用于GSM和CDMA
         //      {
         //					"bOrmType":XXX	    	主叫类型。1=呼叫号码, 2=短消息PDU,3=寻呼测量
         //					"bUeId":XXX	     	    IMSI
@@ -2972,7 +3354,7 @@ namespace ScannerBackgrdServer.Common
         //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
         //       }
         //    ],
-        //"n_dic":
+        //"n_dic":  --CDMA有该项，GSM-V2没有该项
         //   [
         //       "name":"CONFIG_CDMA_CARRIER_MSG",            //4.14  GUI 配置CDMA多载波参数
         //       {
@@ -2994,7 +3376,7 @@ namespace ScannerBackgrdServer.Common
         //					"wARFCN4Period":XXX	    工作频点4扫描间隔
         //       }
         //    ];
-        //"n_dic":
+        //"n_dic":    ----"reportType"为“change”时才有该项
         //   [
         //       "name":"CONFIG_IMSI_MSG_V3_ID",                 //4.17  大数量imsi名单，用于配置不同的目标IMSI不同的行为
         //      {
@@ -3012,11 +3394,12 @@ namespace ScannerBackgrdServer.Common
         public const string ReportGenPara = "ReportGenPara";
 
         //  
-        //   AP参数上报响应(保存到数据库中) (MainController-->ApController)
+        //AP参数上报响应(保存到数据库中) (MainController-->ApController)
         //"dic":
         //{
         //    "ReturnCode": 返回码：0,成功；其它值为失败
         //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2(无此字段时，表示sys为0)
         //}
         public const string ReportGenParaAck = "ReportGenParaAck";
 
@@ -3059,7 +3442,7 @@ namespace ScannerBackgrdServer.Common
         //                                                 在freq list中进行循环，此时小区配置中的频点失效
         //      }
         #endregion
-        #region  GSM通用参数
+        #region  GSM_HJT通用参数
         //"dic":       --n_dic可以有一个或多个
         //      {
         //          "ApIsBase":"xxx"       对齐基准。0表示数据库为基准，1表示以Ap为基准
@@ -3129,88 +3512,44 @@ namespace ScannerBackgrdServer.Common
         //       }
         //    ];
         #endregion
-        #region'CDMA通用参数
-        //"dic":       --n_dic可以有一个或多个
+        #region GSM/CDMA_ZYF通用参数
+        //"dic":       
         //      {
         //          "ApIsBase":"xxx"       对齐基准。0表示数据库为基准，1表示以Ap为基准
-        //          "FtpUrl_White":"xxx"   白名单文件FTP地址  （预留接口，暂不支持）
-        //          "FtpUrl_Black":"xxx"   黑名单文件FTP地址  （预留接口，暂不支持）
-        //          "FtpUser":"xxx"        FTP用户名           （预留接口，暂不支持）
-        //          "FtpPas":"xxx"         FTP密码            （预留接口，暂不支持）
+        //          "FtpUrl_White":"xxx"   白名单文件FTP地址  （sys为1时，没有该项）
+        //          "FtpUrl_Black":"xxx"   黑名单文件FTP地址  （sys为1时，没有该项）
+        //          "FtpUser":"xxx"        FTP用户名           （sys为1时，没有该项）
+        //          "FtpPas":"xxx"         FTP密码            （sys为1时，没有该项）
         //          "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2
         //    }
         //"n_dic":
         //   [
-        //       "name":"FAP_NB_CELL_INFO_MSG",                 //4.3  FAP上报邻区信息
-        //      {
-        //					"bFapNbCellNum":n	         邻小区个数。最多16个(n<=16)
-        //					"Cell_#n#/bGCId":XXX         小区ID。注意在CDMA制式没有小区ID，高位WORD是SID，低位WORD是NID
-        //					"Cell_#n#/bPLMNId":XXX       邻小区PLMN标志。
-        //					"Cell_#n#/cRSRP":XXX	     信号功率
-        //					"Cell_#n#/wTac":XXX	         追踪区域码。GSM：LAC；CDMA：REG_ZONE
-        //					"Cell_#n#/wPhyCellId":XXX	 物理小区ID。GSM：BSIC；CDMA：PN
-        //					"Cell_#n#/wUARFCN":XXX	     小区频点
-        //					"Cell_#n#/cRefTxPower":XXX	 参考发射功率。GSM制式时为C1测量值
-        //					"Cell_#n#/bNbCellNum":XXX	 邻小区的令小区个数
-        //					"Cell_#n#/bC2":XXX	         C2测量值。GSM,其他制式保留
-        //					"Cell_#n#/bReserved1":XXX	 只用于LTE,其它保留
-        //					"Cell_#n#/stNbCell":m		 邻小区的邻小区个数，最多32个（m<=32）
-        //					"Cell_#n#/NeighCell_#m#/wUarfcn":XXX	    小区频点
-        //					"Cell_#n#/NeighCell_#m#/wPhyCellId":XXX	    物理小区ID。GSM:BSIC；CDMA：PN
-        //					"Cell_#n#/NeighCell_#m#/cRSRP":XXX	        信号功率
-        //					"Cell_#n#/NeighCell_#m#/cC1":XXX	        C1测量值。只用于GSM制式
-        //					"Cell_#n#/NeighCell_#m#/bC2":XXX	        C2测量值。只用于GSM制式
+        //       "name":"CONFIG_FAP_MSG",            //4.4  GUI配置FAP的启动参数
+        //       {
+        //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
+        //					"bC":XXX		            是否自动切换模式。保留
+        //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点	
+        //					"bPLMNId":XXX		    PLMN标志
+        //					"bTxPower":XXX			实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
+        //					"bRxGain":XXX			接收信号衰减寄存器. 每增加1增加1DB的增益
+        //					"wPhyCellId":XXX		物理小区ID.
+        //					"wLAC":XXX			    追踪区域码。GSM：LAC;CDMA：REG_ZONE
+        //					"wUARFCN":XXX			小区频点. CDMA 制式为BSID
+        //					"dwCellId":XXX			小区ID。注意在CDMA制式没有小区ID，高位WORD 是SID ， 低位WORD 是NID
         //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"FAP_HEARTBEAT_MSG",                 //4.6  FAP心跳消息，FAP启动成功后，每10秒发送一次该消息给GUI
-        //      {
-        //            该消息不用。
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"FAP_TRACE_MSG",                 //4.7  FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
-        //      {
-        //					"wTraceLen":XXX	      Trace长度
-        //                  "cTrace":XXX          Trace内容
-        //       }
-        //    ],
-        //"n_dic":
-        //   [
-        //       "name":"UE_ORM_REPORT_MSG",                 //4.9  FAP上报UE主叫信息，只用于GSM和CDMA
-        //      {
-        //					"bOrmType":XXX	    	主叫类型。1=呼叫号码, 2=短消息PDU,3=寻呼测量
-        //					"bUeId":XXX	     	    IMSI
-        //					"cRSRP":XXX	    	    接收信号强度。寻呼测量时，-128表示寻呼失败
-        //					"bUeContentLen":XXX	    Ue主叫内容长度
-        //					"bUeContent":XXX	    Ue主叫内容。最大249字节。
-        //       }
-        //    ],
+        //    ];
         //"n_dic":
         //   [
         //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
         //      {
-        //					"bSMSOriginalNumLen":XXX	    主叫号码长度
         //					"bSMSOriginalNum":XXX	    	主叫号码
-        //					"bSMSContentLen":XXX	    	短信内容字数
         //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
         //       }
         //    ],
-        //"n_dic":
+        //"n_dic":   ---GSM设备没有该项
         //   [
-        //       "name":"FAP_PARAM_REPORT_MSG",                 //4.16  FAP上报FAP运行参数
-        //      {
-        //					"bWorkingMode":XXX		工作模式。1：侦码模式；3：驻留模式(GSM/CDMA支持)
-        //					"wCDMAUarfcn":XXX		CDMA黑名单频点
-        //					"bPLMNId":XXX		    PLMN标志。ASCII字符
-        //					"bDlAtt":XXX		    发送衰减。0~89，Unit: dB
-        //					"bRxGain":XXX		    保留字段。Unit: dB
-        //					"wPhyCellId":XXX		物理小区ID。GSM：不用；CDMA：PN
-        //					"wLac":XXX		        区域码。GSM：LAC；CDMA：REG_ZONE
-        //					"wUARFCN":XXX		    小区频点。CDMA制式为BSID
-        //					"dwCellId":XXX		    小区ID。注意在CDMA制式没有小区ID，高位WORD是SID，低位WORD是NID
+        //       "name":"CONFIG_CDMA_CARRIER_MSG",            //4.14  GUI 配置CDMA多载波参数
+        //       {
         //					"wARFCN1":XXX	        工作频点1	
         //					"bARFCN1Mode":XXX	    工作频点1模式。0表示扫描，1表示常开,2表示关闭。
         //					"wARFCN1Duration":XXX	工作频点1扫描时长
@@ -3228,16 +3567,17 @@ namespace ScannerBackgrdServer.Common
         //					"wARFCN4Duration":XXX	工作频点4扫描时长
         //					"wARFCN4Period":XXX	    工作频点4扫描间隔
         //       }
-        //    ],
+        //    ];
         #endregion
         public const string SetGenParaReq = "SetGenParaReq";
 
         //  
-        //   设置通用参数的响应 (ApController-->MainController)
+        //设置通用参数的响应 (ApController-->MainController)
         //"dic":
         //{
-        //    "ReturnCode": 返回码：0,成功；其它值为失败
-        //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //  "rebootflag":"0",  
+        //  "result":"1",     //0成功，1失败
+        //  "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2(无此字段时，表示sys为0)
         //}
         public const string SetGenParaRsp = "SetGenParaRsp";
 
@@ -3248,13 +3588,18 @@ namespace ScannerBackgrdServer.Common
         //{
         //    "ReturnCode": 返回码：0,成功；其它值为失败
         //    "ReturnStr": 失败原因值。ReturnCode不为0时有意义
+        //    "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2(无此字段时，表示sys为0)
         //}
         public const string DataAlignOver = "DataAlignOver";
 
         /// <summary>
         /// 数据对齐完成回复。(ApController-->MainController)
-        /// dic为空
-        /// </summary>
+        //"dic":
+        //{
+        //  "rebootflag":"0",  
+        //  "result":"1",     //0成功，1失败
+        //  "sys":系统号，0表示系统1或通道1或射频1，1表示系统2或通道2或射频2(无此字段时，表示sys为0)
+        //}
         public const string DataAlignOverAck = "DataAlignOverAck";        
 
         //#region GSM设备特有消息类型
@@ -3493,7 +3838,7 @@ namespace ScannerBackgrdServer.Common
                 this.Port = 0;
                 this.Type = string.Empty;
             }
-        }
+        }        
 
         /// <summary>
         /// 设备(Ap/App)与本程序通信消息结构
@@ -3524,7 +3869,7 @@ namespace ScannerBackgrdServer.Common
             {
                 ApInfo = new Ap_Info_Struct();
                 Body = new Msg_Body_Struct(type);
-            }
+            }         
         }
 
         /// <summary>

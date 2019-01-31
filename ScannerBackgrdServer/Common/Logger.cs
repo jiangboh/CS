@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ICSharpCode.SharpZipLib.Zip;
 
 namespace ScannerBackgrdServer.Common
 {
@@ -217,6 +218,80 @@ namespace ScannerBackgrdServer.Common
 
         #region 方法
 
+        /// <summary>
+        /// ZIP:压缩单个文件
+        /// add yuangang by 2016-06-13
+        /// </summary>
+        /// <param name="FileToZip">需要压缩的文件（绝对路径）</param>
+        /// <param name="ZipedPathFileName">压缩后的文件名称（绝对路径）</param>
+        /// <param name="CompressionLevel">压缩等级（0 无 - 9 最高，默认 5）</param>
+        /// <param name="BlockSize">缓存大小（每次写入文件大小，默认 2048）</param>
+        /// <param name="IsEncrypt">是否加密（默认 加密）</param>
+        public static bool ZipFile(string FileToZip, string ZipedPathFileName, ref string errInfo,int CompressionLevel = 8, int BlockSize = 2048, bool IsEncrypt = false)
+        {
+            //如果文件没有找到，则报错
+            if (!System.IO.File.Exists(FileToZip))
+            {
+                errInfo = string.Format("源文件不存在!");
+                return false;
+            }
+
+            //文件名称（默认同源文件名称相同）
+            string ZipFileName = ZipedPathFileName;
+
+            using (System.IO.FileStream ZipFile = System.IO.File.Create(ZipFileName))
+            {
+                using (ZipOutputStream ZipStream = new ZipOutputStream(ZipFile))
+                {
+                    using (System.IO.FileStream StreamToZip = new System.IO.FileStream(FileToZip, System.IO.FileMode.Open, System.IO.FileAccess.Read))
+                    {
+                        string fileName = FileToZip.Substring(FileToZip.LastIndexOf("\\") + 1);
+
+                        ZipEntry ZipEntry = new ZipEntry(fileName);
+
+                        if (IsEncrypt)
+                        {
+                            //压缩文件加密
+                            ZipStream.Password = "123456";
+                        }
+
+                        ZipStream.PutNextEntry(ZipEntry);
+
+                        //设置压缩级别
+                        ZipStream.SetLevel(CompressionLevel);
+
+                        //缓存大小
+                        byte[] buffer = new byte[BlockSize];
+                        int sizeRead = 0;
+
+                        try
+                        {
+                            do
+                            {
+                                sizeRead = StreamToZip.Read(buffer, 0, buffer.Length);
+                                ZipStream.Write(buffer, 0, sizeRead);
+                            }
+                            while (sizeRead > 0);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            errInfo = ex.Message;
+                            return false;
+                        }
+
+                        StreamToZip.Close();
+                    }
+
+                    ZipStream.Finish();
+                    ZipStream.Close();
+                }
+
+                ZipFile.Close();
+            }
+
+            return true;
+        }
+
         public static void Trace(LogInfoType logInfoType,
                                  string logInfo,
                                  string moduleName,
@@ -337,16 +412,39 @@ namespace ScannerBackgrdServer.Common
             }
         }
 
+        private static bool ZipFileFlag = false;
+        private static string FileToZip = "";
+
         private static void StrategyLog()
-        {
+        {   
             long curFileSize = getFileSize(GetLogFullPath);
 
-          //if ( (curFileSize >= logMaxSize*1024*1024) || (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0))
-            if ( curFileSize  >= logMaxSize * 1024 * 1024)
+            //if ( (curFileSize >= logMaxSize*1024*1024) || (DateTime.Compare(DateTime.Now.Date, currentLogFileDate.Date) != 0))
+            if ( curFileSize  >= logMaxSize * 1024 * 1024)            
             {
+                if(ZipFileFlag)
+                {
+                    Trace(LogInfoType.INFO, "ZipFile成功:" + FileToZip, "Logger", LogCategory.I);                   
+                    if (System.IO.File.Exists(FileToZip))
+                    {
+                        System.IO.File.Delete(FileToZip);
+                    }
+                }
+
+                FileToZip = GetLogFullPath;
+
+                string errInfo = "";                
+                string ZipedPathFileName = FileToZip.Replace("txt", "zip");
+
                 //gFileIndex++;
                 gFileIndex = DateTime.Now.ToString("HH-mm-ss");
                 DateTime currentDate = DateTime.Now.Date;
+
+                ZipFileFlag = ZipFile(FileToZip, ZipedPathFileName, ref errInfo);
+                if (false == ZipFileFlag)
+                {
+                    Trace(LogInfoType.EROR, "ZipFile失败:" + errInfo, "Logger", LogCategory.I);
+                }               
 
                 //生成子目录
                 BuiderDir(currentDate);
@@ -361,7 +459,7 @@ namespace ScannerBackgrdServer.Common
                     System.Diagnostics.Trace.Listeners.Remove(twTraceListener);
                 }
 
-                System.Diagnostics.Trace.Listeners.Add(TWTraceListener);
+                System.Diagnostics.Trace.Listeners.Add(TWTraceListener);                
             }
         }
 

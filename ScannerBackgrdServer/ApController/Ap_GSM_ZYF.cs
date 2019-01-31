@@ -14,6 +14,9 @@ namespace ScannerBackgrdServer.ApController
     class Ap_GSM_ZYF : ApBase
     { 
         #region 消息类型及结据结构定义
+        private string REPORT = "report";
+        private string CHANGE = "change";
+        private int RECV_MSG_LEN = 12;
         private enum Device_Sys
         {
             Sys1 = 0,
@@ -46,6 +49,7 @@ namespace ScannerBackgrdServer.ApController
             CONTROL_FAP_RESET_MSG = 195,  //GUI 控制FAP的软复位
             CONFIG_CDMA_CARRIER_MSG = 196,  //GUI 配置CDMA多载波参数
             QUERY_FAP_PARAM_MSG = 197,  //GUI 查询FAP运行参数
+            PAGE_UE_MSG = 218,              //4.9  GUI寻呼目标IMSI手机
             CONFIG_IMSI_MSG_V3_ID = 245,  //大数量imsi名单，用于配置不同的目标IMSI不同的行为
         };
         /// <summary>
@@ -61,6 +65,7 @@ namespace ScannerBackgrdServer.ApController
             FAP_HEARTBEAT_MSG = 208,  //FAP心跳消息，FAP启动成功后，每10秒发送一次该消息给GUI。心跳消息包含基站的一些状态信息，比如工作模式、同步状态等
             FAP_TRACE_MSG = 210,  //FAP上报一些事件和状态给GUI，GUI程序需要显示给操作者看。
             UE_STATUS_REPORT_MSG = 212,  //FAP上报UE相关状态. 
+            PAGE_UE_MSG = 218,              //4.9  GUI寻呼目标IMSI手机
             UE_ORM_REPORT_MSG = 219,  //FAP上报UE主叫信息，只用于GSM和CDMA
             CONFIG_SMS_CONTENT_MSG = 192,  //FAP 配置下发短信号码和内容
             FAP_PARAM_REPORT_MSG = 198,  //FAP上报FAP运行参数. 
@@ -453,8 +458,9 @@ namespace ScannerBackgrdServer.ApController
                     if (OnLine.Equals(MyDeviceList.GetMainControllerStatus(apToKen)))
                     {
                         Send2ap_status_request(apToKen);
-                        //Thread.Sleep(1000);
-                        //Send2ap_get_general_para_request(apToKen);
+                        Thread.Sleep(1000);
+                        Send2ap_get_general_para_request(apToKen, Device_Sys.Sys1);
+                        Send2ap_get_general_para_request(apToKen, Device_Sys.Sys2);
                     }
                     else
                     {
@@ -526,121 +532,12 @@ namespace ScannerBackgrdServer.ApController
             }
             else if (msgBody.type == ApMsgType.get_general_para_response)
             {
-            //    STRUCT_CONFIG_FAP_MSG recv = new STRUCT_CONFIG_FAP_MSG();
-
-            //    string sys_para_0 = GetMsgStringValueInList("sys_para_0", msgBody);
-            //    sys_para_0 = sys_para_0.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_para_0))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_para_0字段为空！");
-            //        return;
-            //    }
-            //    if (sys_para_0.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_para_0字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_para_0 = sys_para_0;
-
-            //    string sys_para_1 = GetMsgStringValueInList("sys_para_1", msgBody);
-            //    sys_para_1 = sys_para_1.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_para_1))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_para_1字段为空！");
-            //        return;
-            //    }
-            //    if (sys_para_1.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_para_1字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_para_1 = sys_para_1;
-
-            //    string sys_option_0 = GetMsgStringValueInList("sys_option_0", msgBody);
-            //    sys_option_0 = sys_option_0.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_option_0))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_option_0字段为空！");
-            //        return;
-            //    }
-            //    if (sys_option_0.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_option_0字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_option_0 = sys_option_0;
-
-            //    string sys_option_1 = GetMsgStringValueInList("sys_option_1", msgBody);
-            //    sys_option_1 = sys_option_1.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_option_1))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_option_1字段为空！");
-            //        return;
-            //    }
-            //    if (sys_option_1.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_option_1字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_option_1 = sys_option_1;
-
-            //    string sys_rf_0 = GetMsgStringValueInList("sys_rf_0", msgBody);
-            //    sys_rf_0 = sys_rf_0.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_rf_0))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_rf_0字段为空！");
-            //        return;
-            //    }
-            //    if (sys_rf_0.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_rf_0字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_rf_0 = sys_rf_0;
-
-            //    string sys_rf_1 = GetMsgStringValueInList("sys_rf_1", msgBody);
-            //    sys_rf_1 = sys_rf_1.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_rf_1))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中ssys_rf_1字段为空！");
-            //        return;
-            //    }
-            //    if (sys_rf_1.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_rf_1字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_rf_1 = sys_rf_1;
-
-            //    string sys_workMode_0 = GetMsgStringValueInList("sys_workMode_0", msgBody);
-            //    sys_workMode_0 = sys_workMode_0.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_workMode_0))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_workMode_0字段为空！");
-            //        return;
-            //    }
-            //    if (sys_workMode_0.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_workMode_0字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_workMode_0 = sys_workMode_0;
-
-            //    string sys_workMode_1 = GetMsgStringValueInList("sys_workMode_1", msgBody);
-            //    sys_workMode_1 = sys_workMode_1.Replace(" ", "");
-            //    if (string.IsNullOrEmpty(sys_workMode_1))
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_workMode_1字段为空！");
-            //        return;
-            //    }
-            //    if (sys_workMode_1.Length < 24)
-            //    {
-            //        OnOutputLog(LogInfoType.EROR, "收到XML消息格式错误，XML中sys_workMode_1字段长度过短！");
-            //        return;
-            //    }
-            //    recv.sys_workMode_1 = sys_workMode_1;
-
-            //    //HandleParaRspMsg(apToKen, recv);
+                Send2Main_ReportGenPara(apToKen, msgBody);
+            }
+            else if (msgBody.type == ApMsgType.set_general_para_response)
+            {
+                Msg_Body_Struct body = new Msg_Body_Struct(Main2ApControllerMsgType.SetGenParaRsp, msgBody.dic);
+                OnSendMsg2Main(msgId, MsgStruct.MsgType.CONFIG, apToKen, body);
             }
             else
             {
@@ -662,6 +559,7 @@ namespace ScannerBackgrdServer.ApController
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RADIO_OFF_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONTROL_FAP_RESET_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG ||
+                recv.bMsgId == Recv_Msg_Id.PAGE_UE_MSG ||
                 recv.bMsgId == Recv_Msg_Id.CONFIG_IMSI_MSG_V3_ID)
             {
                 Send2Main_SEND_REQ_CNF(apToKen, recv);
@@ -713,7 +611,7 @@ namespace ScannerBackgrdServer.ApController
             }
             else if (recv.bMsgId == Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG)
             {
-                Send2Main_CONFIG_SMS_CONTENT_MSG_ID(apToKen, recv);
+                Send2Main_CONFIG_SMS_CONTENT_MSG(apToKen, recv);
             }
             else if (recv.bMsgId == Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG)
             {
@@ -789,7 +687,7 @@ namespace ScannerBackgrdServer.ApController
             {
                 if (!SendMsg2Ap(apToKen, msgId2App.id, MainMsg.Body))
                 {
-                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
+                      Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
                         string.Format("封装向AP发送的XML消息({0})出错！", MainMsg.Body.type));
                 }
             }
@@ -850,18 +748,7 @@ namespace ScannerBackgrdServer.ApController
         /// <param name="msg">GSM文档格式的消息内容，十六进制“AA AA 01 00 15 0E 55 66 00 4B 00 54 02 2A 00 00 00 00 00 00”</param>
         private void Send2ap_GSM(AsyncUserToken apToKen, App_Info_Struct AppInfo, MsgSendStruct sendMsg)
         {
-            string data = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}",
-                ((byte)sendMsg.bProtocolSap).ToString("X").PadLeft(2, '0'),
-                ((byte)sendMsg.bMsgId).ToString("X").PadLeft(2, '0'),
-                ((byte)sendMsg.bMsgType).ToString("X").PadLeft(2, '0'),
-                ((byte)sendMsg.bCellIdx).ToString("X").PadLeft(2, '0'),
-                ((UInt16)sendMsg.wMsgLen).ToString("X").PadLeft(4, '0'),
-                ((UInt16)sendMsg.wSqn).ToString("X").PadLeft(4, '0'),
-                ((UInt32)sendMsg.dwTimeStamp).ToString("X").PadLeft(8, '0'),
-                sendMsg.data);
-
-            //在两个字符间加上空格
-            string sendData = Regex.Replace(data, @".{2}", "$0 ");
+            string sendData = Send2apString_GSM(sendMsg);
 
             MsgId2App msgId2App = new MsgId2App();
             msgId2App.id = sendMsg.wSqn;
@@ -882,9 +769,35 @@ namespace ScannerBackgrdServer.ApController
             SendMsg2Ap(apToKen, sendMsg.wSqn, TypeKeyValue);
         }
 
+        private string Send2apString_GSM(MsgSendStruct sendMsg)
+        {
+            string data = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}",
+                ((byte)sendMsg.bProtocolSap).ToString("X").PadLeft(2, '0'),
+                ((byte)sendMsg.bMsgId).ToString("X").PadLeft(2, '0'),
+                ((byte)sendMsg.bMsgType).ToString("X").PadLeft(2, '0'),
+                ((byte)sendMsg.bCellIdx).ToString("X").PadLeft(2, '0'),
+                ((UInt16)sendMsg.wMsgLen).ToString("X").PadLeft(4, '0'),
+                ((UInt16)sendMsg.wSqn).ToString("X").PadLeft(4, '0'),
+                ((UInt32)sendMsg.dwTimeStamp).ToString("X").PadLeft(8, '0'),
+                sendMsg.data);
+
+            //在两个字符间加上空格
+            string sendData = Regex.Replace(data, @".{2}", "$0 ");
+
+            return sendData.Trim();
+        }
+
         private void Send2ap_QUERY_NB_CELL_INFO_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo , Device_Sys sys)
         {
             Send2ap_GSM(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.QUERY_NB_CELL_INFO_MSG,sys, getReservedString(32)));
+        }
+        
+        private void Send2ap_PAGE_UE_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys,int bpageType,string bUeId)
+        {
+            string data = string.Format("{0}{1}",
+                bpageType.ToString("X").PadLeft(2, '0'),
+                StringAddZero(bUeId));
+            Send2ap_GSM(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.PAGE_UE_MSG, sys, data));
         }
 
         private void Send2ap_CONFIG_FAP_MSG(AsyncUserToken apToKen, App_Info_Struct AppInfo, Device_Sys sys, STRUCT_CONFIG_FAP_MSG para)
@@ -921,17 +834,18 @@ namespace ScannerBackgrdServer.ApController
             int len = num.Length;
             string phoneNum  = CodeConver.String2HexString(num);
             string phoneText = CodeConver.String2Unicode(text,false);
-            if(phoneText.Length >40 || phoneText.Length<=0)
+            int textLen = phoneText.Length / 2;
+            if(textLen > 140 || textLen <= 0)
             {
                 Send2APP_GeneralError(apToKen,AppInfo,Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString(),
-                    "编码后的消息内容长度错误!");
+                     string.Format("编码后的消息内容长度:{0}错误,范围:[0,140]", textLen));
                 return;
             }
 
             string data = string.Format("{0}{1}{2}{3}",
                  len.ToString("X").PadLeft(2, '0'),
                  fullString(36,phoneNum),
-                 text.Length.ToString("X").PadLeft(2, '0'),
+                 textLen.ToString("X").PadLeft(2, '0'),
                  phoneText);
             Send2ap_GSM(apToKen, AppInfo, new MsgSendStruct(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG, sys, data));
         }
@@ -1029,7 +943,7 @@ namespace ScannerBackgrdServer.ApController
                 byte bSegmentID = 0;
                 for (int j = 0; j < para.wTotalImsi; j += 50)
                 {
-                    Thread.Sleep(300);
+                    Thread.Sleep(1000);
 
                     int lastId = j + 50;
                     int imsiNum = 50;
@@ -1220,6 +1134,21 @@ namespace ScannerBackgrdServer.ApController
         //    SendMsg2Ap(apToKen, bMsg);
         //}
 
+        /// <summary>
+        /// 获取AP的配置信息
+        /// </summary>
+        /// <param name="apToKen">AP信息</param>
+        private void Send2ap_get_general_para_request(AsyncUserToken apToKen, Device_Sys sys)
+        {
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.get_general_para_request,
+                "timeout", 5,
+                "sys",(byte)sys,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
+        }
+
         #endregion
 
         #endregion
@@ -1388,14 +1317,14 @@ namespace ScannerBackgrdServer.ApController
             }
             else if (MainMsg.Body.type == Main2ApControllerMsgType.SetGenParaReq)  //数据对齐部分
             {
-                byte Protocol = GetMsgByteValueInList("Protocol", MainMsg.Body.dic, Byte.MaxValue);
-                if (Protocol != (byte)Protocol_Sap.GSM)
-                {
-                    OnOutputLog(LogInfoType.EROR, "发送给GSM_V2设备消息错误。消息中协议类型不为" + Protocol_Sap.GSM + ".");
-                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
-                       string.Format("发送给GSM_V2设备消息错误。消息中系统号不为" + Protocol_Sap.GSM + "."));
-                    return;
-                }
+                //byte Protocol = GetMsgByteValueInList("Protocol", MainMsg.Body.dic, Byte.MaxValue);
+                //if (Protocol != (byte)Protocol_Sap.GSM)
+                //{
+                //    OnOutputLog(LogInfoType.EROR, "发送给GSM_V2设备消息错误。消息中协议类型不为" + Protocol_Sap.GSM + ".");
+                //    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
+                //       string.Format("发送给GSM_V2设备消息错误。消息中系统号不为" + Protocol_Sap.GSM + "."));
+                //    return;
+                //}
                 byte sys = GetMsgByteValueInList("sys", MainMsg.Body.dic, Byte.MaxValue);
                 if (sys != (byte)Device_Sys.Sys1 && sys!=(byte)Device_Sys.Sys2)
                 {
@@ -1404,19 +1333,20 @@ namespace ScannerBackgrdServer.ApController
                        string.Format("发送给GSM_V2设备消息错误。消息中系统号不为0或1。"));
                     return;
                 }
-                if (MainMsg.Body.n_dic == null)
-                {
-                    OnOutputLog(LogInfoType.EROR, "发送给GSM_V2设备消息错误。消息中没有可设置的参数(n_dic项为NULL)。");
-                    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
-                        "发送给GSM_V2设备消息错误。消息中没有可设置的参数(n_dic项为NULL)。");
-                    return;
-                }
+                //if (MainMsg.Body.n_dic == null)
+                //{
+                //    OnOutputLog(LogInfoType.EROR, "发送给GSM_V2设备消息错误。消息中没有可设置的参数(n_dic项为NULL)。");
+                //    Send2APP_GeneralError(MainMsg.ApInfo, MainMsg.AppInfo, MainMsg.Body.type,
+                //        "发送给GSM_V2设备消息错误。消息中没有可设置的参数(n_dic项为NULL)。");
+                //    return;
+                //}
 
-                //EncodeSetParaMsg(MainMsg.ApInfo, MainMsg.AppInfo, (Device_Sys)sys, MainMsg.Body.n_dic);
+                EncodeSetParaMsg(MainMsg.ApInfo, MainMsg.AppInfo, (Device_Sys)sys, MainMsg.Body);
 
                 return;
             }
-            else if (MainMsg.Body.type == Main2ApControllerMsgType.set_parameter_request)
+            else if (MainMsg.Body.type == Main2ApControllerMsgType.set_parameter_request 
+                || MainMsg.Body.type == Main2ApControllerMsgType.DataAlignOver)
             {
                 if ((string.IsNullOrEmpty(MainMsg.ApInfo.IP)) || (MainMsg.ApInfo.IP == MsgStruct.NullDevice))
                 {
@@ -1447,6 +1377,7 @@ namespace ScannerBackgrdServer.ApController
         /// <param name="n_dic"></param>
         private void EncodeMainMsg(Ap_Info_Struct ApInfo, App_Info_Struct AppInfo, Device_Sys sys, Name_DIC_Struct n_dic)
         {
+            int wTotalImsi = 5000;
             AsyncUserToken apToKen = MyDeviceList.FindByApInfo(ApInfo);
             if (apToKen == null)
             {
@@ -1552,6 +1483,12 @@ namespace ScannerBackgrdServer.ApController
                 }
 
                 Send2ap_CONTROL_FAP_REBOOT_MSG(apToKen, AppInfo, sys, bRebootFlag);
+            }
+            else if (n_dic.name.Equals(Send_Msg_Id.PAGE_UE_MSG.ToString()))
+            {
+                byte bpageType = GetMsgByteValueInList("bpageType", n_dic.dic, Byte.MaxValue);
+                string bUeId = GetMsgStringValueInList("bUeId", n_dic.dic,"");
+                Send2ap_PAGE_UE_MSG(apToKen, AppInfo, sys,bpageType,bUeId);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString()))
             {
@@ -1704,9 +1641,9 @@ namespace ScannerBackgrdServer.ApController
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString()))
             {
-                STRUCT_CONFIG_IMSI_MSG_V3 para = new STRUCT_CONFIG_IMSI_MSG_V3(1000);
+                STRUCT_CONFIG_IMSI_MSG_V3 para = new STRUCT_CONFIG_IMSI_MSG_V3(wTotalImsi);
                 para.wTotalImsi = GetMsgU16ValueInList("wTotalImsi", n_dic.dic, UInt16.MaxValue);
-                if (para.wTotalImsi > 1000)
+                if (para.wTotalImsi > wTotalImsi)
                 {
                     SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString(), "wTotalImsi");
                     return;
@@ -1769,182 +1706,350 @@ namespace ScannerBackgrdServer.ApController
             }
         }
 
-        //    private void EncodeSetParaMsg(Ap_Info_Struct ApInfo, App_Info_Struct AppInfo, Device_Sys sys, List<Name_DIC_Struct> n_dic_List)
-        //    {
-        //        int Flag = 0;
-        //        RecvSysPara para = new RecvSysPara();
-        //        RecvSysOption option = new RecvSysOption();
-        //        RecvRfOption rf = new RecvRfOption();
-        //        byte regMode = 0;
+        private void EncodeSetParaMsg(Ap_Info_Struct ApInfo, App_Info_Struct AppInfo, Device_Sys sys, Msg_Body_Struct Body)
+        {
+            int Flag = 0;
+            string tmpStr = string.Empty;
 
-        //        AsyncUserToken apToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
-        //        if (apToKen == null)
-        //        {
-        //            string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
-        //                ApInfo.IP, ApInfo.Port.ToString());
-        //            OnOutputLog(LogInfoType.WARN, str);
-        //            apToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
-        //        }
+            List<Name_DIC_Struct> n_dic_List = Body.n_dic;
 
-        //        if (apToKen == null)
-        //        {
-        //            string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
-        //                ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname);
-        //            OnOutputLog(LogInfoType.WARN, str);
-        //            Send2APP_GeneralError(ApInfo, AppInfo, Main2ApControllerMsgType.gsm_msg_send, str);
-        //            return;
-        //        }
+            AsyncUserToken apToKen = MyDeviceList.FindByIpPort(ApInfo.IP, ApInfo.Port);
+            if (apToKen == null)
+            {
+                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}]设备，通过FullName重新查询设备！",
+                    ApInfo.IP, ApInfo.Port.ToString());
+                OnOutputLog(LogInfoType.WARN, str);
+                apToKen = MyDeviceList.FindByFullname(ApInfo.Fullname);
+            }
 
-        //        foreach (Name_DIC_Struct n_dic in n_dic_List)
-        //        {
-        //        //    if (n_dic.name.Equals(Send_Msg_Id.RECV_SYS_PARA.ToString()))
-        //        //    {
-        //        //        para.paraMnc = GetMsgU16ValueInList("paraMnc", n_dic.dic, UInt16.MaxValue);
-        //        //        if (para.paraMnc == UInt16.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraMnc");
-        //        //            return;
-        //        //        }
-        //        //        para.paraMcc = GetMsgU16ValueInList("paraMcc", n_dic.dic, UInt16.MaxValue);
-        //        //        if (para.paraMcc == UInt16.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraMcc");
-        //        //            return;
-        //        //        }
-        //        //        para.paraBsic = GetMsgByteValueInList("paraBsic", n_dic.dic);
-        //        //        if (para.paraBsic == 0)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraBsic");
-        //        //            return;
-        //        //        }
-        //        //        para.paraLac = GetMsgU16ValueInList("paraLac", n_dic.dic);
-        //        //        if (para.paraLac == 0)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraLac");
-        //        //            return;
-        //        //        }
-        //        //        para.paraCellId = GetMsgU16ValueInList("paraCellId", n_dic.dic);
-        //        //        //if (para.paraCellId == 0)
-        //        //        //{
-        //        //        //    SendMainMsgParaVlaueError(ApInfo,AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraCellId");
-        //        //        //    return;
-        //        //        //}
-        //        //        para.paraC2 = GetMsgSByteValueInList("paraC2", n_dic.dic, SByte.MaxValue);
-        //        //        if (para.paraC2 == SByte.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraC2");
-        //        //            return;
-        //        //        }
-        //        //        para.paraPeri = GetMsgByteValueInList("paraPeri", n_dic.dic, Byte.MaxValue);
-        //        //        //if (para.paraPeri == 0)
-        //        //        //{
-        //        //        //    SendMainMsgParaVlaueError(ApInfo,AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraPeri");
-        //        //        //    return;
-        //        //        //}
-        //        //        para.paraAccPwr = GetMsgByteValueInList("paraAccPwr", n_dic.dic, Byte.MaxValue);
-        //        //        if (para.paraAccPwr == Byte.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraAccPwr");
-        //        //            return;
-        //        //        }
-        //        //        para.paraMsPwr = GetMsgByteValueInList("paraMsPwr", n_dic.dic, Byte.MaxValue);
-        //        //        if (para.paraMsPwr == Byte.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraMsPwr");
-        //        //            return;
-        //        //        }
-        //        //        para.paraRejCau = GetMsgByteValueInList("paraRejCau", n_dic.dic, Byte.MaxValue);
-        //        //        if (para.paraRejCau == Byte.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_PARA.ToString(), "paraRejCau");
-        //        //            return;
-        //        //        }
-        //        //        Flag |= 0x1;
-        //        //    }
-        //        //    else if (n_dic.name.Equals(Send_Msg_Id.RECV_SYS_OPTION.ToString()))
-        //        //    {
-        //        //        option.opLuSms = GetMsgByteValueInList("opLuSms", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opLuSms != 0 && option.opLuSms != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opLuSms");
-        //        //            return;
-        //        //        }
-        //        //        option.opLuImei = GetMsgByteValueInList("opLuImei", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opLuImei != 0 && option.opLuImei != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opLuImei");
-        //        //            return;
-        //        //        }
-        //        //        option.opCallEn = GetMsgByteValueInList("opCallEn", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opCallEn != 0 && option.opCallEn != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opCallEn");
-        //        //            return;
-        //        //        }
-        //        //        option.opDebug = GetMsgByteValueInList("opDebug", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opDebug != 0 && option.opDebug != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opDebug");
-        //        //            return;
-        //        //        }
-        //        //        option.opLuType = GetMsgByteValueInList("opLuType", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opLuType != 1 && option.opLuType != 2 && option.opLuType != 3)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opLuType");
-        //        //            return;
-        //        //        }
-        //        //        option.opSmsType = GetMsgByteValueInList("opSmsType", n_dic.dic, Byte.MaxValue);
-        //        //        if (option.opSmsType != 1 && option.opSmsType != 2 && option.opSmsType != 3)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_SYS_OPTION.ToString(), "opSmsType");
-        //        //            return;
-        //        //        }
-        //        //        Flag |= 0x02;
-        //        //    }
-        //        //    else if (n_dic.name.Equals(Send_Msg_Id.RECV_RF_PARA.ToString()))
-        //        //    {
-        //        //        rf.rfEnable = GetMsgByteValueInList("rfEnable", n_dic.dic, Byte.MaxValue);
-        //        //        if (rf.rfEnable != 0 && rf.rfEnable != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_RF_PARA.ToString(), "rfEnable");
-        //        //            return;
-        //        //        }
-        //        //        rf.rfFreq = GetMsgU16ValueInList("rfFreq", n_dic.dic, UInt16.MaxValue);
-        //        //        if (rf.rfFreq == UInt16.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_RF_PARA.ToString(), "rfFreq");
-        //        //            return;
-        //        //        }
-        //        //        rf.rfPwr = GetMsgByteValueInList("rfPwr", n_dic.dic, Byte.MaxValue);
-        //        //        if (rf.rfPwr == Byte.MaxValue)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_RF_PARA.ToString(), "rfPwr");
-        //        //            return;
-        //        //        }
-        //        //        Flag |= 0x04;
-        //        //    }
-        //        //    else if (n_dic.name.Equals(Send_Msg_Id.RECV_REG_MODE.ToString()))
-        //        //    {
-        //        //        regMode = GetMsgByteValueInList("regMode", n_dic.dic, Byte.MaxValue);
-        //        //        if (regMode != 0 && regMode != 1)
-        //        //        {
-        //        //            SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.RECV_REG_MODE.ToString(), "regMode");
-        //        //            return;
-        //        //        }
+            if (apToKen == null)
+            {
+                string str = string.Format("在线AP列表中找不到Ap[{0}:{1}],FullName:{2}。无法向AP发送消息！",
+                    ApInfo.IP, ApInfo.Port.ToString(), ApInfo.Fullname);
+                OnOutputLog(LogInfoType.WARN, str);
+                //Send2APP_GeneralError(ApInfo, AppInfo, Main2ApControllerMsgType.gsm_msg_send, str);
+                return;
+            }
 
-        //        //        Flag |= 0x08;
-        //        //    }
-        //        //}
+            byte ApIsBase = GetMsgByteValueInList("ApIsBase", Body.dic, Byte.MaxValue);
+            if (ApIsBase != 0 && ApIsBase != 1)
+            {
+                OnOutputLog(LogInfoType.EROR, "发送给GSM设备消息错误。消息中对齐基准不为0或1。");
+                return;
+            }
 
-        //        if (Flag == 0)
-        //        {
-        //            string str = string.Format("发送给GSM设备消息({0})错误。消息中没有n_dic项。", Main2ApControllerMsgType.SetGenParaReq);
-        //            OnOutputLog(LogInfoType.WARN, str);
-        //            return;
-        //        }
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.set_general_para_request);
+            TypeKeyValue.dic.Add("sys", sys);
+            TypeKeyValue.dic.Add("ApIsBase", ApIsBase);
 
-        //        Send2ap_SET_PARA_REQ(apToKen, AppInfo, sys, Flag, para, option, rf, regMode);
-        //    }
+            string FtpUrl_White = GetMsgStringValueInList("FtpUrl_White", Body.dic, string.Empty);
+            string FtpUrl_Black = GetMsgStringValueInList("FtpUrl_Black", Body.dic, string.Empty);
+            string FtpUser = GetMsgStringValueInList("FtpUser", Body.dic, string.Empty);
+            string FtpPas = GetMsgStringValueInList("FtpPas", Body.dic, string.Empty);
+            if (!String.IsNullOrEmpty(FtpUrl_White))
+                TypeKeyValue.dic.Add("FtpUrl_White", FtpUrl_White);
+            if (!String.IsNullOrEmpty(FtpUrl_Black))
+                TypeKeyValue.dic.Add("FtpUrl_Black", FtpUrl_Black);
+            if (!String.IsNullOrEmpty(FtpUrl_White) || !String.IsNullOrEmpty(FtpUrl_Black)) { 
+                TypeKeyValue.dic.Add("FtpUser", FtpUser);
+                TypeKeyValue.dic.Add("FtpPas", FtpPas);
+            }
+
+            foreach (Name_DIC_Struct n_dic in n_dic_List)
+            {
+                if (n_dic.name.Equals(Send_Msg_Id.CONFIG_FAP_MSG.ToString()))
+                {
+                    Flag++;
+                    STRUCT_CONFIG_FAP_MSG para = new STRUCT_CONFIG_FAP_MSG();
+                    para.bWorkingMode = GetMsgByteValueInList("bWorkingMode", n_dic.dic, Byte.MaxValue);
+                    if (para.bWorkingMode != 1 && para.bWorkingMode != 3)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "bWorkingMode");
+                        return;
+                    }
+
+                    para.bC = GetMsgByteValueInList("bC", n_dic.dic, Byte.MaxValue);
+                    if (para.bC == Byte.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "bC");
+                        return;
+                    }
+
+                    para.wRedirectCellUarfcn = GetMsgU16ValueInList("wRedirectCellUarfcn", n_dic.dic, UInt16.MaxValue);
+                    if (para.wRedirectCellUarfcn == UInt16.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "wRedirectCellUarfcn");
+                        return;
+                    }
+
+                    para.dwDateTime = (UInt32)DateTime.Now.Subtract(DateTime.Parse("1970-1-1")).TotalSeconds;
+                    //para.dwDateTime = GetMsgU32ValueInList("dwDateTime", n_dic.dic, UInt32.MaxValue);
+                    //if (para.dwDateTime == UInt32.MaxValue)
+                    //{
+                    //    SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "dwDateTime");
+                    //    return;
+                    //}
+
+                    para.bPLMNId = GetMsgStringValueInList("bPLMNId", n_dic.dic, string.Empty);
+                    if (para.bPLMNId == string.Empty)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "bPLMNId");
+                        return;
+                    }
+
+                    para.bTxPower = GetMsgByteValueInList("bTxPower", n_dic.dic, Byte.MaxValue);
+                    if (para.bTxPower == Byte.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "bTxPower");
+                        return;
+                    }
+
+                    para.bRxGain = GetMsgByteValueInList("bRxGain", n_dic.dic, Byte.MaxValue);
+                    if (para.bRxGain == Byte.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "bRxGain");
+                        return;
+                    }
+
+                    para.wPhyCellId = GetMsgU16ValueInList("wPhyCellId", n_dic.dic, UInt16.MaxValue);
+                    if (para.wPhyCellId == UInt16.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "wPhyCellId");
+                        return;
+                    }
+
+                    para.wLAC = GetMsgU16ValueInList("wLAC", n_dic.dic, UInt16.MaxValue);
+                    if (para.wLAC == UInt16.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "wLAC");
+                        return;
+                    }
+
+                    para.wUARFCN = GetMsgU16ValueInList("wUARFCN", n_dic.dic, UInt16.MaxValue);
+                    if (para.wUARFCN == UInt16.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "wUARFCN");
+                        return;
+                    }
+
+                    para.dwCellId = GetMsgU32ValueInList("dwCellId", n_dic.dic, UInt32.MaxValue);
+                    if (para.dwCellId == UInt32.MaxValue)
+                    {
+                        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_FAP_MSG.ToString(), "dwCellId");
+                        return;
+                    }
+
+                    tmpStr = string.Empty;
+                    tmpStr = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}{12}{13}{14}",
+                            para.bWorkingMode.ToString("X").PadLeft(2, '0'),
+                            para.bC.ToString("X").PadLeft(2, '0'),
+                            para.wRedirectCellUarfcn.ToString("X").PadLeft(4, '0'),
+                            getReservedString(4),
+                            para.dwDateTime.ToString("X").PadLeft(8, '0'),
+                            CodeConver.String2HexString(para.bPLMNId).PadLeft(10, '0'),
+                            para.bTxPower.ToString("X").PadLeft(2, '0'),
+                            getReservedString(1),
+                            para.bRxGain.ToString("X").PadLeft(2, '0'),
+                            para.wPhyCellId.ToString("X").PadLeft(4, '0'),
+                            para.wLAC.ToString("X").PadLeft(4, '0'),
+                            para.wUARFCN.ToString("X").PadLeft(4, '0'),
+                            getReservedString(2),
+                            para.dwCellId.ToString("X").PadLeft(8, '0'),
+                            getReservedString(16));
+
+                    TypeKeyValue.dic.Add("fap_cfg",
+                        Send2apString_GSM(new MsgSendStruct(Send_Msg_Id.CONFIG_FAP_MSG, sys, tmpStr)));
+                }
+                else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString()))
+                {
+                    Flag++;
+                    string bSMSOriginalNum = GetMsgStringValueInList("bSMSOriginalNum", n_dic.dic, String.Empty);
+                    string bSMSContent = GetMsgStringValueInList("bSMSContent", n_dic.dic, String.Empty);
+                    if (String.IsNullOrEmpty(bSMSOriginalNum) || bSMSOriginalNum.Length <= 0)
+                    {
+                        OnOutputLog(LogInfoType.EROR, "bSMSOriginalNum");
+                        tmpStr = string.Empty;
+                    }
+                    else
+                    {
+                        if (String.IsNullOrEmpty(bSMSContent))
+                        {
+                            OnOutputLog(LogInfoType.EROR,"bSMSContent字段错误");
+                            return;
+                        }
+
+                        int len = bSMSOriginalNum.Length;
+                        string phoneNum = CodeConver.String2HexString(bSMSOriginalNum);
+                        string phoneText = CodeConver.String2Unicode(bSMSContent, false);
+                        if (phoneText.Length > 140 || phoneText.Length <= 0)
+                        {
+                            OnOutputLog(LogInfoType.EROR, string.Format("编码后的消息内容长度:{0}错误,范围:[0,140]", phoneText.Length));
+                            return;
+                        }
+
+                        tmpStr = string.Empty;
+                        tmpStr = string.Format("{0}{1}{2}{3}",
+                             len.ToString("X").PadLeft(2, '0'),
+                             fullString(36, phoneNum),
+                             bSMSContent.Length.ToString("X").PadLeft(2, '0'),
+                             phoneText);
+                    }
+
+                    TypeKeyValue.dic.Add("sms_cfg",
+                        Send2apString_GSM(new MsgSendStruct(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG, sys, tmpStr)));
+                }
+                //else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString()))
+                //{
+                //    STRUCT_CONFIG_CDMA_CARRIER_MSG para = new STRUCT_CONFIG_CDMA_CARRIER_MSG();
+                //    Flag++;
+                //    para.wARFCN1 = GetMsgU16ValueInList("wARFCN1", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN1 == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN1");
+                //        return;
+                //    }
+
+                //    para.bARFCN1Mode = GetMsgByteValueInList("bARFCN1Mode", n_dic.dic, Byte.MaxValue);
+                //    if (para.bARFCN1Mode != 0 && para.bARFCN1Mode != 1 && para.bARFCN1Mode != 2)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "bARFCN1Mode");
+                //        return;
+                //    }
+
+                //    para.wARFCN1Duration = GetMsgU16ValueInList("wARFCN1Duration", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN1Duration == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN1Duration");
+                //        return;
+                //    }
+
+                //    para.wARFCN1Period = GetMsgU16ValueInList("wARFCN1Period", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN1Period == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN1Period");
+                //        return;
+                //    }
+
+                //    para.wARFCN2 = GetMsgU16ValueInList("wARFCN2", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN2 == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN2");
+                //        return;
+                //    }
+
+                //    para.bARFCN2Mode = GetMsgByteValueInList("bARFCN2Mode", n_dic.dic, Byte.MaxValue);
+                //    if (para.bARFCN2Mode != 0 && para.bARFCN2Mode != 1 && para.bARFCN2Mode != 2)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "bARFCN2Mode");
+                //        return;
+                //    }
+
+                //    para.wARFCN2Duration = GetMsgU16ValueInList("wARFCN2Duration", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN2Duration == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN2Duration");
+                //        return;
+                //    }
+
+                //    para.wARFCN2Period = GetMsgU16ValueInList("wARFCN2Period", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN2Period == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN2Period");
+                //        return;
+                //    }
+
+                //    para.wARFCN3 = GetMsgU16ValueInList("wARFCN3", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN3 == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN3");
+                //        return;
+                //    }
+
+                //    para.bARFCN3Mode = GetMsgByteValueInList("bARFCN3Mode", n_dic.dic, Byte.MaxValue);
+                //    if (para.bARFCN3Mode != 0 && para.bARFCN3Mode != 1 && para.bARFCN3Mode != 2)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "bARFCN3Mode");
+                //        return;
+                //    }
+
+                //    para.wARFCN3Duration = GetMsgU16ValueInList("wARFCN3Duration", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN3Duration == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN3Duration");
+                //        return;
+                //    }
+
+                //    para.wARFCN3Period = GetMsgU16ValueInList("wARFCN3Period", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN3Period == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN3Period");
+                //        return;
+                //    }
+
+                //    para.wARFCN4 = GetMsgU16ValueInList("wARFCN4", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN4 == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN4");
+                //        return;
+                //    }
+
+                //    para.bARFCN4Mode = GetMsgByteValueInList("bARFCN4Mode", n_dic.dic, Byte.MaxValue);
+                //    if (para.bARFCN4Mode != 0 && para.bARFCN4Mode != 1 && para.bARFCN4Mode != 2)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "bARFCN4Mode");
+                //        return;
+                //    }
+
+                //    para.wARFCN4Duration = GetMsgU16ValueInList("wARFCN4Duration", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN4Duration == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN4Duration");
+                //        return;
+                //    }
+
+                //    para.wARFCN4Period = GetMsgU16ValueInList("wARFCN4Period", n_dic.dic, UInt16.MaxValue);
+                //    if (para.wARFCN4Period == UInt16.MaxValue)
+                //    {
+                //        SendMainMsgParaVlaueError(ApInfo, AppInfo, Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString(), "wARFCN4Period");
+                //        return;
+                //    }
+
+                //    tmpStr = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}{12}{13}{14}{15}{16}{17}{18}{19}",
+                //            para.wARFCN1.ToString("X").PadLeft(4, '0'),
+                //            para.bARFCN1Mode.ToString("X").PadLeft(2, '0'),
+                //            getReservedString(1),
+                //            para.wARFCN1Duration.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN1Period.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN2.ToString("X").PadLeft(4, '0'),
+                //            para.bARFCN2Mode.ToString("X").PadLeft(2, '0'),
+                //            getReservedString(1),
+                //            para.wARFCN2Duration.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN2Period.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN3.ToString("X").PadLeft(4, '0'),
+                //            para.bARFCN3Mode.ToString("X").PadLeft(2, '0'),
+                //            getReservedString(1),
+                //            para.wARFCN3Duration.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN3Period.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN4.ToString("X").PadLeft(4, '0'),
+                //            para.bARFCN4Mode.ToString("X").PadLeft(2, '0'),
+                //            getReservedString(1),
+                //            para.wARFCN4Duration.ToString("X").PadLeft(4, '0'),
+                //            para.wARFCN4Period.ToString("X").PadLeft(4, '0'));
+
+                //    TypeKeyValue.dic.Add("cdma_carrier_cfg", 
+                //        Send2apString_GSM(new MsgSendStruct(Send_Msg_Id.CONFIG_CDMA_CARRIER_MSG, sys, tmpStr)));
+                //}
+            }
+
+            //if (Flag != 2)
+            //{
+            //    string str = string.Format("发送给GSM设备消息({0})错误。消息中n_dic项太少。", Main2ApControllerMsgType.SetGenParaReq);
+            //    OnOutputLog(LogInfoType.WARN, str);
+            //    return;
+            //}
+
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
+        }
 
         #region 封装发送给Main模块消息
 
@@ -2065,6 +2170,7 @@ namespace ScannerBackgrdServer.ApController
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", CHANGE);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.CONFIG_FAP_MSG.ToString();
@@ -2253,6 +2359,7 @@ namespace ScannerBackgrdServer.ApController
                 addFlag |= 0x4;
             }
 
+            byte userType = GetValueByString_Byte(ref data);
 
             if ((addFlag & 0X1) <= 0)
             {
@@ -2268,7 +2375,30 @@ namespace ScannerBackgrdServer.ApController
             }
 
             nDic.dic.Add("rsrp", rsrp.ToString());
-            nDic.dic.Add("userType", "");
+
+            if (userType == 0)
+            {
+                //普通，转成和LTE一样
+                nDic.dic.Add("userType", 2);
+            }
+            else if (userType == 1)
+            {
+                //白名单，转成和LTE一样
+                nDic.dic.Add("userType", 0);
+            }
+            else if (userType == 5)
+            {
+                //黑名单，转成和LTE一样
+                nDic.dic.Add("userType", 1);
+            }
+            else
+            {
+                //默认，转成和LTE一样
+                nDic.dic.Add("userType", 2);
+                string info = string.Format("userType = {0},默认为普通", userType);
+                OnOutputLog(LogInfoType.WARN, info);
+            }
+
             nDic.dic.Add("sn", apToKen.Sn);
 
             TypeKeyValue.n_dic.Add(nDic);
@@ -2282,6 +2412,7 @@ namespace ScannerBackgrdServer.ApController
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", CHANGE);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.UE_ORM_REPORT_MSG.ToString();
@@ -2298,6 +2429,17 @@ namespace ScannerBackgrdServer.ApController
             if (bOrmType == 1 || bOrmType == 3)
             {
                 nDic.dic.Add("bUeContent", StringDelZero(bUeContent));
+            }
+            else if (bOrmType == 4)
+            {
+                if (recv.bMsgType == Msg_Type.SUCC_OUTCOME)
+                {
+                    nDic.dic.Add("bUeContent", "成功");
+                }
+                else 
+                { 
+                    nDic.dic.Add("bUeContent", "失败");
+                }
             }
             else
             {
@@ -2338,18 +2480,28 @@ namespace ScannerBackgrdServer.ApController
             OnSendMsg2Main(0, MsgType.CONFIG, apToKen, TypeKeyValue);
         }
 
-        private void Send2Main_CONFIG_SMS_CONTENT_MSG_ID(AsyncUserToken apToKen, MsgRecvStruct recv)
+        private void Send2Main_CONFIG_SMS_CONTENT_MSG(AsyncUserToken apToKen, MsgRecvStruct recv)
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", CHANGE);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString();
 
-            nDic.dic.Add("bSMSOriginalNumLen", GetValueByString_Byte(ref data).ToString());
-            nDic.dic.Add("bSMSOriginalNum", CodeConver.strToToHexByte(GetValueByString_String(36, ref data).ToString()));
+            Byte numLen = GetValueByString_Byte(ref data);
+            nDic.dic.Add("bSMSOriginalNumLen", numLen.ToString());
+            if (numLen == 18)
+            {
+                nDic.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(36, ref data).ToString()));
+            }
+            else
+            {
+                nDic.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(numLen * 2, ref data).ToString()));
+                GetValueByString_String((18 - numLen) * 2, ref data);
+            }
  
             Byte bSMSContentLen = GetValueByString_Byte(ref data);
             nDic.dic.Add("bSMSContentLen", bSMSContentLen.ToString());
@@ -2469,6 +2621,7 @@ namespace ScannerBackgrdServer.ApController
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", CHANGE);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString();
@@ -2509,6 +2662,7 @@ namespace ScannerBackgrdServer.ApController
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
             TypeKeyValue.dic.Add("sys", recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", CHANGE);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
             nDic.name = Recv_Msg_Id.CONFIG_IMSI_MSG_V3_ID.ToString();
@@ -2552,6 +2706,117 @@ namespace ScannerBackgrdServer.ApController
             TypeKeyValue.n_dic.Add(nDic);
 
             OnSendMsg2Main(recv.wSqn, MsgType.CONFIG, apToKen, TypeKeyValue);
+        }
+
+        private void Send2Main_ReportGenPara(AsyncUserToken apToKen, Msg_Body_Struct msgBody)
+        {
+            String data = string.Empty;
+            Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
+
+            TypeKeyValue.dic.Add("sys", GetMsgByteValueInList("sys", msgBody.dic,0));
+            TypeKeyValue.dic.Add("hardware_id", 0);
+            TypeKeyValue.dic.Add("reportType", REPORT);
+            TypeKeyValue.dic.Add("whiteimsi_md5", GetMsgStringValueInList("whiteimsi_md5", msgBody.dic, ""));
+            TypeKeyValue.dic.Add("blackimsi_md5", GetMsgStringValueInList("blackimsi_md5", msgBody.dic, ""));
+
+            #region 添加Config配置
+
+            Name_DIC_Struct nDic_config = new Name_DIC_Struct();
+            nDic_config.name = Recv_Msg_Id.CONFIG_FAP_MSG.ToString();
+
+            data = string.Empty;
+            data = GetMsgStringValueInList("fap_cfg", msgBody);
+            data = data.Replace(" ","");
+            GetValueByString_String(RECV_MSG_LEN * 2, ref data);
+            nDic_config.dic.Add("bWorkingMode", GetValueByString_Byte(ref data).ToString());
+            nDic_config.dic.Add("bC", GetValueByString_Byte(ref data).ToString());
+            nDic_config.dic.Add("wRedirectCellUarfcn", GetValueByString_U16(ref data).ToString());
+            GetValue_Reserved(4, ref data);
+            GetValue_Reserved(4, ref data);
+            string plmn = CodeConver.AscStr2str(GetValueByString_String(10, ref data).ToString());
+            nDic_config.dic.Add("bPLMNId", plmn);
+            nDic_config.dic.Add("bTxPower", GetValueByString_Byte(ref data).ToString());
+            nDic_config.dic.Add("cReserved", GetValueByString_SByte(ref data).ToString());
+            nDic_config.dic.Add("bRxGain", GetValueByString_Byte(ref data).ToString());
+            nDic_config.dic.Add("wPhyCellId", GetValueByString_U16(ref data).ToString());
+            nDic_config.dic.Add("wLAC", GetValueByString_U16(ref data).ToString());
+            nDic_config.dic.Add("wUARFCN", GetValueByString_U16(ref data).ToString());
+            GetValue_Reserved(2, ref data);
+            nDic_config.dic.Add("dwCellId", GetValueByString_U32(ref data).ToString());
+            GetValue_Reserved(32, ref data);
+
+            TypeKeyValue.n_dic.Add(nDic_config);
+
+            #endregion
+
+            #region 添加载波Carrier配置
+            Name_DIC_Struct nDic_carrier = new Name_DIC_Struct();
+            nDic_carrier.name = Recv_Msg_Id.CONFIG_CDMA_CARRIER_MSG.ToString();
+
+            data = string.Empty;
+            data = GetMsgStringValueInList("cdma_carrier_cfg", msgBody);
+            data = data.Replace(" ", "");
+            GetValueByString_String(RECV_MSG_LEN * 2, ref data);
+            nDic_carrier.dic.Add("wARFCN1", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("bARFCN1Mode", GetValueByString_Byte(ref data).ToString());
+            GetValue_Reserved(1, ref data);
+            nDic_carrier.dic.Add("wARFCN1Duration", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("wARFCN1Period", GetValueByString_U16(ref data).ToString());
+
+            nDic_carrier.dic.Add("wARFCN2", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("bARFCN2Mode", GetValueByString_Byte(ref data).ToString());
+            GetValue_Reserved(1, ref data);
+            nDic_carrier.dic.Add("wARFCN2Duration", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("wARFCN2Period", GetValueByString_U16(ref data).ToString());
+
+            nDic_carrier.dic.Add("wARFCN3", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("bARFCN3Mode", GetValueByString_Byte(ref data).ToString());
+            GetValue_Reserved(1, ref data);
+            nDic_carrier.dic.Add("wARFCN3Duration", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("wARFCN3Period", GetValueByString_U16(ref data).ToString());
+
+            nDic_carrier.dic.Add("wARFCN4", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("bARFCN4Mode", GetValueByString_Byte(ref data).ToString());
+            GetValue_Reserved(1, ref data);
+            nDic_carrier.dic.Add("wARFCN4Duration", GetValueByString_U16(ref data).ToString());
+            nDic_carrier.dic.Add("wARFCN4Period", GetValueByString_U16(ref data).ToString());
+
+
+            TypeKeyValue.n_dic.Add(nDic_carrier);
+
+            #endregion
+
+            #region 短信配置
+            Name_DIC_Struct nDic_sms = new Name_DIC_Struct();
+            nDic_sms.name = Recv_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString();
+
+            data = string.Empty;
+            data = GetMsgStringValueInList("sms_cfg", msgBody);
+            data = data.Replace(" ", "");
+            GetValueByString_String(RECV_MSG_LEN * 2, ref data); //去掉消息头
+
+            Byte numLen = GetValueByString_Byte(ref data);
+            nDic_sms.dic.Add("bSMSOriginalNumLen", numLen.ToString());
+            if (numLen == 18)
+            {
+                nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(36, ref data).ToString()));
+            }
+            else
+            {
+                nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(numLen * 2, ref data).ToString()));
+                GetValueByString_String((18 - numLen) * 2, ref data);
+            }
+
+            Byte bSMSContentLen = GetValueByString_Byte(ref data);
+            nDic_sms.dic.Add("bSMSContentLen", bSMSContentLen.ToString());
+            string bSMSContent = GetValueByString_String(bSMSContentLen * 2, ref data);
+            nDic_sms.dic.Add("bSMSContent", CodeConver.Unicode2String(bSMSContent,false));
+
+            TypeKeyValue.n_dic.Add(nDic_sms);
+
+            #endregion
+
+            OnSendMsg2Main(0, MsgType.CONFIG, apToKen, TypeKeyValue);
         }
 
         #endregion

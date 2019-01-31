@@ -109,7 +109,10 @@ namespace ScannerBackgrdServer.ApController
             public static UInt32 RADIO = 0x2000000;
             public static UInt32 OnLine = 0x1000000;
             public static UInt32 wSelfStudy = 0x800000;
+            public static UInt32 OnLineAndroid = 0x400000;
+            public static UInt32 ALIGN = 0x200000;
 
+            public static UInt32 ALIGN_SYS2 = 0x2;
             public static UInt32 RADIO2 = 0x1;
         }
 
@@ -174,6 +177,7 @@ namespace ScannerBackgrdServer.ApController
                         int i = MyDeviceList.remov(x);
                         if (i != -1)
                         {
+                            //CloseToken(x);
                             OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
                             Send2main_OnOffLine(OffLine, i, x, MainControllerStatus);
                         }
@@ -689,7 +693,8 @@ namespace ScannerBackgrdServer.ApController
         {
             UInt32 oldDetail = apToKen.Detail;
             byte oldApReadySt = apToKen.ApReadySt;
-            //OnOutputLog(LogInfoType.EROR, "oldDetail=" + oldDetail + ";detail=" + detail);
+            OnOutputLog(LogInfoType.DEBG, "oldDetail=" + oldDetail + ";detail=" + detail +
+                ";oldApReadySt=" + oldApReadySt + ";ApReadySt=" + ApReadySt);
             //状态改变时才发送消息
             //需去掉上下线状态，再比较
             if (((detail | AP_STATUS_LTE.OnLine) == (oldDetail | AP_STATUS_LTE.OnLine)) && (oldApReadySt == ApReadySt))
@@ -717,6 +722,7 @@ namespace ScannerBackgrdServer.ApController
                 "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
                 "RADIO", ((detail & AP_STATUS_LTE.RADIO) > 0) ? 1 : 0,
                 "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                "ALIGN", ((detail & AP_STATUS_LTE.ALIGN) > 0) ? 1 : 0,
                 "ApReadySt", st,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
@@ -741,7 +747,8 @@ namespace ScannerBackgrdServer.ApController
 
             string st = ApReadyStEnum.Cell_Ready.ToString();
 
-            if (((detail & AP_STATUS_LTE.RADIO2) != (oldDetail & AP_STATUS_LTE.RADIO2)))
+            if ((detail & AP_STATUS_LTE.RADIO2) != (oldDetail & AP_STATUS_LTE.RADIO2) ||
+                (detail & AP_STATUS_LTE.ALIGN_SYS2) != (oldDetail & AP_STATUS_LTE.ALIGN_SYS2))
             {
                 Msg_Body_Struct TypeKeyValue2 =
                     new Msg_Body_Struct(Main2ApControllerMsgType.ApStatusChange,
@@ -755,6 +762,7 @@ namespace ScannerBackgrdServer.ApController
                     "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
                     "RADIO", ((detail & AP_STATUS_LTE.RADIO2) > 0) ? 1 : 0,
                     "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                    "ALIGN", ((detail & AP_STATUS_LTE.ALIGN_SYS2) > 0) ? 1 : 0,
                     "ApReadySt", st,
                     "timestamp", DateTime.Now.ToLocalTime().ToString());
 
@@ -774,6 +782,7 @@ namespace ScannerBackgrdServer.ApController
                 "LICENSE", ((detail & AP_STATUS_LTE.LICENSE) > 0) ? 1 : 0,
                 "RADIO", ((detail & AP_STATUS_LTE.RADIO) > 0) ? 1 : 0,
                 "wSelfStudy", ((detail & AP_STATUS_LTE.wSelfStudy) > 0) ? 1 : 0,
+                "ALIGN", ((detail & AP_STATUS_LTE.ALIGN) > 0) ? 1 : 0,
                 "ApReadySt", st,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 
@@ -789,7 +798,7 @@ namespace ScannerBackgrdServer.ApController
 
         protected void Send2ap_ApStatusChange_GSM_HJT(AsyncUserToken apToKen, UInt32 Detail, Byte ApReadySt)
         {
-            this.Send2ap_ApStatusChange_LTE(apToKen, Detail, ApReadySt);
+            this.Send2ap_ApStatusChange_GSM_ZYF(apToKen, Detail, ApReadySt);
         }
 
         /// <summary>
