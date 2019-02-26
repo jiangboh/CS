@@ -369,13 +369,18 @@ namespace ScannerBackgrdServer.ApController
                     return string.Empty;
                 }
 
-                string msgStr = MyDeviceList.GetMsgBuff(apToKen,startIndex, endIndex-startIndex);
+                //string msgStr = MyDeviceList.GetMsgBuff(apToKen,startIndex, endIndex-startIndex);
+                byte[] msgByte = MyDeviceList.GetMsgBuff(apToKen, startIndex, endIndex - startIndex);
                 MyDeviceList.DelMsgBuff(apToKen, 0, endIndex);
 
+                if (msgByte == null) return string.Empty;
+                msgByte = Encoding.Convert(Encoding.GetEncoding("UTF-8"), Encoding.GetEncoding("GB2312"), msgByte);
+                return Encoding.GetEncoding("GB2312").GetString(msgByte);
                 //OnOutputLog(LogInfoType.DEBG, "收到AP消息：————————————————————");
                 //OnOutputLog(LogInfoType.DEBG, msgStr);
                 //OnOutputLog(LogInfoType.DEBG, "————————————————————\n\n");
-                return msgStr;
+
+                //return msgStr;
             }
 
             allMsgByte = null;
@@ -404,7 +409,7 @@ namespace ScannerBackgrdServer.ApController
             OnOutputLog(LogInfoType.INFO, string.Format("发送消息({0})给AP[{1}:{2}]！",
                 type,apToKen.IPAddress.ToString(), apToKen.Port));
             OnOutputLog(LogInfoType.DEBG, string.Format("消息内容为:\n{0}", buff));
-            MySocket.SendMessage(apToKen, System.Text.Encoding.Default.GetBytes(buff));
+            MySocket.SendMessage(apToKen, buff);
         }
 
         /// <summary>
@@ -416,7 +421,7 @@ namespace ScannerBackgrdServer.ApController
         /// <returns>消息封装是否成功</returns>
         protected bool SendMsg2Ap(AsyncUserToken apToKen,ushort id, Msg_Body_Struct body)
         {
-            byte[] sendMsg = EncodeApXmlMessage(id, body);
+            string sendMsg = EncodeApXmlMessage(id, body);
             if (sendMsg == null)
             {
                 OnOutputLog(LogInfoType.EROR, string.Format("封装XML消息({0})出错！",body.type));

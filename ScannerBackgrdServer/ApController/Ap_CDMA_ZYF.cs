@@ -1854,6 +1854,7 @@ namespace ScannerBackgrdServer.ApController
                 else if (n_dic.name.Equals(Send_Msg_Id.CONFIG_SMS_CONTENT_MSG.ToString()))
                 {
                     Flag++;
+                    TypeKeyValue.dic.Add("sms_ctrl", GetMsgIntValueInList("sms_ctrl", n_dic.dic, 0));
                     string bSMSOriginalNum = GetMsgStringValueInList("bSMSOriginalNum", n_dic.dic, String.Empty);
                     string bSMSContent = GetMsgStringValueInList("bSMSContent", n_dic.dic, String.Empty);
                     if (String.IsNullOrEmpty(bSMSOriginalNum) || bSMSOriginalNum.Length <= 0)
@@ -2710,6 +2711,8 @@ namespace ScannerBackgrdServer.ApController
             TypeKeyValue.dic.Add("whiteimsi_md5", GetMsgStringValueInList("whiteimsi_md5", msgBody.dic, ""));
             TypeKeyValue.dic.Add("blackimsi_md5", GetMsgStringValueInList("blackimsi_md5", msgBody.dic, ""));
 
+            int sms_ctrl = GetMsgIntValueInList("sms_ctrl", msgBody.dic, 0);
+
             #region 添加Config配置
 
             Name_DIC_Struct nDic_config = new Name_DIC_Struct();
@@ -2804,6 +2807,7 @@ namespace ScannerBackgrdServer.ApController
             string bSMSContent = GetValueByString_String(bSMSContentLen * 2, ref data);
             nDic_sms.dic.Add("bSMSContent", CodeConver.Unicode2String(bSMSContent,false));
 
+            nDic_sms.dic.Add("sms_ctrl", sms_ctrl);
 
             TypeKeyValue.n_dic.Add(nDic_sms);
 

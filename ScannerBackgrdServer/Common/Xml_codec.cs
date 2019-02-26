@@ -129,7 +129,7 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         /// <param name="KeyValueList">键值对列表</param>
         /// <returns>封装后的xml消息</returns>
-        static public byte[] EncodeApXmlMessage(UInt16 id, Msg_Body_Struct TypeKeyValue)
+        static public string EncodeApXmlMessage(UInt16 id, Msg_Body_Struct TypeKeyValue)
         {
             //初始化一个xml实例
             XmlDocument myXmlDoc = new XmlDocument();
@@ -168,11 +168,12 @@ namespace ScannerBackgrdServer.Common
                 //将xml文件保存到指定的路径下
                 //myXmlDoc.Save("d://data2.xml");
 
-                MemoryStream ms = new MemoryStream();
-                myXmlDoc.Save(ms);
-                byte[] data = ms.ToArray();
-                //return System.Text.Encoding.Default.GetString(data);
-                return data;
+                //MemoryStream ms = new MemoryStream();
+                //myXmlDoc.Save(ms);
+                //byte[] data = ms.ToArray();
+                //return data;
+
+                return ConvertXmlToString(myXmlDoc);                
             }
             catch (Exception ex)
             {
@@ -181,8 +182,27 @@ namespace ScannerBackgrdServer.Common
             }
         }
 
-        
-        
+        #region 将XmlDocument转化为string
+        /// <summary>
+        /// 将XmlDocument转化为string
+        /// </summary>
+        /// <param name="xmlDoc"></param>
+        /// <returns></returns>
+        public static string ConvertXmlToString(XmlDocument xmlDoc)
+        {
+            MemoryStream stream = new MemoryStream();
+            XmlTextWriter writer = new XmlTextWriter(stream, null);
+            writer.Formatting = Formatting.Indented;
+            xmlDoc.Save(writer);
+            StreamReader sr = new StreamReader(stream, System.Text.Encoding.UTF8);
+            stream.Position = 0;
+            string xmlString = sr.ReadToEnd();
+            sr.Close();
+            stream.Close();
+            return xmlString;
+        }
+        #endregion
+
         static private void GetAllKeyNodes (string keyName,XmlNode node, ref Dictionary<string, object> KeyValueList)
         {
             string name;

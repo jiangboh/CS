@@ -348,8 +348,9 @@ namespace ScannerBackgrdServer.ApController
                     //将数据包交给后台处理,这里你也可以新开个线程来处理.加快速度.  
                     if (ReceiveClientData != null)
                     {
-                        string gbk_str = System.Text.Encoding.UTF8.GetString(data);
-                        ReceiveClientData(token, System.Text.Encoding.Default.GetBytes(gbk_str));
+                        //string gbk_str = System.Text.Encoding.UTF8.GetString(data);
+                        //ReceiveClientData(token, System.Text.Encoding.Default.GetBytes(gbk_str));
+                        ReceiveClientData(token, data);
                     }
                     data = null;
                     //继续接收. 为什么要这么写,请看Socket.ReceiveAsync方法的说明  
@@ -498,6 +499,51 @@ namespace ScannerBackgrdServer.ApController
             catch (Exception e)
             {
                 log(LogInfoType.EROR,"SendMessage - Error:" + e.Message);
+            }
+        }
+
+        /// <summary>  
+        /// 对数据进行打包,然后再发送  
+        /// </summary>  
+        /// <param name="token"></param>  
+        /// <param name="str"></param>  
+        /// <returns></returns>  
+        public void SendMessage(AsyncUserToken token, string str)
+        {
+            if (token == null || token.Socket == null || !token.Socket.Connected)
+            {
+                log(LogInfoType.WARN, "未找到要发送的AP信息！");
+                return;
+            }
+            if (string.IsNullOrEmpty(str))
+            {
+                log(LogInfoType.EROR, "要发送的消息为NULL！");
+                return;
+            }
+
+            try
+            {
+                //新建异步发送对象, 发送消息  
+                //SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
+                //sendArg.SetBuffer(message, 0, message.Length);  //将数据放置进去.  
+                //token.Socket.SendAsync(sendArg);
+                byte[] utf8_byt = System.Text.Encoding.UTF8.GetBytes(str);
+                //string gbk_str1 = System.Text.Encoding.UTF8.GetString(utf8_byt);
+                SendStruct sendStruct;
+                sendStruct.token = token;
+                sendStruct.message = utf8_byt;
+                ThreadPool.QueueUserWorkItem(new WaitCallback(BeginInvoke_SendMsg), sendStruct);
+
+                //string str = string.Format("时间:[{0}] 客户端({1}:{2}),发送消息给设备成功！",
+                //        token.ConnectTime.ToString(), token.IPAddress,token.Port.ToString(),
+                //        System.Text.Encoding.Default.GetString(buff));
+                //log(LogInfoType.INFO,str);
+
+                //log(LogInfoType.DEBG, string.Format("消息内容:\n({0})",System.Text.Encoding.Default.GetString(buff)));
+            }
+            catch (Exception e)
+            {
+                log(LogInfoType.EROR, "SendMessage - Error:" + e.Message);
             }
         }
     }

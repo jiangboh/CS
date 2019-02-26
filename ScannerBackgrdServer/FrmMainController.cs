@@ -978,7 +978,7 @@ namespace ScannerBackgrdServer
         /// <summary>
         /// 专门用于统计的交互，2018-01-23
         /// </summary>
-        private static DbHelper gDbHelperSts;
+        //private static DbHelper gDbHelperSts;
 
         /// <summary>
         /// 专门用于IMSI处理
@@ -6080,7 +6080,7 @@ namespace ScannerBackgrdServer
             DateTime endTime = System.DateTime.Now;
             TimeSpan ts = endTime.Subtract(startTime);
 
-            long monitorCnt = 0;
+            //long monitorCnt = 0;
             DateTime startMonitor = System.DateTime.Now;
             DateTime endedMonitor = System.DateTime.Now;
             TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
@@ -11497,15 +11497,19 @@ namespace ScannerBackgrdServer
                                                 if (gTimerSetFullName.SameNameCover)
                                                 {
                                                     // 删除同名的设备
-                                                    string errInfo = "";
-                                                    if (false == device_delete(gTimerSetFullName.parentFullPathName, gTimerSetFullName.devName, ref errInfo))
-                                                    {                                                      
-                                                        Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.S);
-                                                        add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.S);
-                                                        break;
-                                                    }
+                                                    //string errInfo = "";
+                                                    //if (false == device_delete(gTimerSetFullName.parentFullPathName, gTimerSetFullName.devName, ref errInfo))
+                                                    //{                                                      
+                                                    //    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.S);
+                                                    //    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.S);
+                                                    //    break;
+                                                    //}
 
-                                                    titleInfo = string.Format("删除同名的设备,SameNameCover,device_delete,成功");
+                                                    //titleInfo = string.Format("删除同名的设备,SameNameCover,device_delete,成功");
+
+                                                    // 保留同名的设备，2019-02-25   
+                                                    // 即不删除
+                                                    titleInfo = string.Format("保留同名的设备:{0}.{1},SameNameCover.", gTimerSetFullName.parentFullPathName, gTimerSetFullName.devName);
                                                 }
                                             }
                                             else
@@ -11516,10 +11520,17 @@ namespace ScannerBackgrdServer
                                                 break;
                                             }
 
-
                                             if (rtv == 0)
                                             {
-                                                rtv = gDbHelperLower.device_record_insert(affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                if (gTimerSetFullName.SameNameCover)
+                                                {
+                                                    // 保留同名的设备，2019-02-25 
+                                                    // 即不用插入
+                                                }
+                                                else
+                                                {
+                                                    rtv = gDbHelperLower.device_record_insert(affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                }
                                             }
                                             
                                             gApLower.Body.dic = new Dictionary<string, object>();
@@ -11531,7 +11542,15 @@ namespace ScannerBackgrdServer
 
                                             if (rtv == 0)
                                             {
-                                                titleInfo += string.Format("device_record_insert成功,affDomainId:{0},devName:{1},mode:{2}.", affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                if (gTimerSetFullName.SameNameCover)
+                                                {
+                                                    // 保留同名的设备，2019-02-25 
+                                                    titleInfo += string.Format("保留同名的设备,affDomainId:{0},devName:{1},mode:{2}.", affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                }
+                                                else
+                                                {
+                                                    titleInfo += string.Format("device_record_insert成功,affDomainId:{0},devName:{1},mode:{2}.", affDomainId, gTimerSetFullName.devName, gTimerSetFullName.mode);
+                                                }
 
                                                 #region 重新获取gDicDevFullName
 
@@ -12027,38 +12046,38 @@ namespace ScannerBackgrdServer
                     continue;
                 }
 
-                try
-                {
-                    #region 防止自动断开该连接的问题
+                //try
+                //{
+                //    #region 防止自动断开该连接的问题
 
-                    endTimeConnSts = System.DateTime.Now;
-                    tsConnSts = endTimeConnSts.Subtract(startTimeConnSts);
+                //    endTimeConnSts = System.DateTime.Now;
+                //    tsConnSts = endTimeConnSts.Subtract(startTimeConnSts);
 
-                    if (tsConnSts.TotalSeconds >= fix_for_wait_timeout)
-                    {
-                        // 2019-01-23
-                        re_connection_db(ref gDbHelperSts, "gDbHelperSts", ref reConnCntSts);
+                //    if (tsConnSts.TotalSeconds >= fix_for_wait_timeout)
+                //    {
+                //        // 2019-01-23
+                //        re_connection_db(ref gDbHelperSts, "gDbHelperSts", ref reConnCntSts);
 
-                        Thread.Sleep(5);
+                //        Thread.Sleep(5);
 
-                        if (gDbHelperSts.MyDbConnFlag)
-                        {
-                            List<string> listAllTbl = new List<string>();
-                            listAllTbl = gDbHelperSts.Get_All_ColumnName("user");
-                        }
+                //        if (gDbHelperSts.MyDbConnFlag)
+                //        {
+                //            List<string> listAllTbl = new List<string>();
+                //            listAllTbl = gDbHelperSts.Get_All_ColumnName("user");
+                //        }
 
-                        startTimeConnSts = System.DateTime.Now;
-                    }
+                //        startTimeConnSts = System.DateTime.Now;
+                //    }
 
-                    #endregion
-                }
-                catch (Exception ee)
-                {
-                    startTimeConnSts = System.DateTime.Now;
-                    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
-                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
-                    continue;
-                }
+                //    #endregion
+                //}
+                //catch (Exception ee)
+                //{
+                //    startTimeConnSts = System.DateTime.Now;
+                //    add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                //    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                //    continue;
+                //}
 
                 try
                 {
@@ -12299,14 +12318,17 @@ namespace ScannerBackgrdServer
 
         private bool accompany_record_query_flag = true;
         
-        private bool path_record_query_flag = true;
+        private bool path_record_query_flag = true;              
 
         /// <summary>
         /// 历史记录搜索处理
         /// </summary>
         /// <param name="imms"></param>
-        private void history_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void history_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void history_record_process_delegate_fun(object immsObj)
         {
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
+
             if (history_record_query_flag == false)
             {
                 string errInfo = string.Format("上次的历史搜索尚未完成，请稍后再试试！");
@@ -12985,9 +13007,11 @@ namespace ScannerBackgrdServer
         /// 统计记录的处理
         /// </summary>
         /// <param name="imms"></param>
-        private void statistics_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void statistics_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void statistics_record_process_delegate_fun(object immsObj)        
         {
             string errInfo = "";
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
 
             if (statistics_record_query_flag == false)
             {
@@ -13271,8 +13295,10 @@ namespace ScannerBackgrdServer
                 sw.Start();
 
                 List<string> lstImsi = new List<string>();
-                rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstImsi);
 
+                //rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstImsi);
+                rtv = gDbHelperUpper.capture_record_entity_query(cq, ref lstImsi);
+                
                 sw.Stop();
                 TimeSpan ts2 = sw.Elapsed;
 
@@ -13280,7 +13306,7 @@ namespace ScannerBackgrdServer
 
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_statistics_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_statistics_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     statistics_record_query_flag = true;
                     return;
@@ -13293,7 +13319,7 @@ namespace ScannerBackgrdServer
                     //    "ImsiTotalRmDup":"9000",   //IMSI总个数(已经去重)
                     //    "queryTime":"123"          //查询时间，单位毫秒                    
 
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_statistics_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_statistics_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                     imms.Body.dic.Add("ImsiTotal", lstImsi.Count.ToString());
 
@@ -13315,15 +13341,17 @@ namespace ScannerBackgrdServer
                 Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
                 return;
             }
-        }        
+        }
 
         /// <summary>
         /// 统计记录的处理
         /// </summary>
         /// <param name="imms"></param>
-        private void path_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void path_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void path_record_process_delegate_fun(object immsObj)
         {
             string errInfo = "";
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
 
             if (path_record_query_flag == false)
             {
@@ -13483,7 +13511,8 @@ namespace ScannerBackgrdServer
                 sw.Start();
 
                 List<strJWD> lstJWD = new List<strJWD>();
-                rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstJWD);
+                //rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstJWD);
+                rtv = gDbHelperUpper.capture_record_entity_query(cq, ref lstJWD);                
 
                 sw.Stop();
                 TimeSpan ts2 = sw.Elapsed;
@@ -13491,7 +13520,7 @@ namespace ScannerBackgrdServer
 
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_imsi_path_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_imsi_path_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     path_record_query_flag = true;
                     return;
@@ -13516,7 +13545,7 @@ namespace ScannerBackgrdServer
                     //    "longitude3":"114.06667",              //站点3的经度
                     //    "latitude3":"22.61667",                //站点4的纬度          
 
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_imsi_path_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_imsi_path_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     imms.Body.dic.Add("queryTime", queryTime.ToString() + "ms");
                     imms.Body.dic.Add("stationCount", lstJWD.Count.ToString());
 
@@ -13635,9 +13664,12 @@ namespace ScannerBackgrdServer
         /// 常驻人口的处理
         /// </summary>
         /// <param name="imms"></param>
-        private void resident_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void resident_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void resident_record_process_delegate_fun(object immsObj)        
         {
             string errInfo = "";
+
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
 
             if (resident_record_query_flag == false)
             {
@@ -13824,7 +13856,7 @@ namespace ScannerBackgrdServer
                 List<List<string>> lstLstSmall = new List<List<string>>();
 
                 //rtv = gDbHelperUpper.capture_record_entity_query_old(cq, ref lstBigImsi,ref lstLstSmall);
-                rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstBigImsi, ref lstLstSmall);
+                rtv = gDbHelperUpper.capture_record_entity_query(cq, ref lstBigImsi, ref lstLstSmall);
 
                 sw.Stop();
                 TimeSpan ts2 = sw.Elapsed;
@@ -13833,7 +13865,7 @@ namespace ScannerBackgrdServer
 
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_resident_imsi_list_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_resident_imsi_list_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     resident_record_query_flag = true;
                     return;
@@ -13850,7 +13882,7 @@ namespace ScannerBackgrdServer
                     //    "imsi2":"46000xxxxxxxxx",    //第2个IMSI
                     //    "imsi3":"46000xxxxxxxxx",    //第3个IMSI           
 
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_resident_imsi_list_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_resident_imsi_list_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                     List<string> lstResident = new List<string>();
 
@@ -14048,9 +14080,11 @@ namespace ScannerBackgrdServer
         /// 碰撞处理
         /// </summary>
         /// <param name="imms"></param>
-        private void collision_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void collision_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void collision_record_process_delegate_fun(object immsObj)
         {
             string errInfo = "";
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
 
             if (collision_record_query_flag == false)
             {
@@ -14299,10 +14333,13 @@ namespace ScannerBackgrdServer
                 for (int i = 0;i < lstCQ.Count;i++)
                 {
                     List<string> lst = new List<string>();
-                    rtv = gDbHelperSts.capture_record_entity_query(lstCQ[i], ref lst);
+
+                    //rtv = gDbHelperSts.capture_record_entity_query(lstCQ[i], ref lst);
+                    rtv = gDbHelperUpper.capture_record_entity_query(lstCQ[i], ref lst);
+                    
                     if (rtv != (int)RC.SUCCESS)
                     {
-                        Fill_IMMS_Info(ref imms, AppMsgType.app_get_collision_imsi_list_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                        Fill_IMMS_Info(ref imms, AppMsgType.app_get_collision_imsi_list_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                         Send_Msg_2_AppCtrl_Upper(imms);
                         collision_record_query_flag = true;
                         return;
@@ -14327,7 +14364,7 @@ namespace ScannerBackgrdServer
                 //    "imsi2":"46000xxxxxxxxx",    //第2个IMSI
                 //    "imsi3":"46000xxxxxxxxx",    //第3个IMSI        
 
-                Fill_IMMS_Info(ref imms, AppMsgType.app_get_collision_imsi_list_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                Fill_IMMS_Info(ref imms, AppMsgType.app_get_collision_imsi_list_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                 List<string> lstCollision = new List<string>();
 
                 sw.Restart();
@@ -14576,9 +14613,11 @@ namespace ScannerBackgrdServer
         /// 伴随处理
         /// </summary>
         /// <param name="imms"></param>
-        private void accompany_record_process_delegate_fun(InterModuleMsgStruct imms)
+        //private void accompany_record_process_delegate_fun(InterModuleMsgStruct imms)
+        private void accompany_record_process_delegate_fun(object immsObj)
         {
             string errInfo = "";
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
 
             if (accompany_record_query_flag == false)
             {
@@ -14797,10 +14836,13 @@ namespace ScannerBackgrdServer
 
                 List<DateTime> lstDT = new List<DateTime>();
                 List<DateTime> lstDateTime = new List<DateTime>();
-                rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstDT);
+
+                //rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstDT);
+                rtv = gDbHelperUpper.capture_record_entity_query(cq, ref lstDT);
+                
                 if (rtv != (int)RC.SUCCESS)
                 {
-                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_accompany_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_get_accompany_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
                     Send_Msg_2_AppCtrl_Upper(imms);
                     accompany_record_query_flag = true;
                     return;
@@ -14900,10 +14942,13 @@ namespace ScannerBackgrdServer
                     cq.timeEnded = dt.AddMinutes(timeWindowInt).ToString();
 
                     List<string> lstIMSI = new List<string>();
-                    rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstIMSI);
+
+                    //rtv = gDbHelperSts.capture_record_entity_query(cq, ref lstIMSI);
+                    rtv = gDbHelperUpper.capture_record_entity_query(cq, ref lstIMSI);
+                    
                     if (rtv != (int)RC.SUCCESS)
                     {
-                        errInfo = get_debug_info() + gDbHelperSts.get_rtv_str(rtv);
+                        errInfo = get_debug_info() + gDbHelperUpper.get_rtv_str(rtv);
                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                     }
@@ -14942,7 +14987,7 @@ namespace ScannerBackgrdServer
                 //    "imsi2":"46000xxxxxxxxx",     //第2个IMSI
                 //    "imsi3":"46000xxxxxxxxx",     //第3个IMSI
 
-                Fill_IMMS_Info(ref imms, AppMsgType.app_get_accompany_response, rtv, gDbHelperSts.get_rtv_str(rtv), true, null, null);
+                Fill_IMMS_Info(ref imms, AppMsgType.app_get_accompany_response, rtv, gDbHelperUpper.get_rtv_str(rtv), true, null, null);
 
                 sw.Restart();
 
@@ -15445,6 +15490,7 @@ namespace ScannerBackgrdServer
                                 gAppUpper.Body.dic.Add("ReturnCode", rtv);
                                 gAppUpper.Body.dic.Add("ReturnStr", gDbHelperUpper.get_rtv_str(rtv));
                                 gAppUpper.Body.dic.Add("NodeCount", dt.Rows.Count.ToString());
+
                                 foreach (DataRow dr in dt.Rows)
                                 {
                                     Name_DIC_Struct ndic = new Name_DIC_Struct();
@@ -15492,6 +15538,16 @@ namespace ScannerBackgrdServer
                                     else
                                     {
                                         ndic.dic.Add("isStation", dr["isStation"].ToString());
+                                    }
+
+                                    // 2019-02-22
+                                    if (string.IsNullOrEmpty(dr["des"].ToString()))
+                                    {
+                                        ndic.dic.Add("des", "null");
+                                    }
+                                    else
+                                    {
+                                        ndic.dic.Add("des", dr["des"].ToString());
                                     }
 
                                     gAppUpper.Body.n_dic.Add(ndic);
@@ -21610,9 +21666,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 异步处理
 
-                            //BeginInvoke(new history_record_process_delegate(history_record_process_delegate_fun), new object[] { gAppUpper });
+                            //history_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(history_record_process_delegate_fun), gAppUpper);
 
-                            history_record_process_delegate_fun(gAppUpper);
                             break;
 
                             #endregion
@@ -25722,10 +25778,13 @@ namespace ScannerBackgrdServer
                             #region 返回消息
 
                             nameFullPath = string.Format("{0}.{1}", parentNameFullPath, name);
-                            int rtv = gDbHelperSts.domain_record_is_station(nameFullPath);
+
+                            int rtv = gDbHelperUpper.domain_record_is_station(nameFullPath);
+                            //int rtv = gDbHelperSts.domain_record_is_station(nameFullPath);
+
                             if ((int)RC.IS_STATION != rtv)
                             {
-                                errInfo = string.Format("domain_record_is_station出错:{0}", gDbHelperSts.get_rtv_str(rtv));
+                                errInfo = string.Format("domain_record_is_station出错:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -25734,10 +25793,12 @@ namespace ScannerBackgrdServer
                                 break;                               
                             }
 
-                            rtv = gDbHelperSts.domain_record_get_by_nameFullPath(nameFullPath, ref str);
+                            //rtv = gDbHelperSts.domain_record_get_by_nameFullPath(nameFullPath, ref str);
+                            rtv = gDbHelperUpper.domain_record_get_by_nameFullPath(nameFullPath, ref str);
+
                             if ((int)RC.SUCCESS != rtv)
                             {
-                                errInfo = string.Format("domain_record_get_by_nameFullPath出错:{0}", gDbHelperSts.get_rtv_str(rtv));
+                                errInfo = string.Format("domain_record_get_by_nameFullPath出错:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -25813,10 +25874,13 @@ namespace ScannerBackgrdServer
                             #region 返回消息
 
                             nameFullPath = string.Format("{0}.{1}", parentNameFullPath, name);
-                            int rtv = gDbHelperSts.domain_record_is_station(nameFullPath);
+
+                            int rtv = gDbHelperUpper.domain_record_is_station(nameFullPath);
+                            //int rtv = gDbHelperSts.domain_record_is_station(nameFullPath);
+
                             if ((int)RC.IS_STATION != rtv)
                             {
-                                errInfo = string.Format("domain_record_is_station出错:{0}", gDbHelperSts.get_rtv_str(rtv));
+                                errInfo = string.Format("domain_record_is_station出错:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -25826,10 +25890,12 @@ namespace ScannerBackgrdServer
                             }
 
 
-                            rtv = gDbHelperSts.domain_record_update_longitude_latitude(nameFullPath, str);
+                            //rtv = gDbHelperSts.domain_record_update_longitude_latitude(nameFullPath, str);
+                            rtv = gDbHelperUpper.domain_record_update_longitude_latitude(nameFullPath, str);
+                            
                             if ((int)RC.SUCCESS != rtv)
                             {
-                                errInfo = string.Format("domain_record_update_longitude_latitude出错:{0}", gDbHelperSts.get_rtv_str(rtv));
+                                errInfo = string.Format("domain_record_update_longitude_latitude出错:{0}", gDbHelperUpper.get_rtv_str(rtv));
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                 Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -25850,7 +25916,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 统计处理
 
-                            statistics_record_process_delegate_fun(gAppUpper);
+                            //statistics_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(statistics_record_process_delegate_fun), gAppUpper);
+
                             break;
 
                             #endregion
@@ -25859,7 +25927,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 轨迹处理
 
-                            path_record_process_delegate_fun(gAppUpper);
+                            //path_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(path_record_process_delegate_fun), gAppUpper);
+
                             break;
 
                             #endregion
@@ -25868,7 +25938,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 常驻人口处理
 
-                            resident_record_process_delegate_fun(gAppUpper);
+                            //resident_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(resident_record_process_delegate_fun), gAppUpper);
+
                             break;
 
                             #endregion
@@ -25877,7 +25949,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 碰撞处理
 
-                            collision_record_process_delegate_fun(gAppUpper);
+                            //collision_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(collision_record_process_delegate_fun), gAppUpper);
+
                             break;
 
                             #endregion
@@ -25886,7 +25960,9 @@ namespace ScannerBackgrdServer
                         {
                             #region 碰撞处理
 
-                            accompany_record_process_delegate_fun(gAppUpper);
+                            //accompany_record_process_delegate_fun(gAppUpper);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(accompany_record_process_delegate_fun), gAppUpper);
+
                             break;
 
                             #endregion
@@ -26306,25 +26382,25 @@ namespace ScannerBackgrdServer
 
             #region (6) gDbHelperSts
 
-            gDbHelperSts = new DbHelper(DataController.StrDbIpAddr,
-                                     DataController.StrDbName,
-                                     DataController.StrDbUserId,
-                                     DataController.StrDbUserPsw,
-                                     DataController.StrDbPort);
+            //gDbHelperSts = new DbHelper(DataController.StrDbIpAddr,
+            //                         DataController.StrDbName,
+            //                         DataController.StrDbUserId,
+            //                         DataController.StrDbUserPsw,
+            //                         DataController.StrDbPort);
 
-            if (gDbHelperSts.MyDbConnFlag == true)
-            {
-                add_log_info(LogInfoType.INFO, "【" + tmp + " -> gDbHelperSts连接数据库OK！】", "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> gDbHelperSts连接数据库OK！】", "Main", LogCategory.I);
-            }
-            else
-            {
-                add_log_info(LogInfoType.EROR, "【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "Main", LogCategory.I);
-                Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "Main", LogCategory.I);
+            //if (gDbHelperSts.MyDbConnFlag == true)
+            //{
+            //    add_log_info(LogInfoType.INFO, "【" + tmp + " -> gDbHelperSts连接数据库OK！】", "Main", LogCategory.I);
+            //    Logger.Trace(LogInfoType.INFO, "【" + tmp + " -> gDbHelperSts连接数据库OK！】", "Main", LogCategory.I);
+            //}
+            //else
+            //{
+            //    add_log_info(LogInfoType.EROR, "【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "Main", LogCategory.I);
+            //    Logger.Trace(LogInfoType.EROR, "【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "Main", LogCategory.I);
 
-                MessageBox.Show("【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
-                Process.GetCurrentProcess().Kill();
-            }
+            //    MessageBox.Show("【" + tmp + " -> gDbHelperSts连接数据库FAILED！】", "出错", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+            //    Process.GetCurrentProcess().Kill();
+            //}
 
             #endregion
 

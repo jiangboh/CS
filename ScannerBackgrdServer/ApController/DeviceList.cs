@@ -520,7 +520,7 @@ namespace ScannerBackgrdServer.ApController
         /// <param name="startIndex">起始位置</param>
         /// <param name="len">长度</param>
         /// <returns>收到的消息</returns>
-        public string GetMsgBuff(AsyncUserToken toKen,int startIndex, int len)
+        public byte[] GetMsgBuff(AsyncUserToken toKen,int startIndex, int len)
         {
             lock (locker1)
             {
@@ -532,11 +532,11 @@ namespace ScannerBackgrdServer.ApController
                         if ((startIndex + len ) > x.Buffer.Count) len = x.Buffer.Count - startIndex;
 
                         byte[] rev = x.Buffer.GetRange(startIndex, len).ToArray();
-                        return System.Text.Encoding.Default.GetString(rev);
+                        return rev;// System.Text.Encoding.Default.GetString(rev);
                     }
                 }
             }
-            return string.Empty;
+            return null;// string.Empty;
         }
 
         public byte[] GetAllMsgBuff(AsyncUserToken toKen)

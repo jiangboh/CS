@@ -1166,7 +1166,13 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
-                            columnName.Add(dr[0].ToString());
+                            if (dr[0] != null)
+                            {
+                                if (!string.IsNullOrEmpty(dr[0].ToString()))
+                                {
+                                    columnName.Add(dr[0].ToString());
+                                }
+                            }
                         }
                         dr.Close();
                     }
@@ -9533,7 +9539,7 @@ namespace ScannerBackgrdServer
         /// </returns>
         public int device_record_clear()
         {
-            int rtv = -1;
+            //int rtv = -1;
             if (false == myDbConnFlag)
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
@@ -10328,14 +10334,14 @@ namespace ScannerBackgrdServer
         ///   RC.TIME_ST_EN_ERR     ：开始时间大于结束时间
         ///   RC.SUCCESS            ：成功 
         /// </returns>
-        public int capture_record_entity_query(strCaptureQuery cq,ref List<string> lstImsi)
+        public int capture_record_entity_query(strCaptureQuery cq, ref List<string> lstImsi)
         {
             //public List<int> listAffDeviceId; 
-            
+
             //public bwType bwFlag;       //名单标识
             //public string timeStart;    //开始时间
             //public string timeEnded;    //结束时间
-    
+
             // 2018-12-26
             //public string operators;    //运营商，移动，联通或电信   
 
@@ -10382,7 +10388,7 @@ namespace ScannerBackgrdServer
             {
                 //对运营商不做过滤
             }
-          
+
             switch (cq.bwFlag)
             {
                 case bwType.BWTYPE_WHITE:
@@ -10423,8 +10429,8 @@ namespace ScannerBackgrdServer
             }
 
             lstImsi = new List<string>();
-            string sql = string.Format("select imsi from capture where {0}", sqlSub);           
-            
+            string sql = string.Format("select imsi from capture where {0}", sqlSub);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -10433,26 +10439,26 @@ namespace ScannerBackgrdServer
                     {
                         while (dr.Read())
                         {
-                            if (!string.IsNullOrEmpty(dr["imsi"].ToString()))
+                            if (dr["imsi"] != null)
                             {
                                 lstImsi.Add(dr["imsi"].ToString());
-                            }                   
+                            }
                         }
                         dr.Close();
                     }
                 }
             }
             catch (Exception e)
-            {
+            {               
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                dicRTV[(int)RC.OP_FAIL] = string.Format(" {0}\r\n数据库操作失败:{1}", sql, e.Message + e.StackTrace);
                 myDbOperFlag = false;
                 return (int)RC.OP_FAIL;
             }
 
-            info = string.Format("查询sql={0},lstImsi.Count = {1}\r\n", sql, lstImsi.Count);
-            Logger.Trace(LogInfoType.INFO, info, "DB", LogCategory.I);
-            FrmMainController.add_log_info(LogInfoType.INFO, info, "DB", LogCategory.I);
+            //info = string.Format("查询sql={0},lstImsi.Count = {1}\r\n", sql, lstImsi.Count);
+            //Logger.Trace(LogInfoType.INFO, info, "DB", LogCategory.I);
+            //FrmMainController.add_log_info(LogInfoType.INFO, info, "DB", LogCategory.I);
 
             return (int)RC.SUCCESS;
         }

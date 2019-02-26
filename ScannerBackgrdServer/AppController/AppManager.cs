@@ -252,13 +252,19 @@ namespace ScannerBackgrdServer.AppController
                     return string.Empty;
                 }
 
-                string msgStr = MyDeviceList.GetMsgBuff(appToKen, startIndex, endIndex-startIndex); 
+                //string msgStr = MyDeviceList.GetMsgBuff(appToKen, startIndex, endIndex-startIndex);
+                byte[] msgByte = MyDeviceList.GetMsgBuff(appToKen, startIndex, endIndex - startIndex);
                 MyDeviceList.DelMsgBuff(appToKen, 0, endIndex);
+
+                if (msgByte == null) return string.Empty;
+                msgByte = Encoding.Convert(Encoding.GetEncoding("UTF-8"), Encoding.GetEncoding("GB2312"), msgByte);
+                return Encoding.GetEncoding("GB2312").GetString(msgByte);
 
                 //OnOutputLog(LogInfoType.INFO, "收到消息：————————————————————");
                 //OnOutputLog(LogInfoType.INFO, msgStr);
                 //OnOutputLog(LogInfoType.INFO, "————————————————————");
-                return msgStr;
+
+                //return msgStr;
             }
 
             return string.Empty;
