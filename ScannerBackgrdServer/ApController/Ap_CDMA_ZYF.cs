@@ -1495,6 +1495,13 @@ namespace ScannerBackgrdServer.ApController
                     return;
                 }
                 Send2ap_CONFIG_SMS_CONTENT_MSG(apToKen, AppInfo, sys, bSMSOriginalNum, bSMSContent);
+
+                int sms_ctrl = GetMsgIntValueInList("sms_ctrl", n_dic.dic,0);
+                Msg_Body_Struct TypeKeyValue =
+                    new Msg_Body_Struct(ApMsgType.set_parameter_request,
+                    "paramName", "CFG_SMS_TRANSMIT_CTRL",
+                    "paramValue", sms_ctrl);
+                SendMsg2Ap(apToKen, 0, TypeKeyValue);
             }
             else if (n_dic.name.Equals(Send_Msg_Id.CONTROL_FAP_RADIO_ON_MSG.ToString()))
             {
@@ -1730,7 +1737,7 @@ namespace ScannerBackgrdServer.ApController
             }
 
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(ApMsgType.set_general_para_request);
-            TypeKeyValue.dic.Add("sys", sys);
+            TypeKeyValue.dic.Add("sys", (byte)sys);
             TypeKeyValue.dic.Add("ApIsBase", ApIsBase);
 
             string FtpUrl_White = GetMsgStringValueInList("FtpUrl_White", Body.dic, string.Empty);
@@ -2064,7 +2071,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2086,7 +2093,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2160,7 +2167,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
             TypeKeyValue.dic.Add("reportType", CHANGE);
 
@@ -2199,7 +2206,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2217,7 +2224,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2235,7 +2242,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2402,7 +2409,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(msgType);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
             TypeKeyValue.dic.Add("reportType", CHANGE);
 
@@ -2476,7 +2483,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
             TypeKeyValue.dic.Add("reportType", CHANGE);
 
@@ -2509,7 +2516,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2560,7 +2567,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2577,7 +2584,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2594,7 +2601,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2611,7 +2618,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
             TypeKeyValue.dic.Add("reportType", CHANGE);
 
@@ -2652,7 +2659,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
-            TypeKeyValue.dic.Add("sys", recv.bCellIdx);
+            TypeKeyValue.dic.Add("sys", (byte) recv.bCellIdx);
             TypeKeyValue.dic.Add("hardware_id", 0);
             TypeKeyValue.dic.Add("reportType", CHANGE);
 
@@ -2705,9 +2712,11 @@ namespace ScannerBackgrdServer.ApController
             String data = string.Empty;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.ReportGenPara);
 
-            TypeKeyValue.dic.Add("sys", GetMsgByteValueInList("sys", msgBody.dic,0));
+            string reportType = GetMsgStringValueInList("reportType", msgBody.dic, REPORT);
+
+            TypeKeyValue.dic.Add("sys", (byte) GetMsgByteValueInList("sys", msgBody.dic,0));
             TypeKeyValue.dic.Add("hardware_id", 0);
-            TypeKeyValue.dic.Add("reportType", REPORT);
+            TypeKeyValue.dic.Add("reportType", reportType);
             TypeKeyValue.dic.Add("whiteimsi_md5", GetMsgStringValueInList("whiteimsi_md5", msgBody.dic, ""));
             TypeKeyValue.dic.Add("blackimsi_md5", GetMsgStringValueInList("blackimsi_md5", msgBody.dic, ""));
 
@@ -2721,26 +2730,29 @@ namespace ScannerBackgrdServer.ApController
             data = string.Empty;
             data = GetMsgStringValueInList("fap_cfg", msgBody);
             data = data.Replace(" ","");
-            GetValueByString_String(RECV_MSG_LEN * 2, ref data);
-            nDic_config.dic.Add("bWorkingMode", GetValueByString_Byte(ref data).ToString());
-            nDic_config.dic.Add("bC", GetValueByString_Byte(ref data).ToString());
-            nDic_config.dic.Add("wRedirectCellUarfcn", GetValueByString_U16(ref data).ToString());
-            GetValue_Reserved(4, ref data);
-            GetValue_Reserved(4, ref data);
-            string plmn = CodeConver.AscStr2str(GetValueByString_String(10, ref data).ToString());
-            nDic_config.dic.Add("bPLMNId", plmn);
-            nDic_config.dic.Add("bTxPower", GetValueByString_Byte(ref data).ToString());
-            nDic_config.dic.Add("cReserved", GetValueByString_SByte(ref data).ToString());
-            nDic_config.dic.Add("bRxGain", GetValueByString_Byte(ref data).ToString());
-            nDic_config.dic.Add("wPhyCellId", GetValueByString_U16(ref data).ToString());
-            nDic_config.dic.Add("wLAC", GetValueByString_U16(ref data).ToString());
-            nDic_config.dic.Add("wUARFCN", GetValueByString_U16(ref data).ToString());
-            GetValue_Reserved(2, ref data);
-            nDic_config.dic.Add("dwCellId", GetValueByString_U32(ref data).ToString());
-            GetValue_Reserved(32, ref data);
 
-            TypeKeyValue.n_dic.Add(nDic_config);
+            if (!string.IsNullOrEmpty(data))
+            {
+                GetValueByString_String(RECV_MSG_LEN * 2, ref data);
+                nDic_config.dic.Add("bWorkingMode", GetValueByString_Byte(ref data).ToString());
+                nDic_config.dic.Add("bC", GetValueByString_Byte(ref data).ToString());
+                nDic_config.dic.Add("wRedirectCellUarfcn", GetValueByString_U16(ref data).ToString());
+                GetValue_Reserved(4, ref data);
+                GetValue_Reserved(4, ref data);
+                string plmn = CodeConver.AscStr2str(GetValueByString_String(10, ref data).ToString());
+                nDic_config.dic.Add("bPLMNId", plmn);
+                nDic_config.dic.Add("bTxPower", GetValueByString_Byte(ref data).ToString());
+                nDic_config.dic.Add("cReserved", GetValueByString_SByte(ref data).ToString());
+                nDic_config.dic.Add("bRxGain", GetValueByString_Byte(ref data).ToString());
+                nDic_config.dic.Add("wPhyCellId", GetValueByString_U16(ref data).ToString());
+                nDic_config.dic.Add("wLAC", GetValueByString_U16(ref data).ToString());
+                nDic_config.dic.Add("wUARFCN", GetValueByString_U16(ref data).ToString());
+                GetValue_Reserved(2, ref data);
+                nDic_config.dic.Add("dwCellId", GetValueByString_U32(ref data).ToString());
+                GetValue_Reserved(32, ref data);
 
+                TypeKeyValue.n_dic.Add(nDic_config);
+            }
             #endregion
 
             #region 添加载波Carrier配置
@@ -2750,33 +2762,37 @@ namespace ScannerBackgrdServer.ApController
             data = string.Empty;
             data = GetMsgStringValueInList("cdma_carrier_cfg", msgBody);
             data = data.Replace(" ", "");
-            GetValueByString_String(RECV_MSG_LEN * 2, ref data);
-            nDic_carrier.dic.Add("wARFCN1", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("bARFCN1Mode", GetValueByString_Byte(ref data).ToString());
-            GetValue_Reserved(1, ref data);
-            nDic_carrier.dic.Add("wARFCN1Duration", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("wARFCN1Period", GetValueByString_U16(ref data).ToString());
 
-            nDic_carrier.dic.Add("wARFCN2", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("bARFCN2Mode", GetValueByString_Byte(ref data).ToString());
-            GetValue_Reserved(1, ref data);
-            nDic_carrier.dic.Add("wARFCN2Duration", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("wARFCN2Period", GetValueByString_U16(ref data).ToString());
+            if (!string.IsNullOrEmpty(data))
+            {
+                GetValueByString_String(RECV_MSG_LEN * 2, ref data);
+                nDic_carrier.dic.Add("wARFCN1", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("bARFCN1Mode", GetValueByString_Byte(ref data).ToString());
+                GetValue_Reserved(1, ref data);
+                nDic_carrier.dic.Add("wARFCN1Duration", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN1Period", GetValueByString_U16(ref data).ToString());
 
-            nDic_carrier.dic.Add("wARFCN3", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("bARFCN3Mode", GetValueByString_Byte(ref data).ToString());
-            GetValue_Reserved(1, ref data);
-            nDic_carrier.dic.Add("wARFCN3Duration", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("wARFCN3Period", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN2", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("bARFCN2Mode", GetValueByString_Byte(ref data).ToString());
+                GetValue_Reserved(1, ref data);
+                nDic_carrier.dic.Add("wARFCN2Duration", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN2Period", GetValueByString_U16(ref data).ToString());
 
-            nDic_carrier.dic.Add("wARFCN4", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("bARFCN4Mode", GetValueByString_Byte(ref data).ToString());
-            GetValue_Reserved(1, ref data);
-            nDic_carrier.dic.Add("wARFCN4Duration", GetValueByString_U16(ref data).ToString());
-            nDic_carrier.dic.Add("wARFCN4Period", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN3", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("bARFCN3Mode", GetValueByString_Byte(ref data).ToString());
+                GetValue_Reserved(1, ref data);
+                nDic_carrier.dic.Add("wARFCN3Duration", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN3Period", GetValueByString_U16(ref data).ToString());
+
+                nDic_carrier.dic.Add("wARFCN4", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("bARFCN4Mode", GetValueByString_Byte(ref data).ToString());
+                GetValue_Reserved(1, ref data);
+                nDic_carrier.dic.Add("wARFCN4Duration", GetValueByString_U16(ref data).ToString());
+                nDic_carrier.dic.Add("wARFCN4Period", GetValueByString_U16(ref data).ToString());
 
 
-            TypeKeyValue.n_dic.Add(nDic_carrier);
+                TypeKeyValue.n_dic.Add(nDic_carrier);
+            }
 
             #endregion
 
@@ -2788,27 +2804,37 @@ namespace ScannerBackgrdServer.ApController
             data = GetMsgStringValueInList("sms_cfg", msgBody);
             data = data.Replace(" ", "");
 
-            GetValueByString_String(RECV_MSG_LEN * 2, ref data); //去掉消息头
-
-            Byte numLen = GetValueByString_Byte(ref data);
-            nDic_sms.dic.Add("bSMSOriginalNumLen", numLen.ToString());
-            if (numLen == 18)
+            if (!string.IsNullOrEmpty(data))
             {
-                nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(36, ref data).ToString()));
+                GetValueByString_String(RECV_MSG_LEN * 2, ref data); //去掉消息头
+
+                Byte numLen = GetValueByString_Byte(ref data);
+                nDic_sms.dic.Add("bSMSOriginalNumLen", numLen.ToString());
+                if (numLen == 18)
+                {
+                    nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(36, ref data).ToString()));
+                }
+                else
+                {
+                    nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(numLen * 2, ref data).ToString()));
+                    GetValueByString_String((18 - numLen) * 2, ref data);
+                }
+
+                Byte bSMSContentLen = GetValueByString_Byte(ref data);
+                nDic_sms.dic.Add("bSMSContentLen", bSMSContentLen.ToString());
+                string bSMSContent = GetValueByString_String(bSMSContentLen * 4, ref data);
+                nDic_sms.dic.Add("bSMSContent", CodeConver.Unicode2String(bSMSContent, false));
+
+                nDic_sms.dic.Add("sms_ctrl", sms_ctrl);
             }
             else
             {
-                nDic_sms.dic.Add("bSMSOriginalNum", CodeConver.AscStr2str(GetValueByString_String(numLen * 2, ref data).ToString()));
-                GetValueByString_String((18 - numLen) * 2, ref data);
+                nDic_sms.dic.Add("bSMSOriginalNumLen", 0);
+                nDic_sms.dic.Add("bSMSOriginalNum", "");
+                nDic_sms.dic.Add("bSMSContentLen", 0);
+                nDic_sms.dic.Add("bSMSContent","");
+                nDic_sms.dic.Add("sms_ctrl", 0);
             }
-
-            Byte bSMSContentLen = GetValueByString_Byte(ref data);
-            nDic_sms.dic.Add("bSMSContentLen", bSMSContentLen.ToString());
-            string bSMSContent = GetValueByString_String(bSMSContentLen * 2, ref data);
-            nDic_sms.dic.Add("bSMSContent", CodeConver.Unicode2String(bSMSContent,false));
-
-            nDic_sms.dic.Add("sms_ctrl", sms_ctrl);
-
             TypeKeyValue.n_dic.Add(nDic_sms);
 
             #endregion

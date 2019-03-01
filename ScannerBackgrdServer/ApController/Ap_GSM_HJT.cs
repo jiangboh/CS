@@ -2415,7 +2415,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2435,7 +2435,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2453,7 +2453,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2473,7 +2473,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2508,7 +2508,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2525,7 +2525,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2542,7 +2542,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2562,7 +2562,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = String.Empty;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2605,7 +2605,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = String.Empty;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2648,7 +2648,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2674,7 +2674,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2694,7 +2694,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();
@@ -2741,7 +2741,7 @@ namespace ScannerBackgrdServer.ApController
         {
             String data = recv.data;
             Msg_Body_Struct TypeKeyValue = new Msg_Body_Struct(Main2ApControllerMsgType.gsm_msg_recv);
-            TypeKeyValue.dic.Add("sys", recv.sys);
+            TypeKeyValue.dic.Add("sys", (byte) recv.sys);
             TypeKeyValue.dic.Add("hardware_id", recv.hardware_id);
 
             Name_DIC_Struct nDic = new Name_DIC_Struct();

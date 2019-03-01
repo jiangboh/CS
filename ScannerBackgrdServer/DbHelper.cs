@@ -509,6 +509,7 @@ namespace ScannerBackgrdServer
 
     public struct strGcMisc
     {
+        public string sms_ctrl;           //上号后是否自动发送短信。0：不自动发送；1：自动发关,2019-02-26
         public string bSMSOriginalNumLen; //主叫号码长度
         public string bSMSOriginalNum;    //主叫号码
         public string bSMSContentLen;     //短信内容字数，0~70
@@ -799,6 +800,7 @@ namespace ScannerBackgrdServer
         BWTYPE_OTHER = 3,  //其他名单
         BWTYPE_ALL = 4     //所有
     }
+
 
     /// <summary>
     /// 设备的制式mode
@@ -10348,6 +10350,7 @@ namespace ScannerBackgrdServer
             string sqlSub = "";
             string info = "";
 
+
             if (false == myDbConnFlag)
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
@@ -10431,6 +10434,40 @@ namespace ScannerBackgrdServer
             lstImsi = new List<string>();
             string sql = string.Format("select imsi from capture where {0}", sqlSub);
 
+            //DataTable dt = new DataTable();
+            //DataColumn column0 = new DataColumn("imsi", System.Type.GetType("System.String"));
+            //dt.Columns.Add(column0);
+
+            //try
+            //{
+            //    using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+            //    {
+            //        using (MySqlDataReader dr = cmd.ExecuteReader())
+            //        {
+            //            while (dr.Read())
+            //            {
+            //                DataRow row = dt.NewRow();
+
+            //                row["imsi"] = dr["imsi"].ToString();
+            //                dt.Rows.Add(row);
+            //            }
+            //            dr.Close();
+            //        }
+            //    }
+            //}
+            //catch (Exception e)
+            //{
+            //    Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+            //    dicRTV[(int)RC.OP_FAIL] = string.Format(" {0}\r\n数据库操作失败:{1}", sql, e.Message + e.StackTrace);
+            //    myDbOperFlag = false;
+            //    return (int)RC.OP_FAIL;
+            //}
+
+            //for (int i = 0;i < dt.Rows.Count;  i++)
+            //{
+            //    lstImsi.Add(dt.Rows[i]["imsi"].ToString());
+            //}
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -10449,16 +10486,16 @@ namespace ScannerBackgrdServer
                 }
             }
             catch (Exception e)
-            {               
+            {
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
                 dicRTV[(int)RC.OP_FAIL] = string.Format(" {0}\r\n数据库操作失败:{1}", sql, e.Message + e.StackTrace);
                 myDbOperFlag = false;
                 return (int)RC.OP_FAIL;
             }
 
-            //info = string.Format("查询sql={0},lstImsi.Count = {1}\r\n", sql, lstImsi.Count);
-            //Logger.Trace(LogInfoType.INFO, info, "DB", LogCategory.I);
-            //FrmMainController.add_log_info(LogInfoType.INFO, info, "DB", LogCategory.I);
+            info = string.Format("查询sql={0},lstImsi.Count = {1}\r\n", sql, lstImsi.Count);
+            Logger.Trace(LogInfoType.INFO, info, "DB", LogCategory.I);
+            FrmMainController.add_log_info(LogInfoType.INFO, info, "DB", LogCategory.I);
 
             return (int)RC.SUCCESS;
         }
@@ -21700,8 +21737,12 @@ namespace ScannerBackgrdServer
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                 return (int)RC.EXIST;
             }
-          
-            string sql = string.Format("insert into gc_misc(id,time,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},-1,{1})", carry, affDeviceId);
+
+            //string sql = string.Format("insert into gc_misc(id,time,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},-1,{1})", carry, affDeviceId);
+
+            // 2019-02-28，bindingDevId使用起来
+            string sql = string.Format("insert into gc_misc(id,time,carry,bindingDevId,affDeviceId) values(NULL,now(),{0},0,{1})", carry, affDeviceId);
+
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -22057,18 +22098,35 @@ namespace ScannerBackgrdServer
 
 
             //(28)
-            if (!string.IsNullOrEmpty(gm.bindingDevId))
+            //if (!string.IsNullOrEmpty(gm.bindingDevId))
+            //{
+            //    if (gm.bindingDevId.Length > 11)
+            //    {
+            //        Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+            //        return (int)RC.PAR_LEN_ERR;
+            //    }
+            //    else
+            //    {
+            //        sqlSub += string.Format("bindingDevId = {0},", gm.bindingDevId);
+            //    }
+            //}
+
+            if (!string.IsNullOrEmpty(gm.sms_ctrl))
             {
-                if (gm.bindingDevId.Length > 11)
+                if (gm.sms_ctrl != "0" && gm.sms_ctrl != "1")
                 {
-                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-                    return (int)RC.PAR_LEN_ERR;
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
                 }
                 else
                 {
-                    sqlSub += string.Format("bindingDevId = {0},", gm.bindingDevId);
+                    /*
+                     *  2019-02-26,该字段一直没用，现在用于存储sms_ctrl
+                     */
+                    sqlSub += string.Format("bindingDevId = {0},", int.Parse(gm.sms_ctrl));
                 }
-            }
+            }           
+
 
             if (sqlSub != "")
             {
@@ -22291,6 +22349,7 @@ namespace ScannerBackgrdServer
                             if (!string.IsNullOrEmpty(dr["bindingDevId"].ToString()))
                             {
                                 gm.bindingDevId = dr["bindingDevId"].ToString();
+                                gm.sms_ctrl = dr["bindingDevId"].ToString();
                             }
                         }
                         dr.Close();
@@ -24712,7 +24771,7 @@ namespace ScannerBackgrdServer
             //					"bWorkingMode":XXX		    工作模式:1 为侦码模式 ;3驻留模式.
             //					"bC":XXX		            是否自动切换模式。保留
             //					"wRedirectCellUarfcn":XXX	CDMA黑名单频点
-            ////////////////////////////					"dwDateTime":XXX			当前时间	
+            //					"dwDateTime":XXX			当前时间	
             //					"bPLMNId":XXX		        PLMN标志
             //					"bTxPower":XXX			    实际发射功率.设置发射功率衰减寄存器, 0输出最大功率, 每增加1, 衰减1DB
             //					"bRxGain":XXX			    接收信号衰减寄存器. 每增加1增加1DB的增益
@@ -25035,11 +25094,22 @@ namespace ScannerBackgrdServer
 
             //       "name":"CONFIG_SMS_CONTENT_MSG",           //4.10  FAP 配置下发短信号码和内容
             //      {
+            //                  sms_ctrl;           //上号后是否自动发送短信。0：不自动发送；1：自动发关,2019-02-26
             //					"bSMSOriginalNumLen":XXX	    主叫号码长度
             //					"bSMSOriginalNum":XXX	    	主叫号码
             //					"bSMSContentLen":XXX	    	短信内容字数
             //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
             //       }
+
+            //(0)
+            if (!string.IsNullOrEmpty(gm.sms_ctrl))
+            {
+                gcAllParaString += string.Format("[sms_ctrl:{0}]", gm.sms_ctrl);
+            }
+            else
+            {
+                gcAllParaString += string.Format("[sms_ctrl:0]");
+            }
 
             //(1)
             if (!string.IsNullOrEmpty(gm.bSMSOriginalNumLen))

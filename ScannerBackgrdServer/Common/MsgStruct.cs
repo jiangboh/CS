@@ -1905,6 +1905,7 @@ namespace ScannerBackgrdServer.Common
         //   [
         //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
         //      {
+        //					"sms_ctrl":XXX	    	        上号后是否自动发送短信。0：不自动发送；1：自动发关
         //					"bSMSOriginalNum":XXX	    	主叫号码
         //					"bSMSContent":XXX	            短信内容.unicode编码，每个字符占2字节
         //       }
@@ -2349,6 +2350,7 @@ namespace ScannerBackgrdServer.Common
         //   [
         //       "name":"CONFIG_SMS_CONTENT_MSG",                 //4.10  FAP 配置下发短信号码和内容
         //      {
+        //					"sms_ctrl":XXX	    	        上号后是否自动发送短信。0：不自动发送；1：自动发关
         //					"bSMSOriginalNumLen":XXX	    主叫号码长度
         //					"bSMSOriginalNum":XXX	    	主叫号码
         //					"bSMSContentLen":XXX	    	短信内容字数
