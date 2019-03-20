@@ -87,6 +87,12 @@ namespace ScannerBackgrdServer.AppController
                 return;
             }
 
+            if (msgBody.type == ApMsgType.device_test_request)
+            {
+                Send2App_device_test_response(appToKen);
+                return;
+            }
+
             if (msgBody.type != ApMsgType.status_response)
             {
                 OnOutputLog(LogInfoType.INFO, string.Format("处理APP[{0}:{1}]消息({2})！",

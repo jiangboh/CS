@@ -16180,7 +16180,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST ：不存在
         ///   RC.EXIST    ：存在
         /// </returns>
-        public int device_unknown_record_exist(string ipAddr)
+        public int device_unknown_record_exist(string ipAddr,int port)
         {
             //UInt32 cnt = 0;
 
@@ -16200,9 +16200,15 @@ namespace ScannerBackgrdServer
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
                 return (int)RC.PAR_LEN_ERR;
-            }           
+            }
 
-            string sql = string.Format("select 1 from device_unknown where ipAddr = '{0}' limit 1", ipAddr);
+            if (port >= 65536)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            string sql = string.Format("select 1 from device_unknown where ipAddr = '{0}' and port = '{1}' limit 1", ipAddr,port);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -16283,7 +16289,7 @@ namespace ScannerBackgrdServer
             }
 
             //检查记录是否存在
-            if ((int)RC.EXIST == device_unknown_record_exist(ipAddr))
+            if ((int)RC.EXIST == device_unknown_record_exist(ipAddr,port))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.EXIST], "DB", LogCategory.I);
                 return (int)RC.EXIST;
@@ -16372,7 +16378,7 @@ namespace ScannerBackgrdServer
 
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr))
+            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr,int.Parse(dev.port)))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;
@@ -16532,7 +16538,7 @@ namespace ScannerBackgrdServer
         ///   RC.NO_EXIST     ：记录不存在
         ///   RC.SUCCESS      ：成功
         /// </returns>
-        public int device_unknown_record_delete(string ipAddr)
+        public int device_unknown_record_delete(string ipAddr,int port)
         {            
             if (false == myDbConnFlag)
             {
@@ -16552,14 +16558,14 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            //if (port > 65535)
-            //{
-            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-            //    return (int)RC.PAR_LEN_ERR;
-            //}
+            if (port > 65535)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
 
             //检查记录是否存在
-            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr))
+            if ((int)RC.NO_EXIST == device_unknown_record_exist(ipAddr,port))
             {
                 Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
                 return (int)RC.NO_EXIST;

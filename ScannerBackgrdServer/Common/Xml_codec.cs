@@ -26,7 +26,7 @@ namespace ScannerBackgrdServer.Common
             if (type < DataController.LogOutputLevel) return;
 
             string outStr = string.Format("{0}", str);
-            Console.WriteLine(outStr);
+            //Console.WriteLine(outStr);
 
             FrmMainController.add_log_info(type, outStr, modeName, category, filePath, memberName,lineNumber);
             Logger.Trace(type, outStr, modeName, category, memberName, filePath, lineNumber);

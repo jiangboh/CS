@@ -116,6 +116,11 @@ namespace Monitor
         private static DateTime endTimeConn = System.DateTime.Now;
         private static TimeSpan tsConn = endTimeConn.Subtract(startTimeConn);
 
+        private static CheckSocket gCheckSocket;
+        private static DateTime startTimeConnPC = System.DateTime.Now;
+        private static DateTime endTimeConnPC = System.DateTime.Now;
+        private static TimeSpan tsConnPC = endTimeConnPC.Subtract(startTimeConnPC);
+
         #endregion
 
         /// <summary>
@@ -206,6 +211,18 @@ namespace Monitor
             }
 
             #endregion
+
+            int[] devicePortList = new int[5];
+            devicePortList[0] = 14783;
+            devicePortList[1] = 14784;
+            devicePortList[2] = 14785;
+            devicePortList[3] = 14786;
+            devicePortList[4] = 14788;
+
+            int[] windowsPortList = new int[1];
+            windowsPortList[0] = 14789;
+
+            gCheckSocket = new CheckSocket(devicePortList, windowsPortList);
         }
 
         private void add_row_2_dgv(string name,long curValue,long stsValue, ref bool failFlag)
@@ -403,7 +420,102 @@ namespace Monitor
                 Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
                 return false;
             }
-        }        
+        }
+
+        /// <summary>
+        /// 检查ID集合的合法性，返回分离后的list
+        /// </summary>
+        /// <param name="idSet">ApPortList:{0}:{1}:{2}:{3}:{4};UiPortList:{5}
+        /// </param>
+        /// <param name=")">返回的ri</param>
+        /// <returns>
+        /// true  ： 合法
+        /// false ： 非法
+        /// </returns>
+        public bool check_and_get_id_set(string idSet, ref List<int> ApPortList,ref List<int> UiPortList)
+        {            
+            if (string.IsNullOrEmpty(idSet))
+            {
+                Logger.Trace(LogInfoType.EROR, "idSet参数为空", "Main", LogCategory.I);
+                return false;
+            }
+
+            if (idSet.Length > 1024)
+            {
+                Logger.Trace(LogInfoType.EROR, "idSet参数长度有误", "Main", LogCategory.I);
+                return false;
+            }
+
+            try
+            {
+                string[] s = idSet.Split(new char[] { ';' });
+
+                if (s.Length <= 0)
+                {
+                    Logger.Trace(LogInfoType.EROR, "s.Length <= 0", "Main", LogCategory.I);
+                    return false;
+                }
+                else if (s.Length != 2)
+                {
+                    Logger.Trace(LogInfoType.EROR, "s.Length != 2", "Main", LogCategory.I);
+                    return false;
+                }
+                else
+                {                 
+                    string[] t = s[0].Split(new char[] { ':' });
+                    if (t.Length > 1)
+                    {                        
+                        for (int i = 1; i < t.Length; i++)
+                        {
+                            try
+                            {
+                                int tmp = int.Parse(t[i]);
+                                ApPortList.Add(tmp);
+                            }
+                            catch (Exception ee)
+                            {
+                                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                                return false;
+                            }
+                        }                       
+                    }
+                    
+                    t = s[1].Split(new char[] { ':' });
+                    if (t.Length > 1)
+                    {
+                        for (int i = 1; i < t.Length; i++)
+                        {
+                            try
+                            {
+                                int tmp = int.Parse(t[i]);
+                                UiPortList.Add(tmp);
+                            }
+                            catch (Exception ee)
+                            {
+                                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                                return false;
+                            }
+                        }                      
+                    }
+
+                }
+
+                if (ApPortList.Count > 0 && UiPortList.Count > 0)
+                {                   
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ee)
+            {
+                startTimeConn = System.DateTime.Now;
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                return false;
+            }
+        }
 
         /// <summary>
         /// 判断进程是否已经存在
@@ -673,8 +785,9 @@ namespace Monitor
                         }
                         else
                         {
-                            logInfo = string.Format("{0},进程关闭失败!", ServerName);
+                            logInfo = string.Format("{0},进程关闭失败,再次关闭！", ServerName);
                             Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                            close_process(ServerName);
                         }
 
                         string fullPath = string.Format("{0}\\{1}.exe", ServerDirectory, ServerName);
@@ -721,6 +834,38 @@ namespace Monitor
 
                     #endregion
                 }
+                else if (info.Contains("ApPortList") && info.Contains("UiPortList"))
+                {
+                    #region 传递各个端口列表
+
+                    string logInfo = "";
+                    List<int> ApPortList = new List<int>();
+                    List<int> UiPortList = new List<int>();
+                    if (false == check_and_get_id_set(info, ref ApPortList,ref UiPortList))
+                    {
+                        Logger.Trace(LogInfoType.EROR, "传递各个端口列表check_and_get_id_set失败", "Main", LogCategory.I);
+                        return;
+                    }
+
+                    int[] lst1 = new int[ApPortList.Count];
+                    for (int i = 0; i < ApPortList.Count; i++)
+                    {
+                        lst1[i] = ApPortList[i];
+                    }
+
+                    int[] lst2 = new int[UiPortList.Count];
+                    for (int i = 0; i < UiPortList.Count; i++)
+                    {
+                        lst2[i] = UiPortList[i];
+                    }
+
+                    gCheckSocket.SetPortList(lst1, lst2);
+
+                    logInfo = string.Format("收到服务器发过来的端口列表:{0},并调用 gCheckSocket.SetPortList", info);
+                    Logger.Trace(LogInfoType.INFO, logInfo, "Main", LogCategory.I);
+
+                    #endregion
+                }
                 else
                 {
                     #region 正常报告处理
@@ -728,7 +873,7 @@ namespace Monitor
                     string logInfo = "";
                     if (false == check_and_get_id_set(info, ref gReportInfo))
                     {
-                        Logger.Trace(LogInfoType.EROR, "check_and_get_id_set失败", "Main", LogCategory.I);
+                        Logger.Trace(LogInfoType.EROR, "正常报告处理check_and_get_id_set失败", "Main", LogCategory.I);
                         return;
                     }
 
@@ -773,8 +918,9 @@ namespace Monitor
                                 }
                                 else
                                 {
-                                    logInfo = string.Format("{0},进程关闭失败!", ServerName);
+                                    logInfo = string.Format("{0},进程关闭失败,再次关闭！", ServerName);
                                     Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                    close_process(ServerName);
                                 }
 
                                 string fullPath = string.Format("{0}\\{1}.exe", ServerDirectory, ServerName);
@@ -823,6 +969,7 @@ namespace Monitor
 
                     #endregion
                 }
+
                 label1LastUpTime.Text = string.Format("{0}/{1}", DateTime.Now.ToShortTimeString(), statusTotalCnt);
                 labelErrRebootCnt.Text = string.Format("{0}/{1}", statusErrorCnt, scannerServerRebootCnt);
             }
@@ -905,7 +1052,9 @@ namespace Monitor
 
 
             string logInfo = "";
-            int timeout = RebootAtDisconn * 60;             
+            int timeout = RebootAtDisconn * 60;
+
+            int timeoutPortCheck = 3 * 60;
 
             #endregion
 
@@ -933,8 +1082,9 @@ namespace Monitor
                             }
                             else
                             {
-                                logInfo = string.Format("{0},进程关闭失败!", ServerName);
+                                logInfo = string.Format("{0},进程关闭失败,再次关闭！", ServerName);
                                 Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                close_process(ServerName);
                             }
 
                             string fullPath = string.Format("{0}\\{1}.exe", ServerDirectory, ServerName);
@@ -990,7 +1140,91 @@ namespace Monitor
                     startTimeConn = System.DateTime.Now;
                     Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
                     continue;
-                }                
+                }
+
+
+                try
+                {
+                    endTimeConnPC = System.DateTime.Now;
+                    tsConnPC = endTimeConnPC.Subtract(startTimeConnPC);
+                    if (tsConnPC.TotalSeconds >= timeoutPortCheck)
+                    {
+                        if (0 != gCheckSocket.start())
+                        {
+                            #region 关闭并重启Server
+
+                            logInfo = string.Format("端口检查gCheckSocket.start失败：关闭并重启Server,{0}/{1}", statusErrorCnt, scannerServerRebootCnt);
+                            Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+
+                            if (process_is_exit(ServerName))
+                            {
+                                if (close_process(ServerName))
+                                {
+                                    logInfo = string.Format("{0},进程关闭成功!", ServerName);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                }
+                                else
+                                {
+                                    logInfo = string.Format("{0},进程关闭失败,再次关闭！", ServerName);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                    close_process(ServerName);
+                                }
+
+                                string fullPath = string.Format("{0}\\{1}.exe", ServerDirectory, ServerName);
+                                if (File.Exists(fullPath))
+                                {
+                                    logInfo = string.Format("{0},重启Server!", fullPath);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+
+                                    //存在文件 
+                                    open_process(fullPath);
+                                    scannerServerRebootCnt++;
+                                }
+                                else
+                                {
+                                    //不存在文件    
+                                    logInfo = string.Format("{0},文件不存在，请确认！", fullPath);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                }
+                            }
+                            else
+                            {
+                                logInfo = string.Format("{0},进程不存在!", ServerName);
+                                Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+
+                                string fullPath = string.Format("{0}\\{1}.exe", ServerDirectory, ServerName);
+                                if (File.Exists(fullPath))
+                                {
+                                    logInfo = string.Format("{0},重启Server!", fullPath);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+
+                                    //存在文件 
+                                    open_process(fullPath);
+                                    scannerServerRebootCnt++;
+                                }
+                                else
+                                {
+                                    //不存在文件    
+                                    logInfo = string.Format("{0},文件不存在，请确认！", fullPath);
+                                    Logger.Trace(LogInfoType.EROR, logInfo, "Main", LogCategory.I);
+                                }
+                            }
+
+                            #endregion                            
+
+                            //线程通过方法的委托执行
+                            Invoke(new UpdateDelegate(UpdateDelegate_Func), new object[] { });
+                        }
+
+                        startTimeConnPC = System.DateTime.Now;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    startTimeConnPC = System.DateTime.Now;
+                    Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                    continue;
+                }
             }
         }
 

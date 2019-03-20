@@ -220,6 +220,10 @@ namespace ScannerBackgrdServer.Common
         public const string set_parameter_request = "set_parameter_request";
         public const string set_param_response = "set_param_response";
 
+        // 2019-03-19 设备的连接测试消息
+        public const string device_test_request = "device_test_request";
+        public const string device_test_response = "device_test_response";
+
         #region GSM设备特有消息类型
         /// <summary>
         /// AGENT透传的GSM格式消息。AP回复消息

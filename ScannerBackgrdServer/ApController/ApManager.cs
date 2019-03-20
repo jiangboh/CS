@@ -47,7 +47,7 @@ namespace ScannerBackgrdServer.ApController
         {
             int count = 0;
 
-            Xml_codec.StaticOutputLog(LogInfoType.INFO, "ApContr收到Main侧消息。", "APContr", LogCategory.R);
+            Xml_codec.StaticOutputLog(LogInfoType.DEBG, "ApContr收到Main侧消息。", "APContr", LogCategory.R);
             Xml_codec.StaticOutputLog(LogInfoType.DEBG, string.Format("消息内容:\n{0}", mb.bJson), "APContr", LogCategory.R);
 
             lock (mutex_Main2Ap_Msg)
@@ -62,8 +62,8 @@ namespace ScannerBackgrdServer.ApController
                 count = rMain2ApMsgQueue.Count;
             }
 
-            string outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{0}！", recvMain2ApContrMsgNum,count);
-            Xml_codec.StaticOutputLog(LogInfoType.DEBG, outStr, "APContr", LogCategory.R);
+            string outStr = string.Format("ApContr共收到设备消息条数:{0},当前队列消息条数：{1}！", recvMain2ApContrMsgNum,count);
+            Xml_codec.StaticOutputLog(LogInfoType.INFO, outStr, "APContr", LogCategory.R);
         }
     }
 
@@ -248,14 +248,14 @@ namespace ScannerBackgrdServer.ApController
 
                     if (noMsg)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(10);
                     }
                     else
                     {
                         if (hNum >= 100)
                         {
                             hNum = 0;
-                            Thread.Sleep(10);
+                            //Thread.Sleep(10);
                         }
                     }
 
@@ -440,6 +440,17 @@ namespace ScannerBackgrdServer.ApController
             //向AP回复心跳
             Msg_Body_Struct TypeKeyValue =
                 new Msg_Body_Struct(ApMsgType.status_request,
+                "timeout", 5,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            SendMsg2Ap(apToKen, 0, TypeKeyValue);
+        }
+
+        protected void Send2ap_device_test_response(AsyncUserToken apToKen)
+        {
+            //向AP回复测试回应
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.device_test_response,
                 "timeout", 5,
                 "timestamp", DateTime.Now.ToLocalTime().ToString());
 

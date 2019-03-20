@@ -86,6 +86,12 @@ namespace ScannerBackgrdServer.ApController
                 return;
             }
 
+            if (msgBody.type == ApMsgType.device_test_request)
+            {
+                Send2ap_device_test_response(apToKen);
+                return;
+            }
+
             if (msgBody.type != ApMsgType.status_response)
             {
                 OnOutputLog(LogInfoType.INFO, string.Format("处理AP[{0}:{1}]消息({2}),消息Id={3}！",

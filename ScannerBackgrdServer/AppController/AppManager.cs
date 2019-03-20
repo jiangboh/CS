@@ -388,7 +388,7 @@ namespace ScannerBackgrdServer.AppController
 
                     if (noMsg)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(10);
                     }
                     else
                     {
@@ -430,7 +430,7 @@ namespace ScannerBackgrdServer.AppController
                     catch (Exception)
                     {
                         OnOutputLog(LogInfoType.EROR, "解析收到的Main模块消息出错！", LogCategory.I);
-                        OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2Ap消息条数:{0}，当前队列消息条数：{1}!",
+                        OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2App消息条数:{0}，当前队列消息条数：{1}!",
                                 AppManager.handleMain2AppContrMsgNum, count));
                         continue;
                     }
@@ -459,7 +459,7 @@ namespace ScannerBackgrdServer.AppController
                     if (ReceiveMainData != null && MainMsg != null)
                         ReceiveMainData(MainMsg);
 
-                    OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2Ap消息条数:{0}，当前队列消息条数：{1}!",
+                    OnOutputLog(LogInfoType.INFO, string.Format("共处理Main2App消息条数:{0}，当前队列消息条数：{1}!",
                                 AppManager.handleMain2AppContrMsgNum, count));
                 }
                 catch (Exception e)
@@ -613,6 +613,17 @@ namespace ScannerBackgrdServer.AppController
                     "ErrStr", str,
                     "RecvType", sType);
             SendMsg2App(appToKen, TypeKeyValue);
+        }
+
+        protected void Send2App_device_test_response(AsyncUserToken apToKen)
+        {
+            //向APP回复测试回应
+            Msg_Body_Struct TypeKeyValue =
+                new Msg_Body_Struct(ApMsgType.device_test_response,
+                "timeout", 5,
+                "timestamp", DateTime.Now.ToLocalTime().ToString());
+
+            SendMsg2App(apToKen,TypeKeyValue);
         }
     }
 }

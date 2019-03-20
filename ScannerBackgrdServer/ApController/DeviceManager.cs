@@ -92,7 +92,7 @@ namespace ScannerBackgrdServer.ApController
             if (type < DataController.LogOutputLevel) return;
 
             string outStr = string.Format("{0}", str);
-            Console.WriteLine(outStr);
+            //Console.WriteLine(outStr);
 
             Xml_codec.StaticOutputLog(type, outStr, DeviceType,category, memberName,filePath,lineNumber);
 
@@ -168,14 +168,14 @@ namespace ScannerBackgrdServer.ApController
 
                     if (noMsg)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(10);
                     }
                     else
                     {
                         if (hNum >= 100)
                         {
                             hNum = 0;
-                            Thread.Sleep(10);
+                            //Thread.Sleep(10);
                         }
                     }                                      
 

@@ -48,6 +48,12 @@ namespace ScannerBackgrdServer
         public string bJson;
     }
 
+    public struct MsgCount       //消息实体
+    {
+        public long total;     
+        public long remaining;
+    }
+
     /// <summary>
     /// 声明消息交互的delegate对象,用于ApCtrl，
     /// MainCtrl和AppCtrl之间进行消息的交互
@@ -1091,6 +1097,9 @@ namespace ScannerBackgrdServer
         private static InterModuleMsgStruct gApLower;
         private static InterModuleMsgStruct gAppUpper;
 
+        private static MsgCount gApLowerMsgCnt = new MsgCount();
+        private static MsgCount gAppUpperMsgCnt = new MsgCount();
+
         private static strBwListSetInfo gBwListSetInfo = new strBwListSetInfo();
 
         /// <summary>
@@ -1734,6 +1743,7 @@ namespace ScannerBackgrdServer
             lock (mutex_Ap_Controller)
             {
                 gMsgFor_Ap_Controller.Enqueue(msgInfo);
+                gApLowerMsgCnt.total++;
             }
         }
 
@@ -3033,7 +3043,7 @@ namespace ScannerBackgrdServer
             {
                 #region 上线处理
 
-                if ((int)RC.EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr))
+                if ((int)RC.EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr,int.Parse(dev.port)))
                 {
                     //设备(未指派)记录已经存在
                     string errInfo = string.Format("未指派设备[{0}:{1}]已经存在", dev.ipAddr, int.Parse(dev.port));
@@ -3118,7 +3128,7 @@ namespace ScannerBackgrdServer
             {
                 #region 下线处理
 
-                if ((int)RC.NO_EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr))
+                if ((int)RC.NO_EXIST == gDbHelperLower.device_unknown_record_exist(dev.ipAddr,int.Parse(dev.port)))
                 {
                     //设备(未指派)记录不存在
 
@@ -3126,7 +3136,7 @@ namespace ScannerBackgrdServer
                 }
 
                 //更新新记录
-                rtv = gDbHelperLower.device_unknown_record_delete(dev.ipAddr);
+                rtv = gDbHelperLower.device_unknown_record_delete(dev.ipAddr, int.Parse(dev.port));
                 if (rtv == 0)
                 {
                     imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
@@ -6138,6 +6148,7 @@ namespace ScannerBackgrdServer
         {
             bool noMsg = false;
             strMsgInfo msgInfo;
+            string infoTmp = "";
 
             DateTime startTime = System.DateTime.Now;
             DateTime endTime = System.DateTime.Now;
@@ -6288,9 +6299,13 @@ namespace ScannerBackgrdServer
 
                         //循环处理从APController接收到的消息
                         msgInfo = gMsgFor_Ap_Controller.Dequeue();
+                        gApLowerMsgCnt.remaining = gMsgFor_Ap_Controller.Count;
 
                         //string tmp = string.Format("【ApCtrl剩余消息数量:{0}】\n", gMsgFor_Ap_Controller.Count);
                         //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.I);
+
+                        infoTmp = string.Format("ApLower消息,总数:{0},剩余{1}", gApLowerMsgCnt.total, gApLowerMsgCnt.remaining);
+                        Logger.Trace(LogInfoType.DEBG, infoTmp, "Main", LogCategory.I);
                     }
 
                     #endregion
@@ -6313,9 +6328,9 @@ namespace ScannerBackgrdServer
                             {
                                 if (ProcessMsg_WithThreadPool)
                                 {
-                                    Logger.Trace(LogInfoType.DEBG, "1:RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.R);
+                                    //Logger.Trace(LogInfoType.DEBG, "1:RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.R);
                                     BeginInvoke(new process_ap_controller_msg_delegate(process_ap_controller_msg), new object[] { msgInfo.mb.bJson });
-                                    Logger.Trace(LogInfoType.DEBG, "2:RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.I);                                    
+                                    //Logger.Trace(LogInfoType.DEBG, "2:RecvFromLower，MSG_JSON:" + msgInfo.mb.bJson, "Main", LogCategory.I);                                    
                                 }
                                 else
                                 {
@@ -11637,7 +11652,7 @@ namespace ScannerBackgrdServer
                                                 #endregion
 
                                                 //更新新记录
-                                                rtv = gDbHelperLower.device_unknown_record_delete(gTimerSetFullName.ipAddr);
+                                                rtv = gDbHelperLower.device_unknown_record_delete(gTimerSetFullName.ipAddr,int.Parse(gTimerSetFullName.port));
                                                 if (rtv != 0)
                                                 {
                                                     string errInfo = string.Format("device_unknown_record_delete出错:{0}", gDbHelperLower.get_rtv_str(rtv));
@@ -11991,6 +12006,7 @@ namespace ScannerBackgrdServer
             lock (mutex_App_Controller)
             {
                 gMsgFor_App_Controller.Enqueue(msgInfo);
+                gAppUpperMsgCnt.total++;
             }
         }
 
@@ -12042,7 +12058,8 @@ namespace ScannerBackgrdServer
         {
             bool noMsg = false;
             strMsgInfo msgInfo;
-          
+            string infoTmp = "";
+
             //DateTime startMonitor = System.DateTime.Now;
             //DateTime endedMonitor = System.DateTime.Now;
             //TimeSpan tsMonitor = endedMonitor.Subtract(startMonitor);
@@ -12124,12 +12141,19 @@ namespace ScannerBackgrdServer
                             continue;
                         }
 
-                        string tmp = string.Format("【线程中处理AppCtrl的消息:{0}】\n", gMsgFor_App_Controller.Count);
-                        Logger.Trace(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
-                        add_log_info(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
+                        //string tmp = string.Format("【线程中处理AppCtrl的消息:{0}】\n", gMsgFor_App_Controller.Count);
+                        //Logger.Trace(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
+                        //add_log_info(LogInfoType.DEBG, tmp, "Main", LogCategory.R);
 
                         //循环处理从AppController接收到的消息
                         msgInfo = gMsgFor_App_Controller.Dequeue();
+                        gAppUpperMsgCnt.remaining = gMsgFor_App_Controller.Count;
+                        
+                        //string tmp = string.Format("【ApCtrl剩余消息数量:{0}】\n", gMsgFor_Ap_Controller.Count);
+                        //Logger.Trace(LogInfoType.EROR, tmp, "Main", LogCategory.I);
+
+                        infoTmp = string.Format("AppUpper消息,总数:{0},剩余{1}", gAppUpperMsgCnt.total, gAppUpperMsgCnt.remaining);
+                        Logger.Trace(LogInfoType.DEBG, infoTmp, "Main", LogCategory.I);
                     }
 
                     #endregion
@@ -12152,9 +12176,9 @@ namespace ScannerBackgrdServer
                             {
                                 if (ProcessMsg_WithThreadPool)
                                 {
-                                    Logger.Trace(LogInfoType.DEBG, "1:RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);                                                                   
+                                    //Logger.Trace(LogInfoType.DEBG, "1:RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.R);                                                                   
                                     BeginInvoke(new process_app_controller_msg_delegate(process_app_controller_msg), new object[] { msgInfo.mb.bJson });
-                                    Logger.Trace(LogInfoType.DEBG, "2:RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.I);
+                                    //Logger.Trace(LogInfoType.DEBG, "2:RecvFromUpper:" + msgInfo.mb.bJson, "Main", LogCategory.I);
                                 }
                                 else
                                 {                                                                       
@@ -16821,7 +16845,7 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 //处理将未指派设备添加确定的设备中                               
-                                if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr))
+                                if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr,int.Parse(port)))
                                 {
                                     string errInfo = string.Format("{0}:{1}对应的未指派设备不存在.", ipAddr, port);
                                     add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -22196,7 +22220,7 @@ namespace ScannerBackgrdServer
                                 break;
                             }
 
-                            if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr))
+                            if ((int)RC.NO_EXIST == gDbHelperUpper.device_unknown_record_exist(ipAddr,int.Parse(port)))
                             {
                                 string errInfo = string.Format("{0}:{1}对应的未指派设备不存在.", ipAddr, port);
 
@@ -28403,6 +28427,24 @@ namespace ScannerBackgrdServer
 
         #region 窗体相关处理
 
+        /// <summary>
+        /// 获取端口列表
+        /// </summary>
+        /// <returns></returns>
+        private string Get_Port_List()
+        {
+            string info = "";
+            info = string.Format("ApPortList:{0}:{1}:{2}:{3}:{4};UiPortList:{5}",
+                DataController.StrStartPortCDMA_ZYF,
+                DataController.StrStartPortGSM_ZYF,
+                DataController.StrStartPortGSM_HJT,
+                DataController.StrStartPortLTE, 
+                DataController.StrStartPortWCDMA,
+                DataController.StrStartPortAppWindows);
+
+            return info;
+        }
+
         public FrmMainController()
         {
             // 打开控件的双缓冲，2018-08-06
@@ -28758,6 +28800,16 @@ namespace ScannerBackgrdServer
             //给方法传值
             thread10.Start("thread_for_slow_process!\n");
             thread10.IsBackground = true;
+
+            #endregion
+
+            #region 发送端口列表串给Monitor
+
+            info = Get_Port_List();
+            send_data_2_monitor(info);
+
+            info = string.Format("发送端口列表串给Monitor:{0}", info);
+            Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
 
             #endregion
         }
