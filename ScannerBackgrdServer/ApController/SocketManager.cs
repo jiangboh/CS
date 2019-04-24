@@ -130,6 +130,7 @@ namespace ScannerBackgrdServer.ApController
                 m_bufferManager.SetBuffer(readWriteEventArg);
                 // add SocketAsyncEventArg to the pool  
                 m_pool.Push(readWriteEventArg);
+                //log(LogInfoType.WARN, string.Format("当前Socket Accept 栈内数量[{0}]！", m_pool.Count));
             }
             log(LogInfoType.INFO , "初始化Socket完成！最大连接数为:" + m_maxConnectNum + ".");
         }
@@ -147,7 +148,8 @@ namespace ScannerBackgrdServer.ApController
                 listenSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 listenSocket.Bind(localEndPoint);
                 // start the server with a listen backlog of 100 connections  
-                listenSocket.Listen(m_maxConnectNum);
+                //listenSocket.Listen(m_maxConnectNum);
+                listenSocket.Listen(10);
                 // post accepts on the listening socket  
                 StartAccept(null);
 
@@ -300,9 +302,9 @@ namespace ScannerBackgrdServer.ApController
             try
             {
                 // check if the remote host closed the connection  
-                AsyncUserToken token = (AsyncUserToken)e.UserToken;
                 if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
                 {
+                    AsyncUserToken token = (AsyncUserToken)e.UserToken;
                     //读取数据  
                     byte[] data = new byte[e.BytesTransferred];
                     Array.Copy(e.Buffer, e.Offset, data, 0, e.BytesTransferred);
@@ -396,7 +398,7 @@ namespace ScannerBackgrdServer.ApController
         private void CloseClientSocket(SocketAsyncEventArgs e)
         {
             AsyncUserToken token = e.UserToken as AsyncUserToken;
-
+            log(LogInfoType.WARN, string.Format("关闭前Socket Accept 栈内数量[{0}]！", m_pool.Count));
             lock (m_clients) { m_clients.Remove(token); }
             //如果有事件,则调用事件,发送客户端数量变化通知  
             //log(LogInfoType.EROR, string.Format("设备[{0}:{1}]TCP连接断开！当前连接数：{2}！",
@@ -416,6 +418,7 @@ namespace ScannerBackgrdServer.ApController
             // Free the SocketAsyncEventArg so they can be reused by another client  
             e.UserToken = new AsyncUserToken();
             m_pool.Push(e);
+            //log(LogInfoType.WARN, string.Format("关闭后Socket Accept 栈内数量[{0}]！", m_pool.Count));
         }
 
         public void CloseClientSocket(AsyncUserToken token)
@@ -433,6 +436,7 @@ namespace ScannerBackgrdServer.ApController
             token.Socket.Close();
             // decrement the counter keeping track of the total number of clients connected to the server  
             Interlocked.Decrement(ref m_clientCount);
+			m_maxNumberAcceptedClients.Release();
         }
 
 

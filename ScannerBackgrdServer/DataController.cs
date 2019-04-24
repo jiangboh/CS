@@ -28,10 +28,13 @@ namespace ScannerBackgrdServer
         private static string strFtpIpAddr = "172.17.0.104";
         private static string strFtpUserId = "root";
         private static string strFtpUserPsw = "root";
+        private static string strLogUserId = "root";
+        private static string strLogUserPsw = "root";
         private static string strFtpPort = "21";
         private static string strFtpImsiDir = "IMSI";
         private static string strApFtpUploadDir = "ApFtp";        
         private static string strFtpUpdateDir = "Update";
+        private static string strFtpApLogDir = "ApLog";
 
         private static string strDbBatchUpdateRecordsLevel = "6";
         private static string strDbMaxIdleSeconds = "60";
@@ -171,11 +174,14 @@ namespace ScannerBackgrdServer
         public static string StrFtpIpAddr { get => strFtpIpAddr; set => strFtpIpAddr = value; }
         public static string StrFtpUserId { get => strFtpUserId; set => strFtpUserId = value; }
         public static string StrFtpUserPsw { get => strFtpUserPsw; set => strFtpUserPsw = value; }
+        public static string StrLogUserId { get => strLogUserId; set => strLogUserId = value; }
+        public static string StrLogUserPsw { get => strLogUserPsw; set => strLogUserPsw = value; }
         public static string StrFtpPort { get => strFtpPort; set => strFtpPort = value; }
         public static string StrFtpImsiDir { get => strFtpImsiDir; set => strFtpImsiDir = value; }
         public static string StrFtpUpdateDir { get => strFtpUpdateDir; set => strFtpUpdateDir = value; }
+        public static string StrFtpApLogDir { get => strFtpApLogDir; set => strFtpApLogDir = value; }
 
-       
+
         public static string StrDbMaxIdleSeconds { get => strDbMaxIdleSeconds; set => strDbMaxIdleSeconds = value; }
         public static string StrFtpMaxIdleSeconds { get => strFtpMaxIdleSeconds; set => strFtpMaxIdleSeconds = value; }
 
@@ -280,9 +286,13 @@ namespace ScannerBackgrdServer
                 strFtpUserId = ConfigurationManager.AppSettings["strFtpUserId"].ToString();
                 strFtpUserPsw = ConfigurationManager.AppSettings["strFtpUserPsw"].ToString();
                 strFtpUserPsw = Common.Common.Decode(StrFtpUserPsw);
+                strLogUserId = ConfigurationManager.AppSettings["strLogUserId"].ToString();
+                strLogUserPsw = ConfigurationManager.AppSettings["strLogUserPsw"].ToString();
+                strLogUserPsw = Common.Common.Decode(StrLogUserPsw);
                 strFtpPort = ConfigurationManager.AppSettings["strFtpPort"].ToString();
                 strFtpImsiDir = ConfigurationManager.AppSettings["strFtpImsiDir"].ToString();
                 strFtpUpdateDir = ConfigurationManager.AppSettings["strFtpUpdateDir"].ToString();
+                strFtpApLogDir = ConfigurationManager.AppSettings["strFtpApLogDir"].ToString();
 
                 strDbBatchUpdateRecordsLevel = ConfigurationManager.AppSettings["strDbBatchUpdateRecordsLevel"].ToString();
                 strDbMaxIdleSeconds = ConfigurationManager.AppSettings["strDbMaxIdleSeconds"].ToString();

@@ -2732,8 +2732,11 @@ namespace ScannerBackgrdServer.Common
         //    "strFtpIpAddr":"127.0.0.1",         //FTP服务器IP地址
         //    "strFtpUserId": "ftpuser",          //FTP用户名
         //    "strFtpUserPsw":"ftpuser",          //FTP用户密码
+        //    "strLogUserId": "loguser",          //Log用户名     //2019-04-02
+        //    "strLogUserPsw":"loguser",          //Log用户密码    //2019-04-02
         //    "strFtpPort":"21",                  //FTP端口
         //    "strFtpUpdateDir": "Update",        //FTP的更新路径
+        //    "strFtpApLogDir": "ApLog",          //ApLog的更新路径  //2019-04-02
         //    "strStartPortCDMA_ZYF": "14783",    //CDMA，ZYF的端口
         //    "strStartPortGSM_ZYF": "14784",     //GSM，ZYF的端口
         //    "strStartPortGSM_HJT": "14785",     //GSM，HJT的端口

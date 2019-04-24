@@ -88,6 +88,7 @@
     <Compile Include="ApController\Ap_GSM_HJT.cs" />
     <Compile Include="ApController\Ap_GSM_ZYF.cs" />
     <Compile Include="ApController\Ap_Lte.cs" />
+    <Compile Include="ApController\Ap_Tds.cs" />
     <Compile Include="ApController\Ap_WCDMA.cs" />
     <Compile Include="ApController\AsyncUserToken.cs" />
     <Compile Include="ApController\BufferManager.cs" />

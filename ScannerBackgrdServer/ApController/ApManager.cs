@@ -177,7 +177,7 @@ namespace ScannerBackgrdServer.ApController
                         int i = MyDeviceList.remov(x);
                         if (i != -1)
                         {
-                            //CloseToken(x);
+                            CloseToken(x);
                             OnOutputLog(LogInfoType.INFO, string.Format("Ap[{0}:{1}]下线了！！！", x.IPAddress, x.Port.ToString()));
                             Send2main_OnOffLine(OffLine, i, x, MainControllerStatus);
                         }

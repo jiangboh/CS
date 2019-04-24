@@ -3057,7 +3057,7 @@ namespace ScannerBackgrdServer
                 if (rtv == 0)
                 {
                     //更新新记录
-                    rtv = gDbHelperLower.device_unknown_record_update(dev.ipAddr, dev);
+                    rtv = gDbHelperLower.device_unknown_record_update(dev.ipAddr, int.Parse(dev.port),dev);
                     if (rtv == 0)
                     {
                         imms.Body.type = Main2ApControllerMsgType.OnOffLine_Ack;
@@ -6801,6 +6801,7 @@ namespace ScannerBackgrdServer
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_TDD:
                                 case devMode.MODE_LTE_FDD:
+                                case devMode.MODE_TD_SCDMA:  //2019-04-02
                                     {
                                         #region 获取消息
 
@@ -7463,13 +7464,14 @@ namespace ScannerBackgrdServer
 
                                         #endregion
                                     }
-                                case devMode.MODE_TD_SCDMA:
-                                    {
-                                        break;
-                                    }
+                                //case devMode.MODE_TD_SCDMA:
+                                //    {
+                                //        break;
+                                //    }
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA: // 2019-04-02
                                     {
                                         break;
                                     }
@@ -7858,6 +7860,7 @@ namespace ScannerBackgrdServer
                                     case devMode.MODE_WCDMA:
                                     case devMode.MODE_LTE_TDD:
                                     case devMode.MODE_LTE_FDD:
+                                    case devMode.MODE_TD_SCDMA: // 2019-04-02
                                         {
                                             #region LTE处理
 
@@ -9572,6 +9575,7 @@ namespace ScannerBackgrdServer
                                     case devMode.MODE_WCDMA:
                                     case devMode.MODE_LTE_TDD:
                                     case devMode.MODE_LTE_FDD:
+                                    case devMode.MODE_TD_SCDMA: // 2019-04-02
                                         {
                                             #region LTE处理
 
@@ -13349,15 +13353,15 @@ namespace ScannerBackgrdServer
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
 
-                List<string> lstImsi = new List<string>();          
+                List<string> lstImsi = new List<string>();                         
                 rtv = helper.capture_record_entity_query(cq, ref lstImsi);
-                
+
                 sw.Stop();
                 TimeSpan ts2 = sw.Elapsed;
 
                 queryTime = (int)Math.Ceiling(ts2.TotalMilliseconds);
 
-                errInfo = string.Format("{0} {1} {2}", cq.timeStart, cq.timeEnded, queryTime);
+                errInfo = string.Format("{0} {1} 查询时间:{2} 条数:{3}", cq.timeStart, cq.timeEnded, queryTime, lstImsi.Count);
                 FrmMainController.add_log_info(LogInfoType.WARN, errInfo, "DB", LogCategory.I);
 
                 if (rtv != (int)RC.SUCCESS)
@@ -13403,7 +13407,6 @@ namespace ScannerBackgrdServer
         /// 统计记录的处理
         /// </summary>
         /// <param name="imms"></param>
-        //private void path_record_process_delegate_fun(InterModuleMsgStruct imms)
         private void path_record_process_delegate_fun(object immsObj)
         {
             string errInfo = "";
@@ -17530,13 +17533,14 @@ namespace ScannerBackgrdServer
 
                                         #endregion                               
                                     }
-                                case devMode.MODE_TD_SCDMA:
-                                    {
-                                        break;
-                                    }
+                                //case devMode.MODE_TD_SCDMA:
+                                //    {
+                                //        break;
+                                //    }
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA: // 2019-04-02
                                     {
                                         #region LTE详细信息
 
@@ -20754,13 +20758,14 @@ namespace ScannerBackgrdServer
 
                                         #endregion
                                     }
-                                case devMode.MODE_TD_SCDMA:
-                                    {
-                                        break;
-                                    }
+                                //case devMode.MODE_TD_SCDMA:
+                                //    {
+                                //        break;
+                                //    }
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA: // 2019-04-02
                                     {
                                         #region LTE
 
@@ -20886,7 +20891,8 @@ namespace ScannerBackgrdServer
                                 // 2018-07-04,2018-08-20
                                 if (devInfo.devMode != devMode.MODE_WCDMA &&
                                     devInfo.devMode != devMode.MODE_LTE_FDD &&
-                                    devInfo.devMode != devMode.MODE_LTE_TDD)
+                                    devInfo.devMode != devMode.MODE_LTE_TDD &&
+                                    devInfo.devMode != devMode.MODE_TD_SCDMA)  //2019-04-02
                                 {
                                     //返回出错处理
                                     string errInfo = string.Format("devMode = {0},该设备没有没有通用参数.", devInfo.devMode.ToString());
@@ -20917,6 +20923,7 @@ namespace ScannerBackgrdServer
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
+                                case devMode.MODE_TD_SCDMA: // 2019-04-02
                                     {
                                         #region LTE
 
@@ -21372,10 +21379,10 @@ namespace ScannerBackgrdServer
 
                                         #endregion
                                     }
-                                case devMode.MODE_TD_SCDMA:
-                                    {
-                                        break;
-                                    }
+                                //case devMode.MODE_TD_SCDMA:
+                                //    {
+                                //        break;
+                                //    }
                                 case devMode.MODE_UNKNOWN:
                                     {
                                         break;
@@ -21667,6 +21674,8 @@ namespace ScannerBackgrdServer
 
                             int devId = -1;
                             strDevice strDev = new strDevice();
+                            string pathInfo = "";
+
                             for (int i = 0; i < gUpdateInfo.listDevId.Count; i++)
                             {
                                 devId = gUpdateInfo.listDevId[i];
@@ -21696,7 +21705,9 @@ namespace ScannerBackgrdServer
                                     gAppUpper.Body.dic.Add("version", gUpdateInfo.version);
                                     gAppUpper.Body.dic.Add("filename", gUpdateInfo.fileName);
                                     gAppUpper.Body.dic.Add("ftp_type", 1);
-                                    gAppUpper.Body.dic.Add("serverAdd", DataController.StrFtpIpAddr + ":" + DataController.StrFtpPort);
+
+                                    pathInfo = string.Format("{0}/{1}:{2}", DataController.StrFtpIpAddr, DataController.StrFtpUpdateDir, DataController.StrFtpPort);
+                                    gAppUpper.Body.dic.Add("serverAdd", pathInfo);
 
                                     //发送给ApController
                                     Send_Msg_2_ApCtrl_Lower(gAppUpper);
@@ -24817,16 +24828,16 @@ namespace ScannerBackgrdServer
 
                             //    "ReturnCode": 0，                   //返回码：0,成功；其它值为失败
                             //    "ReturnStr": "成功"，                //失败原因值。ReturnCode不为0时有意义
-
                             //    "strDbIpAddr":"127.0.0.1",          //数据库IP地址    
                             //    "logOutputLevel": "1",              //DEBG = "0", INFO = "1",WARN = "2", EROR = "3"
-
                             //    "strFtpIpAddr":"127.0.0.1",         //FTP服务器IP地址
                             //    "strFtpUserId": "ftpuser",          //FTP用户名
                             //    "strFtpUserPsw":"ftpuser",          //FTP用户密码
+                            //    "strLogUserId": "loguser",          //Log用户名     //2019-04-02
+                            //    "strLogUserPsw":"loguser",          //Log用户密码    //2019-04-02
                             //    "strFtpPort":"21",                  //FTP端口
                             //    "strFtpUpdateDir": "Update",        //FTP的更新路径
-
+                            //    "strFtpApLogDir": "ApLog",          //ApLog的更新路径  //2019-04-02
                             //    "strStartPortCDMA_ZYF": "14783",    //CDMA，ZYF的端口
                             //    "strStartPortGSM_ZYF": "14784",     //GSM，ZYF的端口
                             //    "strStartPortGSM_HJT": "14785",     //GSM，HJT的端口
@@ -24836,23 +24847,24 @@ namespace ScannerBackgrdServer
                             //    "strStartPortAppWindows": "14789",  //Windows APP的端口
                             //    "strStartPortAppLinux": "14790",    //Linux APP的端口
                             //    "strStartPortAppAndroid": "14791",  //Android APP的端口
-
                             //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
                             //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
-
                             //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
                             //    "apFtpUploadNameFormat": "%A_[%#I]_%04y_%02m_%02d_%02h_%02f_%02s.pns"                   //文件名格式定义
                             //    "apFtpUploadDataFormat": "%E,%S,%U,%04y-%02m-%02d %02h:%02f:%02s,%R,%.6J,%.6W,%O\r\n"   //数据格式定义
-                            //    "imsiThresholdValue": "0.7"                                                             //IMSI的分析阈值
-
+                            //    "imsiThresholdValue": "0.7"       
+                            //IMSI的分析阈值
                             gAppUpper.Body.dic.Add("strDbIpAddr",DataController.StrDbIpAddr);
                             gAppUpper.Body.dic.Add("logOutputLevel", ((int)DataController.LogOutputLevel).ToString());
 
                             gAppUpper.Body.dic.Add("strFtpIpAddr", DataController.StrFtpIpAddr);
                             gAppUpper.Body.dic.Add("strFtpUserId", DataController.StrFtpUserId);
                             gAppUpper.Body.dic.Add("strFtpUserPsw", DataController.StrFtpUserPsw);
+                            gAppUpper.Body.dic.Add("strLogUserId", DataController.StrLogUserId);
+                            gAppUpper.Body.dic.Add("strLogUserPsw", DataController.StrLogUserPsw);
                             gAppUpper.Body.dic.Add("strFtpPort", DataController.StrFtpPort);                            
                             gAppUpper.Body.dic.Add("strFtpUpdateDir", DataController.StrFtpUpdateDir);
+                            gAppUpper.Body.dic.Add("strFtpApLogDir", DataController.StrFtpApLogDir);
 
                             gAppUpper.Body.dic.Add("strStartPortCDMA_ZYF", DataController.StrStartPortCDMA_ZYF);
                             gAppUpper.Body.dic.Add("strStartPortGSM_ZYF", DataController.StrStartPortGSM_ZYF);
@@ -28434,11 +28446,12 @@ namespace ScannerBackgrdServer
         private string Get_Port_List()
         {
             string info = "";
-            info = string.Format("ApPortList:{0}:{1}:{2}:{3}:{4};UiPortList:{5}",
+            info = string.Format("ApPortList:{0}:{1}:{2}:{3}:{4}:{5};UiPortList:{6}",
                 DataController.StrStartPortCDMA_ZYF,
                 DataController.StrStartPortGSM_ZYF,
                 DataController.StrStartPortGSM_HJT,
-                DataController.StrStartPortLTE, 
+                DataController.StrStartPortLTE,
+                DataController.StrStartPortTDS,   // 2019-04-02
                 DataController.StrStartPortWCDMA,
                 DataController.StrStartPortAppWindows);
 
@@ -28486,6 +28499,9 @@ namespace ScannerBackgrdServer
                 new Ap_GSM_ZYF().Start(int.Parse(DataController.StrStartPortGSM_ZYF));
                 new Ap_CDMA_ZYF().Start(int.Parse(DataController.StrStartPortCDMA_ZYF));
                 new Ap_GSM_HJT().Start(int.Parse(DataController.StrStartPortGSM_HJT));
+
+                // 2010-04-01
+                new Ap_Tds().Start(int.Parse(DataController.StrStartPortTDS));
             }
             catch (Exception ee)
             {
@@ -28639,6 +28655,8 @@ namespace ScannerBackgrdServer
             //int ff = gDicImsiParse.Count;
             //string fist = gDicImsiParse.Keys.First();
             //gDicImsiParse.Remove(fist);
+
+            //string str5 = Common.Common.Encode("loguser");
 
             #region 启动UI的Log线程
 
@@ -28806,11 +28824,20 @@ namespace ScannerBackgrdServer
             #region 发送端口列表串给Monitor
 
             info = Get_Port_List();
-            send_data_2_monitor(info);
 
-            info = string.Format("发送端口列表串给Monitor:{0}", info);
-            Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
-
+            if (process_is_exit("Monitor"))
+            {
+                send_data_2_monitor(info);
+                info = string.Format("发送端口列表串给Monitor:{0}", info);
+                Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+            }
+            else
+            {
+                info = string.Format("Monitor进程不存在!");
+                add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+            }
+            
             #endregion
         }
 
@@ -28999,9 +29026,10 @@ namespace ScannerBackgrdServer
             string ddddd = Common.Common.Decode(str1);
 
             string str2 = Common.Common.Encode("ftpuser");
-
             string str3 = Common.Common.Decode("Af8SZ2BneUw=");
             string str4 = Common.Common.Decode("S4N5N1nIj1Y=");
+
+            string str5 = Common.Common.Encode("loguser");
 
             string strxx = "1,2,3,t";
             string[] s = strxx.Split(new char[] { ',' });
@@ -29032,7 +29060,12 @@ namespace ScannerBackgrdServer
 
         private void button3_Click(object sender, EventArgs e)
         {
+            int b = 0;
+            string aaaa = null;
 
+
+            string bbbbb = aaaa.Insert(0, "1232132");
+            int a = 123 / b;
 
             int operFlag = 1;
 
@@ -30399,13 +30432,14 @@ namespace ScannerBackgrdServer
 
                         #endregion
                     }                                
-                case devMode.MODE_TD_SCDMA:
-                    {
-                        break;
-                    }
+                //case devMode.MODE_TD_SCDMA:
+                //    {
+                //        break;
+                //    }
                 case devMode.MODE_WCDMA:
                 case devMode.MODE_LTE_FDD:
                 case devMode.MODE_LTE_TDD:
+                case devMode.MODE_TD_SCDMA: // 2019-04-02
                     {
                         #region LTE
 
@@ -31988,11 +32022,12 @@ namespace ScannerBackgrdServer
                 foreach (KeyValuePair<string, strDevice> kv in gDicDevFullName)
                 {
                     strDevice dev = kv.Value;
-
+                    
                     if (dev.devMode == devMode.MODE_WCDMA ||
                         dev.devMode == devMode.MODE_LTE_TDD ||
-                        dev.devMode == devMode.MODE_LTE_FDD)
-                    {
+                        dev.devMode == devMode.MODE_LTE_FDD ||
+                        dev.devMode == devMode.MODE_TD_SCDMA)  // 2019-04-02
+                    { 
                         strBIE_LTE str = new strBIE_LTE();
 
                         rtv = gDbHelperUpper.ap_general_para_record_get_by_devid(dev.id, ref apGP);

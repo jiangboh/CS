@@ -121,11 +121,12 @@ namespace ScannerBackgrdServer
                     }
 
                     System.Threading.Thread.Sleep(100);
-                    System.Environment.Exit(System.Environment.ExitCode);                   
+                    //System.Environment.Exit(System.Environment.ExitCode);                   
                 }
 
                 SaveLog("CurrentDomain_UnhandledException_ExitApp... " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                 System.Threading.Thread.Sleep(2 * 1000);
+                System.Environment.Exit(-1);
             };
         }
 
@@ -158,12 +159,12 @@ namespace ScannerBackgrdServer
                     }
 
                     System.Threading.Thread.Sleep(100);
-
-                    System.Environment.Exit(System.Environment.ExitCode);
+                    //System.Environment.Exit(System.Environment.ExitCode);
                 }
 
-                SaveLog("Application_ThreadException_ExitApp... " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
+                SaveLog("Application_ThreadException_ExitApp_New... " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
                 System.Threading.Thread.Sleep(2 * 1000);
+                System.Environment.Exit(-1);
             };
         }
 
