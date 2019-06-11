@@ -10,11 +10,11 @@ using static ScannerBackgrdServer.Common.MsgStruct;
 
 namespace ScannerBackgrdServer.AppController
 {
-    class App_Windows : AppBase
+    class App_ThirdParty : AppBase
     {
-        private string MODE_NAME = AppInnerType.APP_WINDOWS.ToString();
+        private string MODE_NAME = AppInnerType.APP_ThirdParty.ToString();
 
-        public App_Windows()
+        public App_ThirdParty()
         {
             DeviceType = MODE_NAME;
             AppBase.ReceiveMainData += OnReceiveMainMsg;
@@ -67,7 +67,7 @@ namespace ScannerBackgrdServer.AppController
             catch (Exception)
             {
                 OnOutputLog(LogInfoType.EROR, "解析收到的App消息出错。JSON格式错误！");
-                SendErrorMsg2App(appToKen,null, "解析收到的App消息出错。JSON格式错误！");
+                SendErrorMsg2App(appToKen, null, "解析收到的App消息出错。JSON格式错误！");
                 return;
             }
 
@@ -77,7 +77,7 @@ namespace ScannerBackgrdServer.AppController
                 SendErrorMsg2App(appToKen, null, "收到消息格式错误！");
                 OnOutputLog(LogInfoType.DEBG, "出错消息内容：" + msg);
                 return;
-            }            
+            }
 
             Msg_Body_Struct msgBody = AppMsg.Body;
             if (msgBody == null)
@@ -157,7 +157,7 @@ namespace ScannerBackgrdServer.AppController
                 return;
             }
 
-            OnOutputLog(LogInfoType.INFO, string.Format("处理MainController消息。消息类型:{0}。",MainMsg.Body.type ));
+            OnOutputLog(LogInfoType.INFO, string.Format("处理MainController消息。消息类型:{0}。", MainMsg.Body.type));
 
             DeviceServerMsgStruct deviceServerMsgStruct = new DeviceServerMsgStruct();
             deviceServerMsgStruct.Version = MainMsg.Version;

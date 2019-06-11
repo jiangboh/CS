@@ -716,6 +716,8 @@ namespace ScannerBackgrdServer
             // 2018-10-31
             private bool sameNameCover;
 
+            // 2019-05-07
+            private bool hasRspFromAp;
 
             #endregion
 
@@ -743,6 +745,7 @@ namespace ScannerBackgrdServer
             public string MsgType { get => msgType; set => msgType = value; }
             public bool TimeOutFlag { get => timeOutFlag; set => timeOutFlag = value; }
             public bool SameNameCover { get => sameNameCover; set => sameNameCover = value; }
+            public bool HasRspFromAp { get => hasRspFromAp; set => hasRspFromAp = value; }
 
             public string parentFullPathName;
             public string devName;
@@ -935,7 +938,8 @@ namespace ScannerBackgrdServer
             STATISTICS = 2,  //统计分析
             RESIDENT = 3,    //常住人口
             COLLISION = 4,   //碰撞分析
-            ACCOMPANY = 5    //伴随分析
+            ACCOMPANY = 5,   //伴随分析
+            DELETEIMSI = 6   //删除IMSI
         }
 
         public struct strSlowSetInfo
@@ -1190,13 +1194,15 @@ namespace ScannerBackgrdServer
         /// </summary>
         private static Dictionary<string, strMsCallHistoryQuery> gDicStrMsCallHistoryQuery = new Dictionary<string, strMsCallHistoryQuery>();
 
-
         /// <summary>
         /// 用于保存多个APP获取(截获的短信)
         /// string : 172.17.0.123:12345
         /// strBwListQueryInfo : 查询条件 + 查询结果
         /// </summary>
         private static Dictionary<string, strMsSmsHistoryQuery> gDicStrMsSmsHistoryQuery = new Dictionary<string, strMsSmsHistoryQuery>();
+
+        // 重定向对齐标志
+        private bool redirectAligFlag = false;
 
         #endregion
 
@@ -7047,7 +7053,9 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_GSM_V2:
+                                case devMode.MODE_GSM_V3:  //2019-05-09
                                 case devMode.MODE_CDMA:
+                                case devMode.MODE_CDMA_V3: //2019-05-09
                                     {
                                         #region 获取消息
 
@@ -7411,7 +7419,9 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_GSM_V2:
+                                case devMode.MODE_GSM_V3:   //2019-05-09
                                 case devMode.MODE_CDMA:
+                                case devMode.MODE_CDMA_V3:  //2019-05-09
                                     {
                                         #region GSM-V2/CDMA                                       
 
@@ -7463,11 +7473,7 @@ namespace ScannerBackgrdServer
                                         break;
 
                                         #endregion
-                                    }
-                                //case devMode.MODE_TD_SCDMA:
-                                //    {
-                                //        break;
-                                //    }
+                                    }                  
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
@@ -7685,7 +7691,9 @@ namespace ScannerBackgrdServer
                                             #endregion                                     
                                         }
                                     case devMode.MODE_GSM_V2:
+                                    case devMode.MODE_GSM_V3:   //2019-05-09
                                     case devMode.MODE_CDMA:
+                                    case devMode.MODE_CDMA_V3:  //2019-05-09
                                         {
                                             #region GSM-V2处理
 
@@ -8836,7 +8844,9 @@ namespace ScannerBackgrdServer
                                             #endregion                                            
                                         }
                                     case devMode.MODE_GSM_V2:
+                                    case devMode.MODE_GSM_V3:   //2019-05-09
                                     case devMode.MODE_CDMA:
+                                    case devMode.MODE_CDMA_V3:  //2019-05-09
                                         {
                                             #region GSM-V2/CDMA处理
 
@@ -11120,14 +11130,7 @@ namespace ScannerBackgrdServer
                                     if (rtv != 0)
                                     {
                                         string errInfo = "";
-                                        if (daInfo.dm == devMode.MODE_CDMA || daInfo.dm == devMode.MODE_GSM_V2)
-                                        {
-                                            errInfo = string.Format("gc_imsi_action_record_delete失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-                                        else
-                                        {
-                                            errInfo = string.Format("bwlist_record_bwflag_delete失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
+                                        errInfo = string.Format("dm = {0},bwlist_record_bwflag_delete失败:{1}", daInfo.dm,gDbHelperLower.get_rtv_str(rtv));                                       
 
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -11174,16 +11177,9 @@ namespace ScannerBackgrdServer
 
                                     if (rtv != 0)
                                     {
-                                        string errInfo = "";
-                                        if (daInfo.dm == devMode.MODE_CDMA || daInfo.dm == devMode.MODE_GSM_V2)
-                                        {
-                                            errInfo = string.Format("gc_imsi_action_record_insert_batch失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-                                        else
-                                        {
-                                            errInfo = string.Format("bwlist_record_insert_batch失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-
+                                        string errInfo = "";                                        
+                                        errInfo = string.Format("dm = {0},bwlist_record_insert_batch失败:{1}", daInfo.dm,gDbHelperLower.get_rtv_str(rtv));
+                                       
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -11251,15 +11247,8 @@ namespace ScannerBackgrdServer
                                     if (rtv != 0)
                                     {
                                         string errInfo = "";
-                                        if (daInfo.dm == devMode.MODE_CDMA || daInfo.dm == devMode.MODE_GSM_V2)
-                                        {
-                                            errInfo = string.Format("gc_imsi_action_record_delete失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-                                        else
-                                        {
-                                            errInfo = string.Format("bwlist_record_bwflag_delete失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-
+                                        errInfo = string.Format("dm = {0},bwlist_record_bwflag_delete失败:{1}", daInfo.dm,gDbHelperLower.get_rtv_str(rtv));
+                                        
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
 
@@ -11305,14 +11294,7 @@ namespace ScannerBackgrdServer
                                     if (rtv != 0)
                                     {
                                         string errInfo = "";
-                                        if (daInfo.dm == devMode.MODE_CDMA || daInfo.dm == devMode.MODE_GSM_V2)
-                                        {
-                                            errInfo = string.Format("gc_imsi_action_record_insert_batch失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
-                                        else
-                                        {
-                                            errInfo = string.Format("bwlist_record_insert_batch失败:{0}", gDbHelperLower.get_rtv_str(rtv));
-                                        }
+                                        errInfo = string.Format("dm = {0},bwlist_record_insert_batch失败:{1}", daInfo.dm, gDbHelperLower.get_rtv_str(rtv));                                        
 
                                         add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
                                         Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -11567,6 +11549,7 @@ namespace ScannerBackgrdServer
                                         #region 计时器尚未超时
 
                                         gTimerSetFullName.Stop();
+                                        gTimerSetFullName.HasRspFromAp = true;
 
                                         //修改消息type
                                         gApLower.Body.type = AppMsgType.app_add_device_response;
@@ -12378,7 +12361,9 @@ namespace ScannerBackgrdServer
         private bool collision_record_query_flag = true;
 
         private bool accompany_record_query_flag = true;
-        
+
+        private bool deleteimsi_record_query_flag = true;
+
         private bool path_record_query_flag = true;              
 
         /// <summary>
@@ -15089,6 +15074,123 @@ namespace ScannerBackgrdServer
         }
 
         /// <summary>
+        /// 删除IMSI处理，2019-05-05
+        /// </summary>
+        /// <param name="imms"></param>   
+        private void delete_imsi_record_process_delegate_fun(object immsObj, DbHelper helper)
+        {
+            string errInfo = "";
+            InterModuleMsgStruct imms = (InterModuleMsgStruct)immsObj;
+
+            if (deleteimsi_record_query_flag == false)
+            {
+                errInfo = string.Format("上次的删除IMSI尚未完成，请稍后再试试！");
+                add_log_info(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.WARN, errInfo, "Main", LogCategory.I);
+
+                Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_delete_response, -1, errInfo, true, null, null);
+                Send_Msg_2_AppCtrl_Upper(imms);
+                return;
+            }
+
+            try
+            {
+                #region 获取信息     
+
+                //
+                //  删除IMSI历史记录的请求
+                //"type":"app_history_record_delete_request"   
+                //"dic":
+                //    {                  
+                //   "timeStart":"2019-05-05 12:34:56",    //开始时间，为""时表示从最早的时间开始
+                //   "timeEnded":"2019-05-05 22:34:56",    //结束时间，为""时表示到最晚的时间结束
+                //},
+                //
+
+                int rtv = -1;
+                string timeStart = "";
+                string timeEnded = "";
+                                          
+                if (imms.Body.dic.ContainsKey("timeStart"))
+                {
+                    if (!string.IsNullOrEmpty(imms.Body.dic["timeStart"].ToString()))
+                    {
+                        timeStart = imms.Body.dic["timeStart"].ToString();
+                    }
+                }
+                else
+                {
+                    errInfo = get_debug_info() + string.Format("没包含timeStart字段");
+                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_delete_response, -1, errInfo, true, null, null);
+                    Send_Msg_2_AppCtrl_Upper(imms);
+                    return;
+                }
+
+                if (imms.Body.dic.ContainsKey("timeEnded"))
+                {
+                    if (!string.IsNullOrEmpty(imms.Body.dic["timeEnded"].ToString()))
+                    {
+                        timeEnded = imms.Body.dic["timeEnded"].ToString();                        
+                    }                    
+                }
+                else
+                {
+                    errInfo = get_debug_info() + string.Format("没包含timeEnded字段");
+                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_delete_response, -1, errInfo, true, null, null);
+                    Send_Msg_2_AppCtrl_Upper(imms);
+                    return;
+                }
+
+                #endregion
+
+                #region 返回消息            
+
+                deleteimsi_record_query_flag = false;
+
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+
+                rtv = helper.capture_record_entity_query_delete(timeStart, timeEnded, ref errInfo);
+                if (rtv != (int)RC.SUCCESS)
+                {
+                    Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_delete_response, rtv, helper.get_rtv_str(rtv), true, null, null);
+                    Send_Msg_2_AppCtrl_Upper(imms);
+                    deleteimsi_record_query_flag = true;
+                    return;
+                }
+                                            
+                sw.Stop();
+                TimeSpan ts2 = sw.Elapsed;
+                int queryTime = (int)Math.Ceiling(ts2.TotalMilliseconds);
+
+                //    "ReturnCode": 返回码：0,成功；其它值为失败
+                //    "ReturnStr" : 失败原因值。ReturnCode不为0时有意义
+                //    "queryTime" : "123ms"  //查询时间，单位毫秒 
+
+                Fill_IMMS_Info(ref imms, AppMsgType.app_history_record_delete_response, rtv, helper.get_rtv_str(rtv), true, null, null);                
+                imms.Body.dic.Add("queryTime", queryTime.ToString() + "ms");
+                deleteimsi_record_query_flag = true;
+                Send_Msg_2_AppCtrl_Upper(imms);
+                return;
+
+                #endregion
+            }
+            catch (Exception ee)
+            {
+                deleteimsi_record_query_flag = true;
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                return;
+            }
+        }
+
+        /// <summary>
         /// 获取黑白普通名单列表信息
         /// </summary>
         /// <param name="app"></param>
@@ -15404,6 +15506,46 @@ namespace ScannerBackgrdServer
             //Send_Msg_2_ApCtrl_Lower(imms);
      
             return true;
+        }
+
+        /// <summary>
+        /// 判断FTP的Update路径下是否存在文件fileName,2019-05-06
+        /// </summary>
+        /// <param name="fileName">要判断的文件名</param>
+        /// <returns>
+        /// false ： 不存在
+        /// true  ： 存在
+        /// </returns>
+        private bool exist_file_in_ftp_dir(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                string errInfo = string.Format("exist_file_in_ftp_dir,fileName is null.");
+                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                return false;
+            }
+
+            try
+            {
+                string[] ss = gFtpHelperFile.Dir("");
+                foreach (string str in ss)
+                {
+                    if (str == fileName)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ee)
+            {
+                string errInfo = string.Format("exist_file_in_ftp_dir失败,{0}.", ee.Message + ee.StackTrace);
+                add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                return false;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -15956,9 +16098,80 @@ namespace ScannerBackgrdServer
                                 }
                             }
 
-                            break;
+                            #endregion
 
-                            #endregion                            
+                            #region 下发修改全名,2019-05-07
+
+                            foreach (KeyValuePair<string, strDevice> item in gDicDevFullName)
+                            {
+                                if (item.Key.Contains(newNameFullPath))
+                                {
+                                    //站点newNameFullPath下有设备
+                                    if (item.Value.online == "1")
+                                    {
+                                        #region 发下命令设置fullname           
+
+                                        gAppUpper.ApInfo.SN = item.Value.sn;
+                                        gAppUpper.ApInfo.Fullname = item.Key;
+                                        gAppUpper.ApInfo.IP = item.Value.ipAddr;
+                                        gAppUpper.ApInfo.Port = int.Parse(item.Value.port);
+                                        gAppUpper.ApInfo.Type = item.Value.innerType;
+
+                                        gAppUpper.Body.type = ApMsgType.set_parameter_request;
+                                        gAppUpper.MsgType = MsgType.CONFIG.ToString();
+
+                                        gAppUpper.Body.dic = new Dictionary<string, object>();
+                                        gAppUpper.Body.dic.Add("paramName", "CFG_FULL_NAME");
+
+                                        gAppUpper.Body.dic.Add("paramValue", item.Key);
+
+                                        //发送给ApController
+                                        Send_Msg_2_ApCtrl_Lower(gAppUpper);
+
+                                        #endregion
+
+                                        #region 启动超时计时器 
+
+                                        gTimerSetFullName = new TaskTimer();
+                                        gTimerSetFullName.Interval = DataController.TimerTimeOutInterval * 1000;
+
+                                        gTimerSetFullName.Id = 0;
+                                        gTimerSetFullName.Name = "gTimerSetFullName";
+                                        gTimerSetFullName.MsgType = AppMsgType.app_del_device_unknown_response;
+                                        gTimerSetFullName.TimeOutFlag = false;
+                                        gTimerSetFullName.HasRspFromAp = false;
+                                        gTimerSetFullName.Imms = gAppUpper;
+
+                                        gTimerSetFullName.Elapsed += new System.Timers.ElapsedEventHandler(TimerFunc);
+                                        gTimerSetFullName.Start();
+
+                                        #endregion
+
+                                        #region 等待响应或超时
+
+                                        while (true)
+                                        {
+                                            if (gTimerSetFullName.HasRspFromAp == true)
+                                            {
+                                                break;
+                                            }
+
+                                            if (gTimerSetFullName.TimeOutFlag == true)
+                                            {
+                                                break;
+                                            }
+
+                                            Thread.Sleep(100);
+                                        }
+
+                                        #endregion
+                                    }
+                                }
+                            }
+
+                            #endregion
+
+                            break;
                         }
                     case AppMsgType.app_login_request:
                         {
@@ -16646,9 +16859,9 @@ namespace ScannerBackgrdServer
                             string name = "";
                             string mode = "";
                             string parentFullPathName = "";
-
+                            
+                            string ipAddr = "";
                             string port = "";
-                            string ipAddr = "";                            
 
                             // 未指派标识
                             bool noAssignedFlag = false;
@@ -16876,7 +17089,7 @@ namespace ScannerBackgrdServer
                                     string fullname = string.Format("{0}.{1}", parentFullPathName, name);
 
                                     DataTable dt = new DataTable();
-                                    rtv = gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, ref dt);
+                                    rtv = gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, int.Parse(port),ref dt);
 
                                     if (((int)RC.SUCCESS != rtv) || (dt.Rows.Count == 0))
                                     {
@@ -16918,6 +17131,7 @@ namespace ScannerBackgrdServer
                                     gTimerSetFullName.Name = string.Format("{0}:{1}:{2}", "gTimerSetFullName", ipAddr, port);
                                     gTimerSetFullName.MsgType = AppMsgType.app_add_device_response;
                                     gTimerSetFullName.TimeOutFlag = false;
+                                    gTimerSetFullName.HasRspFromAp = false;
                                     gTimerSetFullName.Imms = gAppUpper;
                                     gTimerSetFullName.SameNameCover = sameNameCover;
 
@@ -17098,7 +17312,7 @@ namespace ScannerBackgrdServer
 
                             int affDomainId = -1;
                             string parentFullPathName = "";
-                            string name = "";
+                            string name = "";                            
 
                             if (gAppUpper.Body.dic.ContainsKey("parentFullPathName"))
                             {
@@ -17221,6 +17435,87 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.n_dic = new List<Name_DIC_Struct>();
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
+
+                            #region 下发全名处理,2019-05-07
+
+                            if (name != dev.name)
+                            {
+                                string info = "";
+                                string fullNmae = string.Format("{0}.{1}", parentFullPathName,dev.name);
+
+                                #region 重新获取gDicDevFullName
+
+                                if (0 == gDbHelperUpper.domain_dictionary_info_join_get(ref gDicDevFullName, ref gDicDevId_Station_DevName))
+                                {
+                                    add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取OK！", "Main", LogCategory.I);
+
+                                    print_dic_dev_fullname_info("app_del_device_request", gDicDevFullName);
+                                }
+                                else
+                                {
+                                    add_log_info(LogInfoType.INFO, "gDicDevFullName -> 获取FAILED！", "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.INFO, "gDicDevFullName -> 获取FAILED！", "Main", LogCategory.I);
+                                }
+
+                                #endregion
+
+                                if (gDicDevFullName.Keys.Contains(fullNmae))
+                                {
+                                    dev = new strDevice();
+                                    dev = gDicDevFullName[fullNmae];
+                                }
+                                else
+                                {
+                                    info = string.Format("gDicDevFullName中不包含:{0}", fullNmae);
+                                    add_log_info(LogInfoType.EROR, info, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, info, "Main", LogCategory.I);
+                                    break;
+                                }
+
+                                if (dev.online == "1")
+                                {
+                                    #region 发下命令设置fullname           
+
+                                    gAppUpper.ApInfo.SN = dev.sn;
+                                    gAppUpper.ApInfo.Fullname = fullNmae;
+                                    gAppUpper.ApInfo.IP = dev.ipAddr;
+                                    gAppUpper.ApInfo.Port = int.Parse(dev.port);
+                                    gAppUpper.ApInfo.Type = dev.innerType;
+
+                                    gAppUpper.Body.type = ApMsgType.set_parameter_request;
+                                    gAppUpper.MsgType = MsgType.CONFIG.ToString();
+
+                                    gAppUpper.Body.dic = new Dictionary<string, object>();
+                                    gAppUpper.Body.dic.Add("paramName", "CFG_FULL_NAME");
+                                    gAppUpper.Body.dic.Add("paramValue", fullNmae);
+
+                                    //发送给ApController
+                                    Send_Msg_2_ApCtrl_Lower(gAppUpper);
+
+                                    #endregion
+
+                                    #region 启动超时计时器 
+
+                                    gTimerSetFullName = new TaskTimer();
+                                    gTimerSetFullName.Interval = DataController.TimerTimeOutInterval * 1000;
+
+                                    gTimerSetFullName.Id = 0;
+                                    gTimerSetFullName.Name = "gTimerSetFullName";
+                                    gTimerSetFullName.MsgType = AppMsgType.app_del_device_unknown_response;
+                                    gTimerSetFullName.TimeOutFlag = false;
+                                    gTimerSetFullName.HasRspFromAp = false;
+                                    gTimerSetFullName.Imms = gAppUpper;
+
+                                    gTimerSetFullName.Elapsed += new System.Timers.ElapsedEventHandler(TimerFunc);
+                                    gTimerSetFullName.Start();
+
+                                    #endregion
+                                }
+                            }
+
+                            #endregion
+
                             break;
 
                             #endregion         
@@ -17352,6 +17647,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_GSM_V2:
+                                case devMode.MODE_GSM_V3:  //2019-05-09
                                     {
                                         #region GSM详细信息
 
@@ -17471,6 +17767,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_CDMA:
+                                case devMode.MODE_CDMA_V3:  //2019-05-09
                                     {
                                         #region CDMA详细信息
 
@@ -17532,11 +17829,7 @@ namespace ScannerBackgrdServer
                                         break;
 
                                         #endregion                               
-                                    }
-                                //case devMode.MODE_TD_SCDMA:
-                                //    {
-                                //        break;
-                                //    }
+                                    }                                
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
@@ -20693,6 +20986,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_GSM_V2:
+                                case devMode.MODE_GSM_V3:   //2019-05-09
                                     {
                                         #region GSM-V2处理
 
@@ -20732,6 +21026,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_CDMA:
+                                case devMode.MODE_CDMA_V3:  //2019-05-09
                                     {
                                         #region CDMA处理
 
@@ -20757,11 +21052,7 @@ namespace ScannerBackgrdServer
                                         break;
 
                                         #endregion
-                                    }
-                                //case devMode.MODE_TD_SCDMA:
-                                //    {
-                                //        break;
-                                //    }
+                                    }                               
                                 case devMode.MODE_WCDMA:
                                 case devMode.MODE_LTE_FDD:
                                 case devMode.MODE_LTE_TDD:
@@ -21238,6 +21529,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_GSM_V2:
+                                case devMode.MODE_GSM_V3:   //2019-05-09
                                     {
                                         #region GSM-V2                                     
 
@@ -21309,6 +21601,7 @@ namespace ScannerBackgrdServer
                                         #endregion
                                     }
                                 case devMode.MODE_CDMA:
+                                case devMode.MODE_CDMA_V3:  //2019-05-09
                                     {
                                         #region CDMA                                 
 
@@ -21378,11 +21671,7 @@ namespace ScannerBackgrdServer
                                         break;
 
                                         #endregion
-                                    }
-                                //case devMode.MODE_TD_SCDMA:
-                                //    {
-                                //        break;
-                                //    }
+                                    }                              
                                 case devMode.MODE_UNKNOWN:
                                     {
                                         break;
@@ -21404,6 +21693,7 @@ namespace ScannerBackgrdServer
                             string md5 = "";
                             string fileName = "";
                             string version = "";
+                            string info;
 
                             if (gAppUpper.Body.dic.ContainsKey("md5"))
                             {
@@ -21463,17 +21753,56 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("ftpServerIp", DataController.StrFtpIpAddr);
                             gAppUpper.Body.dic.Add("ftpPort", DataController.StrFtpPort);
 
+                            // 2019-05-06
+                            bool fileExist = exist_file_in_ftp_dir(gUpdateInfo.fileName);
+
+                            if (fileExist == true)
+                            {
+                                info = string.Format("Ftp的Update目录下存在文件:{0}\n", gUpdateInfo.fileName);
+                                add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                            }
+                            else
+                            {
+                                info = string.Format("Ftp的Update目录下不存在文件:{0}\n", gUpdateInfo.fileName);
+                                add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                            }
+
                             if ((int)RC.NO_EXIST == gDbHelperUpper.update_info_record_exist(gUpdateInfo.md5))
                             {
-                                //FTP服务器上不存在该文件，需要界面上传
+                                //数据库中不存在记录信息,需要界面上传
                                 gAppUpper.Body.dic.Add("needToUpdate", "1");
                                 gUpdateInfo.needToUpdate = true;
                             }
                             else
                             {
-                                //FTP服务器上已经存在该文件，不需要界面上传
-                                gAppUpper.Body.dic.Add("needToUpdate", "0");
-                                gUpdateInfo.needToUpdate = false;
+                                //数据库中存在记录信息
+
+                                if (fileExist == true)
+                                {
+                                    //FTP服务器上已经存在该文件，不需要界面上传
+                                    gAppUpper.Body.dic.Add("needToUpdate", "0");
+                                    gUpdateInfo.needToUpdate = false;
+                                }
+                                else
+                                {
+                                    if ((int)RC.SUCCESS == gDbHelperUpper.update_info_record_delete(gUpdateInfo.md5))
+                                    {
+                                        info = string.Format("update_info_record_delete,删除:{0}成功.\n", gUpdateInfo.md5);
+                                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                    }
+                                    else
+                                    {
+                                        info = string.Format("update_info_record_delete,删除:{0}失败.\n", gUpdateInfo.md5);
+                                        add_log_info(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                        Logger.Trace(LogInfoType.INFO, info, "Main", LogCategory.I);
+                                    }
+
+                                    gAppUpper.Body.dic.Add("needToUpdate", "1");
+                                    gUpdateInfo.needToUpdate = true;
+                                }
                             }
 
                             Send_Msg_2_AppCtrl_Upper(gAppUpper);
@@ -21706,7 +22035,11 @@ namespace ScannerBackgrdServer
                                     gAppUpper.Body.dic.Add("filename", gUpdateInfo.fileName);
                                     gAppUpper.Body.dic.Add("ftp_type", 1);
 
-                                    pathInfo = string.Format("{0}/{1}:{2}", DataController.StrFtpIpAddr, DataController.StrFtpUpdateDir, DataController.StrFtpPort);
+                                    //2019-04-12
+                                    pathInfo = string.Format("{0}:{1}/{2}", DataController.StrFtpIpAddr,
+                                                                            DataController.StrFtpPort,
+                                                                            DataController.StrFtpUpdateDir);
+
                                     gAppUpper.Body.dic.Add("serverAdd", pathInfo);
 
                                     //发送给ApController
@@ -21731,6 +22064,49 @@ namespace ScannerBackgrdServer
                             slow.type = slowType.HISTORY;
 
                             #region 拆箱处理，2019-02-27
+
+                            slow.imms = new IMMS();
+                            slow.imms.Version = gAppUpper.Version;
+
+                            slow.imms.ApInfo.SN = gAppUpper.ApInfo.SN;
+                            slow.imms.ApInfo.Fullname = gAppUpper.ApInfo.Fullname;
+                            slow.imms.ApInfo.IP = gAppUpper.ApInfo.IP;
+                            slow.imms.ApInfo.Port = gAppUpper.ApInfo.Port;
+                            slow.imms.ApInfo.Type = gAppUpper.ApInfo.Type;
+
+                            slow.imms.Body.type = gAppUpper.Body.type;
+                            slow.imms.Body.dic = gAppUpper.Body.dic;
+                            slow.imms.Body.n_dic = gAppUpper.Body.n_dic;
+
+                            slow.imms.MsgType = gAppUpper.MsgType;
+
+                            slow.imms.AppInfo.User = gAppUpper.AppInfo.User;
+                            slow.imms.AppInfo.Group = gAppUpper.AppInfo.Group;
+                            slow.imms.AppInfo.Domain = gAppUpper.AppInfo.Domain;
+                            slow.imms.AppInfo.Ip = gAppUpper.AppInfo.Ip;
+                            slow.imms.AppInfo.Port = gAppUpper.AppInfo.Port;
+                            slow.imms.AppInfo.Type = gAppUpper.AppInfo.Type;
+
+                            #endregion
+
+                            //入队处理
+                            lock (mutex_slow)
+                            {
+                                gSlowProcess.Enqueue(slow);
+                            }
+
+                            break;
+
+                            #endregion
+                        }
+                    case AppMsgType.app_history_record_delete_request:
+                        {
+                            #region 异步处理                            
+
+                            strSlowSetInfo slow = new strSlowSetInfo();
+                            slow.type = slowType.DELETEIMSI;
+
+                            #region 拆箱处理，2019-05-05
 
                             slow.imms = new IMMS();
                             slow.imms.Version = gAppUpper.Version;
@@ -22248,7 +22624,7 @@ namespace ScannerBackgrdServer
                             #region 发下命令设置fullname           
 
                             DataTable dt = new DataTable();
-                            if (0 != gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr, ref dt))
+                            if (0 != gDbHelperUpper.device_unknown_record_entity_get_by_ipaddr_port(ipAddr,int.Parse(port), ref dt))
                             {
                                 string errInfo = get_debug_info() + "device_unknown_record_entity_get_by_ipaddr_port失败.";
                                 add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
@@ -22282,37 +22658,7 @@ namespace ScannerBackgrdServer
 
                             gAppUpper.Body.dic = new Dictionary<string, object>();
                             gAppUpper.Body.dic.Add("paramName", "CFG_FULL_NAME");
-
-
-                            //byte[] gbk = Encoding.GetEncoding("GBK").GetBytes(fullname);
-
-                            // byte[] gbk = Encoding.Default.GetBytes(fullname);
-
-
-                            //string code = "";
-                            //foreach (byte b in gbk)
-                            //{
-                            //    code += string.Format("{0:X2}", b);
-                            //}
-
-                            //code = Encoding.GetEncoding("GBK").GetString(Encoding.GetEncoding("GBK").GetBytes(fullname));
-
-                            // string code = Encoding.GetEncoding("GBK").GetString(gbk);
-
-                            // string code = Encoding.GetEncoding("GBK").GetString(gbk);                           
-
-                            //string temp = string.Empty;
-                            //UTF8Encoding utf8 = new UTF8Encoding();
-
-                            //byte[] encodedBytes = utf8.GetBytes(fullname);
-
-                            //foreach (byte b in encodedBytes)
-                            //{
-                            //    temp += "%" + b.ToString("X");
-                            //}
-
-                            //fullname = Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(fullname));
-
+                           
                             gAppUpper.Body.dic.Add("paramValue", fullname);
 
                             //发送给ApController
@@ -22329,6 +22675,7 @@ namespace ScannerBackgrdServer
                             gTimerSetFullName.Name = "gTimerSetFullName";
                             gTimerSetFullName.MsgType = AppMsgType.app_del_device_unknown_response;
                             gTimerSetFullName.TimeOutFlag = false;
+                            gTimerSetFullName.HasRspFromAp = false;
                             gTimerSetFullName.Imms = gAppUpper;
 
                             gTimerSetFullName.Elapsed += new System.Timers.ElapsedEventHandler(TimerFunc);
@@ -24847,6 +25194,7 @@ namespace ScannerBackgrdServer
                             //    "strStartPortAppWindows": "14789",  //Windows APP的端口
                             //    "strStartPortAppLinux": "14790",    //Linux APP的端口
                             //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+                            //    "strStartPortAppThirdParty": "14792",  //第三方APP的端口
                             //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
                             //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
                             //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
@@ -24875,6 +25223,7 @@ namespace ScannerBackgrdServer
                             gAppUpper.Body.dic.Add("strStartPortAppWindows", DataController.StrStartPortAppWindows);
                             gAppUpper.Body.dic.Add("strStartPortAppLinux", DataController.StrStartPortAppLinux);
                             gAppUpper.Body.dic.Add("strStartPortAppAndroid", DataController.StrStartPortAppAndroid);
+                            gAppUpper.Body.dic.Add("strStartPortAppThirdParty", DataController.StrStartPortAppThirdParty);
 
                             gAppUpper.Body.dic.Add("dataAlignMode", DataController.DataAlignMode.ToString());
                             gAppUpper.Body.dic.Add("logMaxSize", DataController.LogMaxSize.ToString());
@@ -24916,6 +25265,7 @@ namespace ScannerBackgrdServer
                             //    "strStartPortAppWindows": "14789",  //Windows APP的端口
                             //    "strStartPortAppLinux": "14790",    //Linux APP的端口
                             //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+                            //    "strStartPortAppThirdParty": "14792",  //第三方APP的端口
 
                             //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
                             //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB    
@@ -25341,6 +25691,32 @@ namespace ScannerBackgrdServer
                                     if (DataController.StrStartPortAppAndroid != item)
                                     {
                                         DataController.SetConfigValue("strStartPortAppAndroid", item);
+                                        rebootFlag++;
+                                    }
+                                }
+                            }
+
+                            //(16.1)
+                            if (gAppUpper.Body.dic.ContainsKey("strStartPortAppThirdParty"))
+                            {
+                                item = gAppUpper.Body.dic["strStartPortAppThirdParty"].ToString();
+
+                                UInt16 tmp;
+                                if (!UInt16.TryParse(item, out tmp))
+                                {
+                                    string errInfo = string.Format("端口:{0}，非法.", item);
+                                    add_log_info(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+                                    Logger.Trace(LogInfoType.EROR, errInfo, "Main", LogCategory.I);
+
+                                    Fill_IMMS_Info(ref gAppUpper, AppMsgType.app_set_ServerConfig_Response, -1, errInfo, true, null, null);
+                                    Send_Msg_2_AppCtrl_Upper(gAppUpper);
+                                    break;
+                                }
+                                else
+                                {
+                                    if (DataController.StrStartPortAppThirdParty != item)
+                                    {
+                                        DataController.SetConfigValue("strStartPortAppThirdParty", item);
                                         rebootFlag++;
                                     }
                                 }
@@ -28446,14 +28822,15 @@ namespace ScannerBackgrdServer
         private string Get_Port_List()
         {
             string info = "";
-            info = string.Format("ApPortList:{0}:{1}:{2}:{3}:{4}:{5};UiPortList:{6}",
+            info = string.Format("ApPortList:{0}:{1}:{2}:{3}:{4}:{5};UiPortList:{6}:{7}",
                 DataController.StrStartPortCDMA_ZYF,
                 DataController.StrStartPortGSM_ZYF,
                 DataController.StrStartPortGSM_HJT,
                 DataController.StrStartPortLTE,
                 DataController.StrStartPortTDS,   // 2019-04-02
                 DataController.StrStartPortWCDMA,
-                DataController.StrStartPortAppWindows);
+                DataController.StrStartPortAppWindows,
+                DataController.StrStartPortAppThirdParty); // 2019-05-31
 
             return info;
         }
@@ -28516,6 +28893,16 @@ namespace ScannerBackgrdServer
             try
             {
                 new App_Windows().Start(int.Parse(DataController.StrStartPortAppWindows));
+            }
+            catch (Exception ee)
+            {
+                add_log_info(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+                Logger.Trace(LogInfoType.EROR, ee.Message + ee.StackTrace, "Main", LogCategory.I);
+            }
+
+            try
+            {
+                new App_ThirdParty().Start(int.Parse(DataController.StrStartPortAppThirdParty));
             }
             catch (Exception ee)
             {
@@ -29063,6 +29450,9 @@ namespace ScannerBackgrdServer
             int b = 0;
             string aaaa = null;
 
+            string[] ss1 = gFtpHelperFile.Dir("EN1801S117230021_black_ap2.txt");
+
+            gDbHelperUpper.capture_record_entity_query_delete("2019/3/6 12:34:56", "2019-03-07 14:34:56", ref aaaa);
 
             string bbbbb = aaaa.Insert(0, "1232132");
             int a = 123 / b;
@@ -30415,7 +30805,9 @@ namespace ScannerBackgrdServer
                         #endregion
                     }
                 case devMode.MODE_GSM_V2:
+                case devMode.MODE_GSM_V3:    //2019-05-09
                 case devMode.MODE_CDMA:
+                case devMode.MODE_CDMA_V3:   //2019-05-09
                     {
                         #region CDMA/GSM-V2                                     
 
@@ -30432,10 +30824,6 @@ namespace ScannerBackgrdServer
 
                         #endregion
                     }                                
-                //case devMode.MODE_TD_SCDMA:
-                //    {
-                //        break;
-                //    }
                 case devMode.MODE_WCDMA:
                 case devMode.MODE_LTE_FDD:
                 case devMode.MODE_LTE_TDD:
@@ -31024,7 +31412,7 @@ namespace ScannerBackgrdServer
                                     }
                                     else
                                     {
-                                        //等AP的回复，超时
+                                        //等AP的回复，不超时
                                         info = string.Format("AP({0})的BWTYPE_BLACK响应时间为:{1}ms,rspResult = {2}.",
                                             gBwListSetInfo.devFullName,max *50, gBwListSetInfo.rspResult);
 
@@ -32216,7 +32604,8 @@ namespace ScannerBackgrdServer
                 {
                     strDevice dev = kv.Value;
 
-                    if (dev.devMode == devMode.MODE_GSM_V2)
+                    if (dev.devMode == devMode.MODE_GSM_V2 ||
+                        dev.devMode == devMode.MODE_GSM_V3)     //2019-05-09
                     {
                         strBIE_GSM_ZYF str = new strBIE_GSM_ZYF();
 
@@ -34574,6 +34963,11 @@ namespace ScannerBackgrdServer
                         case slowType.ACCOMPANY:
                             {
                                 accompany_record_process_delegate_fun(imms, gDbHelperSlow);
+                                break;
+                            }
+                        case slowType.DELETEIMSI:
+                            {
+                                delete_imsi_record_process_delegate_fun(imms, gDbHelperSlow);
                                 break;
                             }
                         default:

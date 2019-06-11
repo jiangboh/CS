@@ -1752,6 +1752,28 @@ namespace ScannerBackgrdServer.Common
         //}
         public const string app_history_record_exit_response = "app_history_record_exit_response";
 
+
+        //
+        //  删除IMSI历史记录的请求
+        //"type":"app_history_record_delete_request"   
+        //"dic":
+        //    {                  
+        //   "timeStart":"2019-05-05 12:34:56",    //开始时间，为""时表示从最早的时间开始
+        //   "timeEnded":"2019-05-05 22:34:56",    //结束时间，为""时表示到最晚的时间结束
+        //},
+        //
+        public const string app_history_record_delete_request = "app_history_record_delete_request";
+
+        //  
+        //  删除IMSI历史记录的响应
+        //"dic":
+        //    {
+        //    "ReturnCode": 返回码：0,成功；其它值为失败
+        //    "ReturnStr" : 失败原因值。ReturnCode不为0时有意义
+        //    "queryTime" : "123ms"  //查询时间，单位毫秒 
+        //}
+        public const string app_history_record_delete_response = "app_history_record_delete_response";
+
         #endregion
 
         #region GSM设备特有消息类型
@@ -2746,6 +2768,7 @@ namespace ScannerBackgrdServer.Common
         //    "strStartPortAppWindows": "14789",  //Windows APP的端口
         //    "strStartPortAppLinux": "14790",    //Linux APP的端口
         //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+        //    "strStartPortAppThirdParty": "14792",  //第三方APP的端口
         //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
         //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
         //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
@@ -2778,6 +2801,7 @@ namespace ScannerBackgrdServer.Common
         //    "strStartPortAppWindows": "14789",  //Windows APP的端口
         //    "strStartPortAppLinux": "14790",    //Linux APP的端口
         //    "strStartPortAppAndroid": "14791",  //Android APP的端口
+        //    "strStartPortAppThirdParty": "14792",  //第三方 APP的端口
         //    "dataAlignMode": "1",               //数据对齐基准:"0"数据库为基准，"1"以Ap为基准
         //    "logMaxSize": "10",                 //每个Log文件的大小，单位为MB
         //    "apFtpUploadEnable": "1",           //AP直接上传FTP的开关
@@ -3725,7 +3749,9 @@ namespace ScannerBackgrdServer.Common
             CDMA,      //CDMA_ZYF
             WCDMA,
             LTE_TDD,
-            LTE_FDD
+            LTE_FDD,
+            GSM_V3,   //GSM_DECODE
+            CDMA_V3   //CDMA_DECODE
         }
 
         /// <summary>
@@ -3733,7 +3759,8 @@ namespace ScannerBackgrdServer.Common
         /// </summary>
         public enum AppInnerType
         {
-            APP_WINDOWS = 0
+            APP_WINDOWS = 0,
+            APP_ThirdParty 
         }
 
         public enum MsgType

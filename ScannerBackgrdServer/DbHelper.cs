@@ -811,12 +811,14 @@ namespace ScannerBackgrdServer
     {
         MODE_GSM = 0,        //对应"GSM"
         MODE_GSM_V2 = 1,     //对应"GSM-V2"
-        MODE_TD_SCDMA = 2,   //对应"TD-SCDMA"
-        MODE_CDMA = 3,       //对应"CDMA"
-        MODE_WCDMA = 4,      //对应"WCDMA "
-        MODE_LTE_TDD = 5,    //对应"LTE-TDD"
-        MODE_LTE_FDD = 6,    //对应"LTE-TDD"    
-        MODE_UNKNOWN = 7     //"非上述定义类型"
+        MODE_GSM_V3 = 2,     //对应"GSM-V3"   //2019-05-08,译号器
+        MODE_TD_SCDMA = 3,   //对应"TD-SCDMA"
+        MODE_CDMA = 4,       //对应"CDMA"
+        MODE_CDMA_V3 = 5,    //对应"CDMA-V3"  //2019-05-08,译号器
+        MODE_WCDMA = 6,      //对应"WCDMA "
+        MODE_LTE_TDD = 7,    //对应"LTE-TDD"
+        MODE_LTE_FDD = 8,    //对应"LTE-TDD"          
+        MODE_UNKNOWN = 9     //"非上述定义类型"
     }
 
     /// <summary>
@@ -1451,8 +1453,9 @@ namespace ScannerBackgrdServer
                                 #endregion
                             }
                         case devMode.MODE_GSM_V2:
+                        case devMode.MODE_GSM_V3:
                             {
-                                #region GSM-V2                                     
+                                #region GSM-V2/GSM-V3                                     
 
                                 #region 载波0
 
@@ -1567,6 +1570,7 @@ namespace ScannerBackgrdServer
                                 #endregion
                             }
                         case devMode.MODE_CDMA:
+                        case devMode.MODE_CDMA_V3:
                             {
                                 #region CDMA                                       
 
@@ -5942,6 +5946,12 @@ namespace ScannerBackgrdServer
                         devMode = devMode.MODE_GSM_V2;
                         break;
                     }
+                case "GSM_V3":   //2019-05-08
+                case "GSM-V3":
+                    {
+                        devMode = devMode.MODE_GSM_V3;
+                        break;
+                    }
                 case "TD_SCDMA":
                 case "TD-SCDMA":
                     {
@@ -5951,6 +5961,12 @@ namespace ScannerBackgrdServer
                 case "CDMA":
                     {
                         devMode = devMode.MODE_CDMA;
+                        break;
+                    }
+                case "CDMA_V3":   //2019-05-08
+                case "CDMA-V3":
+                    {
+                        devMode = devMode.MODE_CDMA_V3;
                         break;
                     }
                 case "WCDMA":
@@ -5969,7 +5985,7 @@ namespace ScannerBackgrdServer
                     {
                         devMode = devMode.MODE_LTE_FDD;
                         break;
-                    }
+                    }                                
                 default:
                     {
                         devMode = devMode.MODE_UNKNOWN;
@@ -6001,6 +6017,11 @@ namespace ScannerBackgrdServer
                         modeStr = "GSM-V2";
                         break;
                     }
+                case devMode.MODE_GSM_V3:   //2019-05-09
+                    {
+                        modeStr = "GSM-V3";
+                        break;
+                    }
                 case devMode.MODE_TD_SCDMA:
                     {
                         modeStr = "TD-SCDMA";
@@ -6009,6 +6030,11 @@ namespace ScannerBackgrdServer
                 case devMode.MODE_CDMA:
                     {
                         modeStr = "CDMA";
+                        break;
+                    }
+                case devMode.MODE_CDMA_V3:   //2019-05-09
+                    {
+                        modeStr = "CDMA-V3";
                         break;
                     }
                 case devMode.MODE_WCDMA:
@@ -7843,6 +7869,7 @@ namespace ScannerBackgrdServer
                         #endregion
                     }
                 case devMode.MODE_GSM_V2:
+                case devMode.MODE_GSM_V3:  //2019-05-09
                     {
                         #region GSM-V2
 
@@ -7887,6 +7914,7 @@ namespace ScannerBackgrdServer
                         #endregion
                     }
                 case devMode.MODE_CDMA:
+                case devMode.MODE_CDMA_V3: //2019-05-09
                     {
                         #region CDMA
 
@@ -7913,11 +7941,7 @@ namespace ScannerBackgrdServer
                         break;
 
                         #endregion
-                    }
-                //case devMode.MODE_TD_SCDMA:
-                //    {
-                //        break;
-                //    }
+                    }             
                 case devMode.MODE_WCDMA:
                 case devMode.MODE_LTE_FDD:
                 case devMode.MODE_LTE_TDD:
@@ -8678,6 +8702,7 @@ namespace ScannerBackgrdServer
                         #endregion
                     }
                 case devMode.MODE_GSM_V2:
+                case devMode.MODE_GSM_V3: //2019-05-09
                     {
                         #region GSM-V2
 
@@ -8708,12 +8733,9 @@ namespace ScannerBackgrdServer
                         break;
 
                         #endregion
-                    }
-                //case devMode.MODE_TD_SCDMA:
-                //    {
-                //        break;
-                //    }
+                    }             
                 case devMode.MODE_CDMA:
+                case devMode.MODE_CDMA_V3: //2019-05-09
                     {
                         #region CDMA
 
@@ -9180,6 +9202,80 @@ namespace ScannerBackgrdServer
         }
 
         /// <summary>
+        /// 通过所属域ID和名称获获对应上下线状态，2019-05-07
+        /// </summary>
+        /// <param name="onOffLine">
+        /// 0 ： 下线
+        /// 1 ： 上线
+        /// </param>
+        /// <returns>
+        ///   RC.NO_OPEN   ：数据库尚未打开
+        ///   RC.OP_FAIL   ：数据库操作失败 
+        ///   RC.NO_EXIST  ：记录不存在 
+        ///   RC.SUCCESS   ：成功
+        /// </returns>
+        public int device_record_onoffline_get_by_affdomainid_and_name(int affDomainId, string name, ref string onOffLine)
+        {
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_NULL], "DB", LogCategory.I);
+                return (int)RC.PAR_NULL;
+            }
+
+            if (name.Length > 64)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
+
+            //检查记录是否存在
+            if ((int)RC.NO_EXIST == device_record_exist(affDomainId, name))
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_EXIST], "DB", LogCategory.I);
+                return (int)RC.NO_EXIST;
+            }
+
+            onOffLine = "";
+            string sql = string.Format("select online from device where affDomainId = {0} and name = '{1}'", affDomainId, name);
+            
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    using (MySqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {                            
+                            if (!string.IsNullOrEmpty(dr["online"].ToString()))
+                            {
+                                onOffLine = dr["online"].ToString();
+                            }
+                            else
+                            {
+                                onOffLine = "";
+                            }                           
+                        }
+
+                        dr.Close();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
+            }
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
         /// 通过设备ID获取对应上下线状态
         /// </summary>
         /// <param name="onOffLine">
@@ -9215,7 +9311,7 @@ namespace ScannerBackgrdServer
                     using (MySqlDataReader dr = cmd.ExecuteReader())
                     {
                         while (dr.Read())
-                        {                            
+                        {
                             if (!string.IsNullOrEmpty(dr["online"].ToString()))
                             {
                                 onOffLine = dr["online"].ToString();
@@ -9223,7 +9319,7 @@ namespace ScannerBackgrdServer
                             else
                             {
                                 onOffLine = "";
-                            }                           
+                            }
                         }
 
                         dr.Close();
@@ -9233,7 +9329,7 @@ namespace ScannerBackgrdServer
             catch (Exception e)
             {
                 Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
-                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);myDbOperFlag = false;return (int)RC.OP_FAIL;
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace); myDbOperFlag = false; return (int)RC.OP_FAIL;
             }
 
             return (int)RC.SUCCESS;
@@ -11354,6 +11450,99 @@ namespace ScannerBackgrdServer
             info = string.Format("查询sql={0},lstDateTime.Count = {1}\r\n", sql, lstDateTime.Count);
             Logger.Trace(LogInfoType.INFO, info, "DB", LogCategory.I);
             FrmMainController.add_log_info(LogInfoType.INFO, info, "DB", LogCategory.I);
+
+            return (int)RC.SUCCESS;
+        }
+
+        /// <summary>
+        /// 删除指定时间范围的捕号记录
+        /// </summary>
+        /// <param name="startTime">开始时间，为""时表示从最早的时间开始</param>
+        /// <param name="endedTime">结束时间，为""时表示到最晚的时间结束</param>
+        /// <param name="errInfo">出错时的返回信息</param>
+        /// <returns>
+        ///   RC.NO_OPEN      ：数据库尚未打开
+        ///   RC.PAR_NULL     ：参数为空
+        ///   PAR_LEN_ERR     ：参数长度有误
+        ///   RC.OP_FAIL      ：数据库操作失败 
+        ///   RC.SUCCESS      ：成功
+        /// </returns>
+        public int capture_record_entity_query_delete(string startTime,string endedTime,ref string errInfo)
+        {
+            string t1 = "";
+            string t2 = "";
+            DateTime tmp = DateTime.Now;
+
+            if (false == myDbConnFlag)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.NO_OPEN], "DB", LogCategory.I);
+                return (int)RC.NO_OPEN;
+            }
+
+            #region 时间判断处理
+
+            if (string.IsNullOrEmpty(startTime))
+            {
+                t1 = string.Format("1900-01-01 12:34:56");
+            }
+            else
+            {
+                if (false == DateTime.TryParse(startTime, out tmp))
+                {
+                    errInfo = string.Format("startTime = {0},解析错误.", startTime);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+
+                t1 = tmp.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+
+            if (string.IsNullOrEmpty(endedTime))
+            {
+                t2 = string.Format("2900-01-01 12:34:56");
+            }
+            else
+            {
+                if (false == DateTime.TryParse(endedTime, out tmp))
+                {
+                    errInfo = string.Format("endedTime = {0},解析错误.", endedTime);
+                    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                    return (int)RC.PAR_FMT_ERR;
+                }
+
+                t2 = tmp.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+
+            if (DateTime.Compare(DateTime.Parse(t1), DateTime.Parse(t2)) >= 0) 
+            {
+                errInfo = string.Format("endedTime = {0},解析错误.", endedTime);
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_FMT_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_FMT_ERR;
+            }
+
+            #endregion
+            
+            string sql = "";
+            sql = string.Format("delete from capture where time >= '{0}' and time <= '{1}'", t1, t2);
+
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
+                {
+                    if (cmd.ExecuteNonQuery() < 0)
+                    {
+                        Logger.Trace(LogInfoType.EROR, sql, "DB", LogCategory.I);
+                        myDbOperFlag = false; return (int)RC.OP_FAIL;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Trace(LogInfoType.EROR, e.Message + e.StackTrace, "DB", LogCategory.I);
+                dicRTV[(int)RC.OP_FAIL] = string.Format("数据库操作失败:{0}", e.Message + e.StackTrace);
+                myDbOperFlag = false;
+                return (int)RC.OP_FAIL;
+            }
 
             return (int)RC.SUCCESS;
         }
@@ -16997,7 +17186,7 @@ namespace ScannerBackgrdServer
         ///   RC.OP_FAIL   ：数据库操作失败 
         ///   RC.SUCCESS   ：成功
         /// </returns>
-        public int device_unknown_record_entity_get_by_ipaddr_port(string ipAddr, ref DataTable dt)
+        public int device_unknown_record_entity_get_by_ipaddr_port(string ipAddr, int port,ref DataTable dt)
         {
             if (false == myDbConnFlag)
             {
@@ -17017,11 +17206,11 @@ namespace ScannerBackgrdServer
                 return (int)RC.PAR_LEN_ERR;
             }
 
-            //if (port > 65535)
-            //{
-            //    Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
-            //    return (int)RC.PAR_LEN_ERR;
-            //}
+            if (port > 65535)
+            {
+                Logger.Trace(LogInfoType.EROR, dicRTV[(int)RC.PAR_LEN_ERR], "DB", LogCategory.I);
+                return (int)RC.PAR_LEN_ERR;
+            }
 
             dt = new DataTable("device_unknown");
 
@@ -17086,7 +17275,7 @@ namespace ScannerBackgrdServer
             dt.Columns.Add(column10);
             dt.Columns.Add(column11);
 
-            string sql = string.Format("select * from device_unknown where ipAddr = '{0}'", ipAddr);
+            string sql = string.Format("select * from device_unknown where ipAddr = '{0}' and port = {1}", ipAddr,port);
             try
             {
                 using (MySqlCommand cmd = new MySqlCommand(sql, myDbConn))
@@ -20320,6 +20509,7 @@ namespace ScannerBackgrdServer
         /// <param name="category">
         /// 名单类别 
         /// 0:white,1:black,2:other
+        /// 3:所有类型
         /// </param>
         /// <param name="affDeviceId">所属设备ID</param>
         /// <param name="rd">affDeviceId对应的详细信息</param>
@@ -20440,6 +20630,50 @@ namespace ScannerBackgrdServer
             }
 
             return (int)RC.SUCCESS;
+        }
+
+
+        /// <summary>
+        /// 获取设备对应的对齐字符串,2019-05-07
+        /// </summary>
+        /// <param name="affDeviceId">设备ID</param>
+        /// <param name="alignString">对齐字符串</param>
+        /// <returns></returns>
+        public int redirection_record_align_string_by_devid(int affDeviceId, ref string alignString)
+        {
+            int rtv;
+            List<strRedirection> lstRD = new List<strRedirection>();
+
+            rtv = redirection_record_get_by_devid(3, affDeviceId, ref lstRD);
+            if (rtv != (int)RC.SUCCESS)
+            {
+                return rtv;
+            }
+
+            if (lstRD.Count == 0)
+            {
+                alignString = string.Format("[]");
+            }
+            else
+            {              
+                alignString = "";
+                foreach (strRedirection str in lstRD)
+                {
+                    alignString += string.Format("[category:{0}]", str.category);
+                    alignString += string.Format("[priority:{0}]", str.priority);
+                    alignString += string.Format("[GeranRedirect:{0}]", str.GeranRedirect);
+                    alignString += string.Format("[arfcn:{0}]", str.arfcn);
+                    alignString += string.Format("[UtranRedirect:{0}]", str.UtranRedirect);
+                    alignString += string.Format("[uarfcn:{0}]", str.uarfcn);
+                    alignString += string.Format("[EutranRedirect:{0}]", str.EutranRedirect);
+                    alignString += string.Format("[earfcn:{0}]", str.earfcn);
+                    alignString += string.Format("[RejectMethod:{0}]", str.RejectMethod);
+                    alignString += string.Format("[additionalFreq:{0}]", str.additionalFreq);
+                }
+            }
+
+            return (int)RC.SUCCESS;
+
         }
 
         /// <summary>

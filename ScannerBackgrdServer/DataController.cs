@@ -54,6 +54,7 @@ namespace ScannerBackgrdServer
         private static string strStartPortAppWindows = "14789";
         private static string strStartPortAppLinux = "14790";
         private static string strStartPortAppAndroid = "14791";
+        private static string strStartPortAppThirdParty = "14792"; //2019-05-31        
 
         private static int _apOnLineTime = 180;
         private static int _appOnLineTime = 180;
@@ -196,6 +197,7 @@ namespace ScannerBackgrdServer
         public static string StrStartPortAppWindows { get => strStartPortAppWindows; set => strStartPortAppWindows = value; }
         public static string StrStartPortAppLinux { get => strStartPortAppLinux; set => strStartPortAppLinux = value; }
         public static string StrStartPortAppAndroid { get => strStartPortAppAndroid; set => strStartPortAppAndroid = value; }
+        public static string StrStartPortAppThirdParty { get => strStartPortAppThirdParty; set => strStartPortAppThirdParty = value; }
 
         public static int ApOnLineTime { get => _apOnLineTime; set => _apOnLineTime = value; }
         public static int AppOnLineTime { get => _appOnLineTime; set => _appOnLineTime = value; }
@@ -311,6 +313,7 @@ namespace ScannerBackgrdServer
                 strStartPortAppWindows = ConfigurationManager.AppSettings["strStartPortAppWindows"].ToString();
                 strStartPortAppLinux = ConfigurationManager.AppSettings["strStartPortAppLinux"].ToString();
                 strStartPortAppAndroid = ConfigurationManager.AppSettings["strStartPortAppAndroid"].ToString();
+                strStartPortAppThirdParty = ConfigurationManager.AppSettings["strStartPortAppThirdParty"].ToString();
 
                 _apOnLineTime = int.Parse(ConfigurationManager.AppSettings["apOnLineTime"].ToString());
                 _appOnLineTime = int.Parse(ConfigurationManager.AppSettings["appOnLineTime"].ToString());

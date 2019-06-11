@@ -85,6 +85,7 @@
   <ItemGroup>
     <Compile Include="ApController\ApManager.cs" />
     <Compile Include="ApController\Ap_CDMA_ZYF.cs" />
+    <Compile Include="ApController\Ap_GSM_DECODE.cs" />
     <Compile Include="ApController\Ap_GSM_HJT.cs" />
     <Compile Include="ApController\Ap_GSM_ZYF.cs" />
     <Compile Include="ApController\Ap_Lte.cs" />
@@ -98,6 +99,7 @@
     <Compile Include="ApController\SocketEventPool.cs" />
     <Compile Include="ApController\SocketManager.cs" />
     <Compile Include="AppController\AppManager.cs" />
+    <Compile Include="AppController\App_ThirdParty.cs" />
     <Compile Include="AppController\App_Windows.cs" />
     <Compile Include="Common\CodeConver.cs" />
     <Compile Include="Common\Common.cs" />
